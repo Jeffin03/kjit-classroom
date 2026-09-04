@@ -7,13 +7,15 @@
 ## System overview
 
 ```
-Browser (React SSR)
+Browser (React, src/frontend/components/)
+  ├── Fetches from /api/* routes
+  └── Never calls GitHub API directly
        │
        ▼
 Vercel CDN (static assets, edge middleware)
        │
        ▼
-Next.js API Routes (16 endpoints)
+Next.js API Routes (src/app/api/*, 16 endpoints)
   ├── /api/auth/*          → NextAuth (GitHub OAuth)
   ├── /api/org/*           → Org owners, teams (dynamic)
   ├── /api/teachers        → Teacher profile CRUD
@@ -26,6 +28,12 @@ Next.js API Routes (16 endpoints)
   └── /api/submissions     → Submission status updates
        │
        ▼
+Backend helpers (src/backend/lib/)
+  ├── github.ts            → All GitHub API calls
+  ├── data.ts              → In-memory data store
+  └── auth.ts              → NextAuth config + session
+       │
+       ▼
 GitHub REST API v3
   ├── OAuth (user tokens)
   ├── Repos (fork, create)
@@ -33,6 +41,16 @@ GitHub REST API v3
   ├── Org (invite members, list owners)
   └── Teams (create, add members, set maintainers)
 ```
+
+### Three-layer separation
+
+| Layer | Location | What it does |
+|-------|----------|-------------|
+| **Routing** | `src/app/` | Page files are ~5 lines. Import component, render it. |
+| **Backend** | `src/backend/` | Auth, GitHub API, data store. Only used by API routes. |
+| **Frontend** | `src/frontend/` | React components + CSS. Calls `/api/*` via fetch. |
+
+**Why:** Prevents components from making direct GitHub API calls. Keeps server logic isolated. Makes it easy to swap data store (e.g., Supabase) without touching UI.
 
 ---
 

@@ -84,49 +84,71 @@ GitHub Classroom is shutting down. Its replacement, Classroom 50, requires paid 
 ## Project structure
 
 ```
-kjit-classroom/
-├── src/
-│   ├── app/
-│   │   ├── page.tsx                    # Landing page
-│   │   ├── layout.tsx                  # Root layout + SessionProvider + Navbar
-│   │   ├── assignments/page.tsx        # Student: browse templates
-│   │   ├── dashboard/page.tsx          # Student: submission tracker
-│   │   ├── faculty/
-│   │   │   ├── page.tsx                # Faculty dashboard
-│   │   │   ├── request/page.tsx        # Request animator role
-│   │   │   ├── requests/page.tsx       # Admin: approve/deny requests
-│   │   │   ├── onboard/page.tsx        # 5-step onboarding wizard
-│   │   │   ├── roster/page.tsx         # Student roster viewer
-│   │   │   ├── review/page.tsx         # Code review with accept
-│   │   │   └── assignments/
-│   │   │       ├── page.tsx            # Faculty assignment list
-│   │   │       └── new/page.tsx        # Create assignment form
-│   │   ├── announcements/page.tsx      # Announcements feed
-│   │   └── api/
-│   │       ├── auth/[...nextauth]/     # NextAuth handler
-│   │       ├── assignments/            # GET all + POST create
-│   │       ├── fork/                   # POST fork template
-│   │       ├── pr/                     # POST create PR, GET list PRs
-│   │       ├── roster/                 # GET/POST roster + invite
-│   │       ├── submissions/            # GET submissions + PUT status
-│   │       ├── teachers/               # GET/POST teacher profiles
-│   │       ├── requests/               # GET/PUT teacher request approval
-│   │       ├── onboard/
-│   │       │   ├── match/              # POST CSV email → GitHub matching
-│   │       │   └── invite/             # POST send invites + add to teams
-│   │       └── org/
-│   │           ├── owners/             # GET dynamic org owners
-│   │           └── teams/              # GET dynamic team listing
-│   ├── auth.ts                         # NextAuth config
-│   ├── middleware.ts                    # Route protection
-│   ├── components/Navbar.tsx            # Role-aware navigation
+kjit-classroom/src/
+├── app/                          # Next.js App Router — pages and API routes
+│   ├── layout.tsx                # Root layout (SessionProvider, Navbar, Geist font)
+│   ├── page.tsx                  # Landing page
+│   ├── assignments/page.tsx      # Student: browse templates
+│   ├── dashboard/page.tsx        # Student: submission tracker
+│   ├── announcements/page.tsx    # Announcements feed
+│   ├── faculty/
+│   │   ├── page.tsx              # Faculty dashboard
+│   │   ├── request/page.tsx      # Request animator role
+│   │   ├── requests/page.tsx     # Admin: approve/deny requests
+│   │   ├── onboard/page.tsx      # 5-step onboarding wizard
+│   │   ├── roster/page.tsx       # Student roster viewer
+│   │   ├── review/page.tsx       # Code review with accept
+│   │   └── assignments/
+│   │       ├── page.tsx          # Faculty assignment list
+│   │       └── new/page.tsx      # Create assignment form
+│   └── api/                      # API routes (all under /api/*)
+│       ├── auth/[...nextauth]/   # NextAuth handler
+│       ├── assignments/          # GET all + POST create
+│       ├── fork/                 # POST fork template
+│       ├── pr/                   # POST create PR, GET list PRs
+│       ├── roster/               # GET/POST roster + invite
+│       ├── submissions/          # GET submissions + PUT status
+│       ├── teachers/             # GET/POST teacher profiles
+│       ├── requests/             # GET/PUT teacher request approval
+│       ├── onboard/match/        # POST CSV email → GitHub matching
+│       ├── onboard/invite/       # POST send invites + add to teams
+│       └── org/owners/ + teams/  # GET dynamic org data
+│
+├── backend/                      # Server-side logic (auth, data, GitHub API)
+│   ├── auth.ts                   # NextAuth config (GitHub provider, JWT)
 │   └── lib/
-│       ├── github.ts                   # GitHub API helpers (all org/team/invite ops)
-│       └── data.ts                     # In-memory data store
-├── .env.local                          # Secrets (not committed)
-├── package.json
-└── docs/
+│       ├── data.ts               # In-memory data store (ephemeral)
+│       └── github.ts             # GitHub API helpers (fork, PR, org, teams)
+│
+├── frontend/                     # Client-side components and styles
+│   ├── globals.css               # Tailwind CSS 4 imports
+│   └── components/
+│       ├── Navbar.tsx            # Role-aware navigation
+│       ├── Home.tsx              # Landing page component
+│       ├── Assignments.tsx       # Student assignment browser
+│       ├── Dashboard.tsx         # Student submission tracker
+│       ├── Announcements.tsx     # Announcements feed
+│       ├── FacultyDashboard.tsx  # Faculty overview
+│       ├── FacultyAssignments.tsx
+│       ├── FacultyOnboard.tsx    # 5-step onboarding wizard
+│       ├── FacultyRequest.tsx    # Request animator role
+│       ├── FacultyRequests.tsx   # Admin: approve/deny
+│       ├── FacultyReview.tsx     # Code review
+│       ├── FacultyRoster.tsx     # Roster viewer
+│       └── NewAssignment.tsx     # Create assignment form
+│
+└── middleware.ts                  # Route protection (/dashboard, /faculty, /assignments)
 ```
+
+### Architecture: three-layer split
+
+| Layer | Location | Responsibility |
+|-------|----------|---------------|
+| **Routing** | `src/app/` | Page.tsx files are thin wrappers (~5 lines). Import a component, render it. |
+| **Backend** | `src/backend/` | Auth config, GitHub API calls, data store. Only used by API routes. |
+| **Frontend** | `src/frontend/` | All React components and CSS. Never imports from `backend/`. |
+
+**Rule:** Frontend components call `/api/*` routes via `fetch()`. API routes call backend helpers. No direct imports across the boundary.
 
 ---
 

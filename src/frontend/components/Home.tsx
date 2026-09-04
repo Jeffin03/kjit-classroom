@@ -31,8 +31,8 @@ export default function Home() {
         </p>
 
         <p className="text-gray-500 mb-10 max-w-2xl mx-auto">
-          Fork project templates to your own GitHub account. Build real projects.
-          Create a portfolio that follows you beyond graduation.
+          Fork assignment repos to your own GitHub account. Solve real problems.
+          Build a portfolio that follows you beyond graduation.
         </p>
 
         {status === "loading" ? (

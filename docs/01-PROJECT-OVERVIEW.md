@@ -6,7 +6,7 @@
 
 ## What it is
 
-A web platform that replaces GitHub Classroom (shutting down Aug 28, 2026). Students fork project templates to their own GitHub accounts, work on them, and submit via Pull Request. Completed projects stay on the student's profile permanently — a real portfolio, not disposable homework.
+A web platform that replaces GitHub Classroom (shutting down Aug 28, 2026). Students fork assignment repos to their own GitHub accounts, solve problems their way, and submit via Pull Request. Completed projects stay on the student's profile permanently — a real portfolio, not disposable homework.
 
 ## Why it exists
 
@@ -45,7 +45,7 @@ GitHub Classroom is shutting down. Its replacement, Classroom 50, requires paid 
 ### Student side
 
 - GitHub OAuth sign-in
-- Browse assignment templates
+- Browse assignments with problem statements
 - One-click fork to own account
 - Dashboard tracking submissions (forked → PR open → reviewed → accepted)
 - Announcements page

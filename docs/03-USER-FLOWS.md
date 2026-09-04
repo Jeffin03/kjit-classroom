@@ -155,7 +155,7 @@ Click "Accept" in KJIT Classroom
 | Route | Who | What |
 |-------|-----|------|
 | `/` | Anyone | Landing page, sign-in CTA |
-| `/assignments` | Students | Browse templates, fork |
+| `/assignments` | Students | Browse assignments, fork |
 | `/dashboard` | Students | Track own submissions |
 | `/announcements` | Anyone | News and updates |
 | `/faculty` | Faculty | Dashboard with links to all features |

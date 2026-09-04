@@ -22,7 +22,7 @@ Next.js API Routes (src/app/api/*, 16 endpoints)
   ├── /api/requests        → Teacher request approval
   ├── /api/assignments     → List + create assignments
   ├── /api/onboard/*       → CSV match + org invite
-  ├── /api/fork            → Fork template to student account
+  ├── /api/fork            → Fork assignment repo to student account
   ├── /api/pr              → Create / list pull requests
   ├── /api/roster          → Roster management
   └── /api/submissions     → Submission status updates
@@ -114,7 +114,7 @@ GET  /api/roster                      Get roster + teams
 POST /api/roster                      Upload CSV, invite to org, create teams
 GET  /api/submissions                 List all submissions
 PUT  /api/submissions/[id]            Update submission status
-POST /api/fork                        Fork template to user's account
+POST /api/fork                        Fork assignment repo to user's account
 POST /api/pr                          Create PR from fork to template
 GET  /api/pr                          List PRs for a repo
 ```
@@ -140,7 +140,7 @@ Student works locally, pushes commits
        │
        ▼
 POST /api/pr { templateOwner, templateRepo, forkOwner, title, body }
-  → createPR() — PR from fork to template
+  → createPR() — PR from fork to assignment repo
   → addSubmission() — update status to "submitted"
   → return PR URL
        │

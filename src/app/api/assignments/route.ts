@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     objectives: objectives || [],
     requirements: requirements || [],
     evaluationCriteria: evaluationCriteria || [],
-    submissionGuidelines: submissionGuidelines || "Fork the template repo and submit a PR.",
+    submissionGuidelines: submissionGuidelines || "Fork the repo and submit a PR with your solution.",
     deadline,
     subject,
   })

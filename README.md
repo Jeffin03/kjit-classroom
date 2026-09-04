@@ -2,7 +2,7 @@
 
 GitHub-native project submission & portfolio management platform for Kristu Jayanti Institute of Technology.
 
-Students fork project templates to their own GitHub accounts, build real projects, and submit via Pull Request. Completed work stays on their profile permanently — a portfolio that follows them beyond graduation.
+Students fork assignment repos to their own GitHub accounts, solve problems, and submit via Pull Request. Completed work stays on their profile permanently — a portfolio that follows them beyond graduation.
 
 ## Quick start
 
@@ -26,7 +26,7 @@ Open http://localhost:3000.
 
 ### Students
 - GitHub OAuth sign-in
-- Browse assignment templates
+- Browse assignments with problem statements
 - One-click fork to own account
 - Dashboard tracking submissions (forked → PR open → reviewed → accepted)
 

@@ -134,7 +134,7 @@ Returns all assignments.
     "objectives": ["Create responsive website", "Implement UI/UX"],
     "requirements": ["HTML5, CSS3, JavaScript", "Responsive design"],
     "evaluationCriteria": ["Design (25%)", "Responsiveness (25%)"],
-    "submissionGuidelines": "Fork the template, build, submit PR",
+    "submissionGuidelines": "Fork the repo, build your solution, submit a PR",
     "createdBy": "murushr26",
     "createdAt": "2026-09-01T10:00:00Z",
     "updatedAt": "2026-09-01T10:00:00Z"
@@ -157,7 +157,7 @@ Create a new assignment. Creates a private GitHub repo with auto-generated READM
   "objectives": ["Create responsive website", "Implement UI/UX"],
   "requirements": ["HTML5, CSS3, JavaScript", "Responsive design"],
   "evaluationCriteria": ["Design (25%)", "Responsiveness (25%)"],
-  "submissionGuidelines": "Fork the template, build, submit PR"
+  "submissionGuidelines": "Fork the repo, build your solution, submit a PR"
 }
 ```
 
@@ -308,7 +308,7 @@ Update submission status (accept workflow).
 
 ### POST /api/fork
 
-Fork a template repo to the authenticated user's account.
+Fork an assignment repo to the authenticated user's account.
 
 **Body:**
 ```json

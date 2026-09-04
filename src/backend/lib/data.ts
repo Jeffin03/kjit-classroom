@@ -98,7 +98,7 @@ const assignments: Assignment[] = [
       "Functionality (25%)",
     ],
     submissionGuidelines:
-      "Fork the template repo, build your portfolio, and submit a PR with your changes.",
+      "Fork the repo, build your portfolio, and submit a PR with your changes.",
     createdBy: "system",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
@@ -133,7 +133,7 @@ const assignments: Assignment[] = [
       "Documentation (25%)",
     ],
     submissionGuidelines:
-      "Fork the template repo, implement the API, and submit a PR with your changes.",
+      "Fork the repo, implement the API, and submit a PR with your changes.",
     createdBy: "system",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
@@ -168,7 +168,7 @@ const assignments: Assignment[] = [
       "Insights and conclusions (25%)",
     ],
     submissionGuidelines:
-      "Fork the template repo, build the dashboard, and submit a PR with your changes.",
+      "Fork the repo, build the dashboard, and submit a PR with your changes.",
     createdBy: "system",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",

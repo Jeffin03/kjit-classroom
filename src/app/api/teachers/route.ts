@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
+import { auth } from "@/backend/auth"
 import {
   getTeacherByGithubUsername,
   addTeacherProfile,
-} from "@/lib/data"
+} from "@/backend/lib/data"
 
 export async function GET() {
   const session = await auth()

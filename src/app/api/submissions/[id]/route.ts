@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
-import { getSubmissionById, updateSubmissionStatus } from "@/lib/data"
+import { auth } from "@/backend/auth"
+import { getSubmissionById, updateSubmissionStatus } from "@/backend/lib/data"
 
 export async function PUT(
   request: Request,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
-import { createPR, listPRs } from "@/lib/github"
-import { addSubmission } from "@/lib/data"
+import { auth } from "@/backend/auth"
+import { createPR, listPRs } from "@/backend/lib/github"
+import { addSubmission } from "@/backend/lib/data"
 
 export async function POST(request: Request) {
   const session = await auth()

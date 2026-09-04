@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
-import { getAssignments, addAssignment } from "@/lib/data"
-import { getOrgToken, getOrgOwners, createRepoWithREADME } from "@/lib/github"
+import { auth } from "@/backend/auth"
+import { getAssignments, addAssignment } from "@/backend/lib/data"
+import { getOrgToken, getOrgOwners, createRepoWithREADME } from "@/backend/lib/github"
 
 export async function GET() {
   const assignments = getAssignments()
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     }
   })()
 
-  const teacher = (await import("@/lib/data")).getTeacherByGithubUsername(currentUser)
+  const teacher = (await import("@/backend/lib/data")).getTeacherByGithubUsername(currentUser)
   const isAnimator = teacher?.role === "animator"
 
   if (!isOwner && !isAnimator) {

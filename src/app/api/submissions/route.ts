@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
-import { getSubmissions } from "@/lib/data"
+import { auth } from "@/backend/auth"
+import { getSubmissions } from "@/backend/lib/data"
 
 export async function GET() {
   const session = await auth()

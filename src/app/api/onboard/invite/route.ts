@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/auth"
-import { getOrgToken, inviteToOrg, addTeamMember, checkOrgMember } from "@/lib/github"
-import { getTeacherByGithubUsername, addRosterEntries } from "@/lib/data"
+import { auth } from "@/backend/auth"
+import { getOrgToken, inviteToOrg, addTeamMember, checkOrgMember } from "@/backend/lib/github"
+import { getTeacherByGithubUsername, addRosterEntries } from "@/backend/lib/data"
 
 interface MatchedStudent {
   rollNo: string

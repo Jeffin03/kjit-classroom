@@ -24,12 +24,25 @@ Open http://localhost:3000.
 
 ## Features
 
+### Students
 - GitHub OAuth sign-in
-- Browse and fork assignment templates
-- Student dashboard tracking submissions
-- Faculty dashboard with submission stats
-- CSV roster upload with auto-org-invite and team creation
-- Announcements page
+- Browse assignment templates
+- One-click fork to own account
+- Dashboard tracking submissions (forked → PR open → reviewed → accepted)
+
+### Faculty
+- Request animator (class teacher) role → admin approves
+- Create assignments with problem statement, objectives, requirements, evaluation criteria
+- System auto-creates private GitHub repo with standardized README
+- 5-step student onboarding wizard (CSV upload → email matching → GitHub invite → team assignment)
+- Code review with accept workflow
+- Filtered roster view per class
+
+### Platform
+- Two-token auth: user token (per-session) + org token (GitHub App or PAT)
+- Dynamic org owner detection (not hardcoded)
+- Middleware protecting `/dashboard`, `/faculty`, `/assignments`
+- GitHub App JWT for org-level operations (teams, invites, membership)
 
 ## Docs
 

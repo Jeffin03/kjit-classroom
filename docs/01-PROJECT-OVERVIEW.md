@@ -1,6 +1,6 @@
 # KJIT Classroom — Project Overview
 
-**Version:** 2.0 — **Date:** September 2026 — **Status:** MVP built
+**Version:** 2.0 — **Date:** September 2026 — **Status:** MVP deployed
 
 ---
 
@@ -22,6 +22,24 @@ GitHub Classroom is shutting down. Its replacement, Classroom 50, requires paid 
 
 ---
 
+## Org context
+
+**Organization:** `kristu-jayanti-institute-of-technology` on GitHub
+
+**Teams (13 class sections):**
+- MCA: A, B, C, D
+- MSc CS: A, B
+- MSc Cyber Security: A, B
+- MSc Data Science: A, B
+- MSc AI: A, B
+- MSc IT: A, B
+
+**Email format:** `25mcab24@kristujayanti.com` (roll-number-based)
+
+**Org owners (admins):** `murushr26`, `rkumarh2008`, `velmurugan4` (fetched dynamically via GitHub API)
+
+---
+
 ## Features built
 
 ### Student side
@@ -29,25 +47,24 @@ GitHub Classroom is shutting down. Its replacement, Classroom 50, requires paid 
 - GitHub OAuth sign-in
 - Browse assignment templates
 - One-click fork to own account
-- Dashboard tracking submissions (forked → PR open → reviewed → merged)
+- Dashboard tracking submissions (forked → PR open → reviewed → accepted)
 - Announcements page
 
 ### Faculty side
 
-- Dashboard viewing all student submissions with stats
-- Filter submissions by assignment
-- CSV roster upload with preview
-- Auto-invite students to GitHub org
-- Auto-create teams and assign students
-- Link to onboard more students
+- **Teacher role request** — Teachers request animator (class teacher) role → org owner approves on portal
+- **Assignment creation** — Teacher fills form (title, problem statement, objectives, requirements, evaluation criteria, submission guidelines) → system creates private GitHub repo with standardized README
+- **5-step onboarding wizard** — Select class → upload CSV (roll_no, college_email) → verify matched/unmatched accounts → confirm → system sends GitHub org invites + team assignments
+- **Roster viewer** — Filtered table view with search
+- **Code review** — View submission details, accept workflow (marks "Accepted" in app, teacher reviews code on GitHub)
 
 ### Platform
 
-- Next.js 16 app with Tailwind CSS
-- NextAuth v5 (GitHub OAuth)
-- GitHub App integration (JWT installation tokens) for org-level ops
-- In-memory data store (MVP; moves to Supabase in production)
+- Two-token auth architecture (user token + org token)
+- GitHub App JWT for org-level operations
+- Dynamic org owner detection (no hardcoded usernames)
 - Middleware protecting `/dashboard`, `/faculty`, `/assignments`
+- In-memory data store (MVP; Supabase planned for production)
 
 ---
 
@@ -70,31 +87,60 @@ GitHub Classroom is shutting down. Its replacement, Classroom 50, requires paid 
 kjit-classroom/
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                 # Landing page
-│   │   ├── layout.tsx               # Root layout + SessionProvider + Navbar
-│   │   ├── assignments/page.tsx     # Browse & fork templates
-│   │   ├── dashboard/page.tsx       # Student submission tracker
+│   │   ├── page.tsx                    # Landing page
+│   │   ├── layout.tsx                  # Root layout + SessionProvider + Navbar
+│   │   ├── assignments/page.tsx        # Student: browse templates
+│   │   ├── dashboard/page.tsx          # Student: submission tracker
 │   │   ├── faculty/
-│   │   │   ├── page.tsx             # Faculty submission dashboard
-│   │   │   └── onboarding/page.tsx  # CSV upload + org invite
-│   │   ├── announcements/page.tsx   # Announcements feed
+│   │   │   ├── page.tsx                # Faculty dashboard
+│   │   │   ├── request/page.tsx        # Request animator role
+│   │   │   ├── requests/page.tsx       # Admin: approve/deny requests
+│   │   │   ├── onboard/page.tsx        # 5-step onboarding wizard
+│   │   │   ├── roster/page.tsx         # Student roster viewer
+│   │   │   ├── review/page.tsx         # Code review with accept
+│   │   │   └── assignments/
+│   │   │       ├── page.tsx            # Faculty assignment list
+│   │   │       └── new/page.tsx        # Create assignment form
+│   │   ├── announcements/page.tsx      # Announcements feed
 │   │   └── api/
-│   │       ├── auth/[...nextauth]/  # NextAuth handler
-│   │       ├── assignments/         # GET assignments
-│   │       ├── fork/                # POST fork template
-│   │       ├── pr/                  # POST create PR, GET list PRs
-│   │       ├── roster/              # GET/POST roster + invite
-│   │       └── submissions/         # GET submissions
-│   ├── auth.ts                      # NextAuth config
-│   ├── middleware.ts                # Route protection
-│   ├── components/Navbar.tsx        # Top nav
+│   │       ├── auth/[...nextauth]/     # NextAuth handler
+│   │       ├── assignments/            # GET all + POST create
+│   │       ├── fork/                   # POST fork template
+│   │       ├── pr/                     # POST create PR, GET list PRs
+│   │       ├── roster/                 # GET/POST roster + invite
+│   │       ├── submissions/            # GET submissions + PUT status
+│   │       ├── teachers/               # GET/POST teacher profiles
+│   │       ├── requests/               # GET/PUT teacher request approval
+│   │       ├── onboard/
+│   │       │   ├── match/              # POST CSV email → GitHub matching
+│   │       │   └── invite/             # POST send invites + add to teams
+│   │       └── org/
+│   │           ├── owners/             # GET dynamic org owners
+│   │           └── teams/              # GET dynamic team listing
+│   ├── auth.ts                         # NextAuth config
+│   ├── middleware.ts                    # Route protection
+│   ├── components/Navbar.tsx            # Role-aware navigation
 │   └── lib/
-│       ├── github.ts                # GitHub API helpers (fork, PR, org, teams)
-│       └── data.ts                  # In-memory data store
-├── .env.local                       # Secrets (not committed)
+│       ├── github.ts                   # GitHub API helpers (all org/team/invite ops)
+│       └── data.ts                     # In-memory data store
+├── .env.local                          # Secrets (not committed)
 ├── package.json
 └── docs/
 ```
+
+---
+
+## Auth model
+
+Two token layers:
+
+1. **User token** — per-session JWT from GitHub OAuth. Used for fork/PR on behalf of students.
+
+2. **Org token** — GitHub App installation token (preferred) or PAT fallback. Used for org-level ops: invites, teams, membership checks.
+
+GitHub App flow: generate a short-lived JWT signed with the private key → exchange for an installation token → cache for 50 minutes.
+
+OAuth scopes: `read:user user:email repo read:org`
 
 ---
 

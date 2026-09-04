@@ -6,7 +6,9 @@ All routes except `/api/auth/*` require an authenticated session (cookie).
 
 ---
 
-## GET /api/auth/session
+## Auth
+
+### GET /api/auth/session
 
 Returns current user session.
 
@@ -20,166 +22,325 @@ Returns current user session.
 
 ---
 
-## GET /api/assignments
+## Org Management
 
-Returns hardcoded assignment list.
+### GET /api/org/owners
+
+Returns list of org owner usernames. Used to determine if user is admin.
+
+```json
+["murushr26", "rkumarh2008", "velmurugan4"]
+```
+
+### GET /api/org/teams
+
+Returns list of org teams with member counts.
+
+```json
+[
+  { "id": 123, "name": "MCA-A", "slug": "mca-a", "members_count": 45 }
+]
+```
+
+---
+
+## Teachers
+
+### GET /api/teachers
+
+Returns the current user's teacher profile.
+
+```json
+{
+  "id": "t_abc123",
+  "githubUsername": "murushr26",
+  "email": "murushr26@kristujayanti.com",
+  "role": "animator",
+  "classes": ["MCA-A", "MCA-B"],
+  "requestedAt": "2026-09-01T10:00:00Z"
+}
+```
+
+### POST /api/teachers
+
+Create or update teacher profile.
+
+**Body:**
+```json
+{
+  "email": "murushr26@kristujayanti.com",
+  "role": "pending",
+  "classes": ["MCA-A"]
+}
+```
+
+---
+
+## Teacher Requests
+
+### GET /api/requests
+
+Returns all pending teacher requests. Only accessible by org owners.
+
+```json
+[
+  {
+    "id": "t_abc123",
+    "githubUsername": "newteacher",
+    "email": "newteacher@kristujayanti.com",
+    "role": "pending",
+    "classes": ["MCA-C"],
+    "requestedAt": "2026-09-02T10:00:00Z"
+  }
+]
+```
+
+### PUT /api/requests
+
+Approve or deny a teacher request.
+
+**Body:**
+```json
+{
+  "githubUsername": "newteacher",
+  "action": "approve"
+}
+```
+
+Response:
+```json
+{ "success": true, "teacher": { "...approved teacher profile..." } }
+```
+
+---
+
+## Assignments
+
+### GET /api/assignments
+
+Returns all assignments.
 
 ```json
 [
   {
     "id": "pbl-01",
     "title": "Portfolio Website",
-    "description": "Build a personal portfolio website...",
-    "templateOwner": "kjit-classroom",
-    "templateRepo": "portfolio-template",
+    "description": "Build a personal portfolio...",
+    "templateOwner": "kristu-jayanti-institute-of-technology",
+    "templateRepo": "portfolio-website",
     "deadline": "2026-09-30",
-    "subject": "Web Development"
+    "subject": "Web Development",
+    "problemStatement": "Build a personal portfolio...",
+    "objectives": ["Create responsive website", "Implement UI/UX"],
+    "requirements": ["HTML5, CSS3, JavaScript", "Responsive design"],
+    "evaluationCriteria": ["Design (25%)", "Responsiveness (25%)"],
+    "submissionGuidelines": "Fork the template, build, submit PR",
+    "createdBy": "murushr26",
+    "createdAt": "2026-09-01T10:00:00Z",
+    "updatedAt": "2026-09-01T10:00:00Z"
   }
 ]
 ```
 
----
+### POST /api/assignments
 
-## POST /api/fork
-
-Fork a template repo to the authenticated user's account.
-
-**Body:**
-```json
-{ "owner": "kjit-classroom", "repo": "portfolio-template" }
-```
-
-**Response:**
-```json
-{
-  "fork": {
-    "id": 123456789,
-    "name": "portfolio-template",
-    "full_name": "student-username/portfolio-template",
-    "html_url": "https://github.com/student-username/portfolio-template",
-    "fork": true,
-    "parent": { "full_name": "kjit-classroom/portfolio-template" },
-    "default_branch": "main"
-  },
-  "alreadyExisted": false
-}
-```
-
-If fork already exists, returns it with `alreadyExisted: true`.
-
----
-
-## POST /api/pr
-
-Create a PR from a fork back to the template.
+Create a new assignment. Creates a private GitHub repo with auto-generated README.
 
 **Body:**
 ```json
 {
-  "templateOwner": "kjit-classroom",
-  "templateRepo": "portfolio-template",
-  "forkOwner": "student-username",
-  "title": "My submission",
-  "body": "Description of changes"
+  "title": "Portfolio Website",
+  "description": "Build a personal portfolio...",
+  "deadline": "2026-09-30",
+  "subject": "Web Development",
+  "problemStatement": "Build a personal portfolio...",
+  "objectives": ["Create responsive website", "Implement UI/UX"],
+  "requirements": ["HTML5, CSS3, JavaScript", "Responsive design"],
+  "evaluationCriteria": ["Design (25%)", "Responsiveness (25%)"],
+  "submissionGuidelines": "Fork the template, build, submit PR"
 }
 ```
 
 **Response:**
 ```json
 {
-  "pr": {
-    "id": 987654321,
-    "number": 42,
-    "title": "My submission",
-    "html_url": "https://github.com/kjit-classroom/portfolio-template/pull/42",
-    "state": "open"
+  "assignment": { "...created assignment..." },
+  "repo": {
+    "html_url": "https://github.com/org/portfolio-website",
+    "clone_url": "https://github.com/org/portfolio-website.git",
+    "name": "portfolio-website"
   }
 }
 ```
 
 ---
 
-## GET /api/pr?owner={owner}&repo={repo}
+## Onboarding
 
-List pull requests for a repository.
+### POST /api/onboard/match
 
-**Query params:** `owner` (required), `repo` (required), `state` (optional: `open`/`closed`/`all`, default `all`)
-
----
-
-## GET /api/roster
-
-Returns current roster and teams.
-
-```json
-{
-  "roster": [
-    {
-      "rollNo": "001",
-      "githubUsername": "octocat",
-      "email": "octocat@github.com",
-      "team": "MCA-A-2025-27",
-      "status": "active"
-    }
-  ],
-  "teams": ["MCA-A-2025-27"]
-}
-```
-
----
-
-## POST /api/roster
-
-Upload CSV and optionally invite students to the org.
+Match CSV emails to GitHub accounts.
 
 **Body:**
 ```json
 {
-  "csvContent": "roll_no,github_username,email,class\n001,octocat,octocat@github.com,MCA-A-2025-27",
-  "autoInvite": true
+  "emails": ["25mca001@kristujayanti.com", "25mca002@kristujayanti.com"]
 }
 ```
-
-**CSV columns detected by name matching:**
-| Column | Detected by | Required |
-|--------|------------|----------|
-| roll_no | contains "roll" or "id" | Yes |
-| github_username | contains "username" or "github" | Yes |
-| email | contains "email" | No |
-| class/team/batch | contains "team", "class", or "batch" | No |
 
 **Response:**
 ```json
 {
-  "imported": 2,
-  "invited": 1,
-  "alreadyMember": 1,
-  "total": 2,
+  "matched": [
+    { "email": "25mca001@kristujayanti.com", "githubUsername": "student1", "githubAvatar": "..." }
+  ],
+  "unmatched": ["25mca002@kristujayanti.com"]
+}
+```
+
+### POST /api/onboard/invite
+
+Send org invites and add to team.
+
+**Body:**
+```json
+{
+  "classTeam": "MCA-A",
+  "matched": [
+    { "email": "25mca001@kristujayanti.com", "githubUsername": "student1" }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "invited": 25,
+  "alreadyMember": 3,
   "errors": []
 }
 ```
 
 ---
 
-## GET /api/submissions
+## Roster
+
+### GET /api/roster
+
+Returns roster and teams.
+
+```json
+{
+  "roster": [
+    {
+      "rollNo": "25MCA001",
+      "collegeEmail": "25mca001@kristujayanti.com",
+      "githubUsername": "student1",
+      "classTeam": "MCA-A",
+      "status": "active",
+      "onboardedBy": "murushr26",
+      "onboardedAt": "2026-09-01T10:00:00Z"
+    }
+  ],
+  "teams": ["MCA-A", "MCA-B"]
+}
+```
+
+### POST /api/roster
+
+Upload CSV and optionally invite students.
+
+**Body:**
+```json
+{
+  "csvContent": "roll_no,college_email\n25MCA001,25mca001@kristujayanti.com",
+  "classTeam": "MCA-A",
+  "autoInvite": true
+}
+```
+
+---
+
+## Submissions
+
+### GET /api/submissions
 
 Returns all submissions.
 
 ```json
 [
   {
-    "studentUsername": "octocat",
-    "assignmentId": "portfolio-template",
-    "forkUrl": "https://github.com/octocat/portfolio-template",
-    "prUrl": "https://github.com/kjit-classroom/portfolio-template/pull/42",
+    "id": "sub_abc123",
+    "studentUsername": "student1",
+    "assignmentId": "pbl-01",
+    "forkUrl": "https://github.com/student1/portfolio-website",
+    "prUrl": "https://github.com/org/portfolio-website/pull/42",
     "prNumber": 42,
-    "status": "submitted",
-    "submittedAt": "2026-09-02T12:00:00Z"
+    "status": "accepted",
+    "submittedAt": "2026-09-15T12:00:00Z",
+    "reviewedBy": "murushr26",
+    "reviewedAt": "2026-09-16T10:00:00Z"
   }
 ]
 ```
 
-**Status values:** `forked` → `submitted` → `reviewed` → `merged`
+### PUT /api/submissions/[id]
+
+Update submission status (accept workflow).
+
+**Body:**
+```json
+{
+  "status": "accepted"
+}
+```
+
+**Response:**
+```json
+{ "success": true }
+```
+
+**Status values:** `forked` → `submitted` → `reviewed` → `accepted` → `merged`
+
+---
+
+## Fork & PR
+
+### POST /api/fork
+
+Fork a template repo to the authenticated user's account.
+
+**Body:**
+```json
+{ "owner": "org-name", "repo": "template-repo" }
+```
+
+**Response:**
+```json
+{
+  "fork": { "...GitHub repo object..." },
+  "alreadyExisted": false
+}
+```
+
+### POST /api/pr
+
+Create a PR from a fork back to the template.
+
+**Body:**
+```json
+{
+  "templateOwner": "org-name",
+  "templateRepo": "template-repo",
+  "forkOwner": "student-username",
+  "title": "My submission",
+  "body": "Description of changes"
+}
+```
+
+### GET /api/pr?owner={owner}&repo={repo}
+
+List pull requests for a repository. Query params: `owner` (required), `repo` (required), `state` (optional: `open`/`closed`/`all`)
 
 ---
 
@@ -194,4 +355,5 @@ All errors return:
 |------|-------------|
 | 400 | Missing required fields |
 | 401 | No valid session |
+| 403 | Not an org owner (for admin routes) |
 | 500 | GitHub API error |

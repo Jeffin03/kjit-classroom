@@ -8,6 +8,7 @@ declare module "next-auth" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...(process.env.AUTH_URL ? { url: process.env.AUTH_URL } : {}),
   providers: [
     GitHub({
       clientId: process.env.AUTH_GITHUB_ID,

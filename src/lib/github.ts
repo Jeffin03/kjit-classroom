@@ -1,5 +1,3 @@
-import { readFileSync } from "fs"
-import { join } from "path"
 import jwt from "jsonwebtoken"
 
 const GITHUB_API = "https://api.github.com"
@@ -16,15 +14,17 @@ async function getInstallationToken(): Promise<string> {
 
   const appId = process.env.GITHUB_APP_ID
   const installationId = process.env.GITHUB_APP_INSTALLATION_ID
-  const privateKeyPath = process.env.GITHUB_APP_PRIVATE_KEY_PATH
+  const privateKeyContent = process.env.GITHUB_APP_PRIVATE_KEY
 
-  if (!appId || !installationId || !privateKeyPath) {
+  if (!appId || !installationId || !privateKeyContent) {
     throw new Error(
-      "GitHub App not configured. Set GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, and GITHUB_APP_PRIVATE_KEY_PATH"
+      "GitHub App not configured. Set GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, and GITHUB_APP_PRIVATE_KEY"
     )
   }
 
-  const privateKey = readFileSync(join(process.cwd(), privateKeyPath), "utf8")
+  const privateKey = privateKeyContent.includes("\\n")
+    ? privateKeyContent.replace(/\\n/g, "\n")
+    : privateKeyContent
 
   const now = Math.floor(Date.now() / 1000)
   const payload = {
@@ -66,7 +66,13 @@ export async function getOrgToken(): Promise<string> {
   if (process.env.GITHUB_ORG_TOKEN) {
     return process.env.GITHUB_ORG_TOKEN
   }
-  return getInstallationToken()
+  try {
+    return await getInstallationToken()
+  } catch (err) {
+    throw new Error(
+      `Org token not available. Set GITHUB_ORG_TOKEN (PAT) or configure GitHub App (GITHUB_APP_ID + GITHUB_APP_INSTALLATION_ID + GITHUB_APP_PRIVATE_KEY). Original error: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
 }
 
 export interface GitHubUser {

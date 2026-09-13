@@ -1,0 +1,10 @@
+{
+  "description": "KJIT Classroom is an educational platform for CS students at Kristu Jayanti Institute, enabling permanent project portfolios and real-world coding experience.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

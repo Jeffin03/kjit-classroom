@@ -1,102 +1,72 @@
-type Page =
-  | "landing"
-  | "assignments"
-  | "dashboard"
-  | "announcements"
-  | "faculty"
-  | "faculty-create"
-  | "faculty-onboard"
-  | "faculty-review"
-  | "faculty-roster"
-  | "faculty-requests"
-  | "faculty-request-role";
+import type { Role } from "../data";
 
 interface NavbarProps {
-  currentPage: Page;
-  onNavigate: (page: Page) => void;
-  isLoggedIn: boolean;
-  isFaculty: boolean;
-  onSignIn: () => void;
+  role: Role | null;
+  page: string;
+  onNavigate: (page: string) => void;
   onSignOut: () => void;
-  user?: { name: string; avatar: string };
+  userName?: string;
 }
 
-export default function Navbar({
-  currentPage,
-  onNavigate,
-  isLoggedIn,
-  isFaculty,
-  onSignIn,
-  onSignOut,
-  user,
-}: NavbarProps) {
-  const navLinks: { label: string; page: Page; facultyOnly?: boolean }[] = [
-    { label: "Assignments", page: "assignments" },
-    { label: "My Dashboard", page: "dashboard" },
-    { label: "Announcements", page: "announcements" },
-    { label: "Faculty", page: "faculty", facultyOnly: true },
+export default function Navbar({ role, page, onNavigate, onSignOut, userName }: NavbarProps) {
+  const studentLinks = [
+    { id: "s-assignments", label: "Assignments" },
+    { id: "s-dashboard", label: "My Dashboard" },
+    { id: "s-announcements", label: "Announcements" },
   ];
 
+  const facultyLinks = [
+    { id: "f-dashboard", label: "Dashboard" },
+    { id: "f-assignments", label: "Assignments" },
+    { id: "f-review", label: "Review" },
+    { id: "f-roster", label: "Roster" },
+    { id: "f-announcements", label: "Announcements" },
+  ];
+
+  const links = role === "student" ? studentLinks : role === "faculty" ? facultyLinks : [];
+
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center">
-          <button
-            onClick={() => onNavigate("landing")}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-          >
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">K</span>
-            </div>
-            <span className="text-gray-900 font-bold text-xl">KJIT Classroom</span>
-          </button>
+    <nav className="sticky top-0 z-50 border-b" style={{ borderColor: "var(--color-border)", background: "rgba(11,15,26,0.95)", backdropFilter: "blur(8px)" }}>
+      <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center gap-6">
+        <button onClick={() => onNavigate("landing")} className="flex items-center gap-2 shrink-0">
+          <div className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold mono" style={{ background: "var(--color-accent)", color: "#fff" }}>K</div>
+          <span className="font-semibold tracking-tight text-sm mono" style={{ color: "var(--color-text)" }}>KJIT Classroom</span>
+        </button>
 
-          {isLoggedIn && (
-            <div className="ml-8 flex items-center gap-1">
-              {navLinks.map(({ label, page, facultyOnly }) => {
-                if (facultyOnly && !isFaculty) return null;
-                const isActive = currentPage === page || (page === "faculty" && currentPage.startsWith("faculty"));
-                return (
-                  <button
-                    key={page}
-                    onClick={() => onNavigate(page)}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-indigo-50 text-indigo-700"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {isLoggedIn && user ? (
-            <>
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-              <span className="text-sm text-gray-700 hidden md:block">{user.name}</span>
+        {role && (
+          <div className="flex items-center gap-1 flex-1">
+            {links.map(link => (
               <button
-                onClick={onSignOut}
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1 rounded-md transition-colors"
+                key={link.id}
+                onClick={() => onNavigate(link.id)}
+                className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                style={{
+                  color: page === link.id ? "var(--color-text)" : "var(--color-muted)",
+                  background: page === link.id ? "var(--color-surface-2)" : "transparent",
+                }}
               >
+                {link.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="ml-auto flex items-center gap-3">
+          {role ? (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: "var(--color-accent-dim)", color: "var(--color-accent)" }}>
+                  {userName?.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs mono" style={{ color: "var(--color-muted)" }}>{userName}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded mono uppercase tracking-wider" style={{ background: role === "faculty" ? "var(--color-amber-dim)" : "var(--color-green-dim)", color: role === "faculty" ? "var(--color-amber)" : "var(--color-green)", fontSize: "10px" }}>{role}</span>
+              </div>
+              <button onClick={onSignOut} className="text-xs px-3 py-1.5 rounded border transition-colors hover:border-blue-500" style={{ color: "var(--color-muted)", borderColor: "var(--color-border)" }}>
                 Sign out
               </button>
             </>
           ) : (
-            <button
-              onClick={onSignIn}
-              className="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
-            >
-              Sign in with GitHub
-            </button>
+            <span className="text-xs mono" style={{ color: "var(--color-muted)" }}>KJIT · CE Dept</span>
           )}
         </div>
       </div>

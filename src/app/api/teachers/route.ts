@@ -3,7 +3,7 @@ import { auth } from "@/backend/auth"
 import {
   getTeacherByGithubUsername,
   addTeacherProfile,
-} from "@/backend/lib/data"
+} from "@/backend/store/teachers"
 
 export async function GET() {
   const session = await auth()

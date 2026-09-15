@@ -1,197 +1,75 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/backend/auth"
-import { getAssignments, addAssignment } from "@/backend/lib/data"
-import { getOrgToken, getOrgOwners, createRepoWithREADME } from "@/backend/lib/github"
+import { isFaculty } from "@/backend/services/auth.service"
+import {
+  createAssignment,
+  getAssignmentsForStudent,
+  getAssignmentsForTeam,
+} from "@/backend/services/assignment.service"
+import type { CreateAssignmentInput } from "@/backend/types"
 
 export async function GET() {
-  const assignments = getAssignments()
-  return NextResponse.json(assignments)
-}
-
-function buildReadme(data: {
-  title: string
-  description: string
-  problemStatement: string
-  objectives: string[]
-  requirements: string[]
-  evaluationCriteria: string[]
-  submissionGuidelines: string
-  deadline: string
-  subject: string
-}): string {
-  const lines = [
-    `# ${data.title}`,
-    "",
-    `> **Subject:** ${data.subject}`,
-    `> **Deadline:** ${data.deadline}`,
-    "",
-    "## Overview",
-    "",
-    data.description,
-    "",
-    "## Problem Statement",
-    "",
-    data.problemStatement,
-    "",
-    "## Objectives",
-    "",
-    ...data.objectives.map((o, i) => `${i + 1}. ${o}`),
-    "",
-    "## Requirements",
-    "",
-    ...data.requirements.map((r) => `- ${r}`),
-    "",
-    "## Evaluation Criteria",
-    "",
-    ...data.evaluationCriteria.map((c) => `- ${c}`),
-    "",
-    "## Submission Guidelines",
-    "",
-    data.submissionGuidelines,
-    "",
-    "---",
-    "",
-    "*Created with [KJIT Classroom](https://github.com/kjit-classroom)*",
-  ]
-  return lines.join("\n")
-}
-
-export async function POST(request: Request) {
   const session = await auth()
-
   if (!session?.accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const org = process.env.GITHUB_ORG
-  if (!org) {
-    return NextResponse.json(
-      { error: "GITHUB_ORG not configured" },
-      { status: 500 }
-    )
-  }
-
-  const currentUser = session.user?.name
-  if (!currentUser) {
+  const username = session.user?.name
+  if (!username) {
     return NextResponse.json({ error: "No user info" }, { status: 400 })
   }
 
-  const isOwner = await (async () => {
-    try {
-      const token = await getOrgToken()
-      const owners = await getOrgOwners(token, org)
-      return owners.includes(currentUser)
-    } catch {
-      return false
-    }
-  })()
+  const faculty = await isFaculty(username)
+  if (faculty) {
+    return NextResponse.json(getAssignmentsForTeam(null))
+  }
 
-  const teacher = (await import("@/backend/lib/data")).getTeacherByGithubUsername(currentUser)
-  const isAnimator = teacher?.role === "animator"
+  return NextResponse.json(getAssignmentsForStudent(username))
+}
 
-  if (!isOwner && !isAnimator) {
+export async function POST(request: Request) {
+  const session = await auth()
+  if (!session?.accessToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const username = session.user?.name
+  if (!username) {
+    return NextResponse.json({ error: "No user info" }, { status: 400 })
+  }
+
+  const faculty = await isFaculty(username)
+  if (!faculty) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const body = await request.json()
+  const body = (await request.json()) as CreateAssignmentInput
   const {
     title,
     description,
     subject,
     deadline,
     problemStatement,
-    objectives,
-    requirements,
-    evaluationCriteria,
-    submissionGuidelines,
+    assignedTeams,
   } = body
 
   if (!title || !description || !subject || !deadline || !problemStatement) {
     return NextResponse.json(
-      { error: "title, description, subject, deadline, and problemStatement are required" },
+      {
+        error:
+          "title, description, subject, deadline, assignedTeams, and problemStatement are required",
+      },
       { status: 400 }
     )
   }
 
-  const repoName = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-
-  const id = `assignment-${Date.now()}`
-
-  const readmeContent = buildReadme({
-    title,
-    description,
-    problemStatement,
-    objectives: objectives || [],
-    requirements: requirements || [],
-    evaluationCriteria: evaluationCriteria || [],
-    submissionGuidelines: submissionGuidelines || "Fork the repo and submit a PR with your solution.",
-    deadline,
-    subject,
-  })
-
-  try {
-    const token = await getOrgToken()
-    const repo = await createRepoWithREADME(
-      token,
-      org,
-      repoName,
-      `${title} - ${subject}`,
-      readmeContent
+  if (!assignedTeams || assignedTeams.length === 0) {
+    return NextResponse.json(
+      { error: "assignedTeams must contain at least one team" },
+      { status: 400 }
     )
-
-    const assignment = {
-      id,
-      title,
-      description,
-      templateOwner: org,
-      templateRepo: repo.name,
-      deadline,
-      subject,
-      problemStatement,
-      objectives: objectives || [],
-      requirements: requirements || [],
-      evaluationCriteria: evaluationCriteria || [],
-      submissionGuidelines: submissionGuidelines || "",
-      createdBy: currentUser,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-
-    addAssignment(assignment)
-
-    return NextResponse.json({
-      assignment,
-      repoUrl: repo.html_url,
-      message: "Assignment created with GitHub repo",
-    })
-  } catch (err) {
-    const assignment = {
-      id,
-      title,
-      description,
-      templateOwner: org,
-      templateRepo: repoName,
-      deadline,
-      subject,
-      problemStatement,
-      objectives: objectives || [],
-      requirements: requirements || [],
-      evaluationCriteria: evaluationCriteria || [],
-      submissionGuidelines: submissionGuidelines || "",
-      createdBy: currentUser,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-
-    addAssignment(assignment)
-
-    return NextResponse.json({
-      assignment,
-      repoUrl: null,
-      message: "Assignment created (repo creation failed — no GitHub token configured)",
-    })
   }
+
+  const assignment = createAssignment(body, username)
+  return NextResponse.json(assignment, { status: 201 })
 }

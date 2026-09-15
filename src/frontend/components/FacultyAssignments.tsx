@@ -1,46 +1,29 @@
 "use client"
 
-import { useSession } from "next-auth/react"
+import { useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-
-interface Assignment {
-  id: string
-  title: string
-  description: string
-  templateOwner: string
-  templateRepo: string
-  deadline: string
-  subject: string
-  createdBy: string
-  createdAt: string
-}
+import { useAssignments } from "@/frontend/hooks/useAssignments"
+import { useSubmissions } from "@/frontend/hooks/useSubmissions"
+import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import FacultyTabBar from "./FacultyTabBar"
 
 export default function FacultyAssignments() {
-  const { data: session, status } = useSession()
   const router = useRouter()
-  const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [loading, setLoading] = useState(true)
+  const { user, isFaculty, loading: userLoading } = useSessionUser()
+  const { assignments, loading: assignmentsLoading } = useAssignments()
+  const { submissions } = useSubmissions()
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/")
+    if (!userLoading) {
+      if (!user) router.push("/")
+      else if (!isFaculty) router.push("/dashboard")
     }
-  }, [status, router])
+  }, [user, isFaculty, userLoading, router])
 
-  useEffect(() => {
-    if (session) {
-      fetch("/api/assignments")
-        .then((res) => res.json())
-        .then((data) => {
-          setAssignments(Array.isArray(data) ? data : [])
-          setLoading(false)
-        })
-        .catch(() => setLoading(false))
-    }
-  }, [session])
+  const loading = userLoading || assignmentsLoading
 
-  if (loading || status === "loading") {
+  if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">
         <div className="animate-pulse space-y-4">
@@ -56,98 +39,89 @@ export default function FacultyAssignments() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Assignments</h1>
-          <p className="text-gray-600 mt-2">
-            Create and manage assignments
-          </p>
-        </div>
-        <a
-          href="/faculty/assignments/new"
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          New Assignment
-        </a>
-      </div>
-
-      <div className="space-y-4">
-        {assignments.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-            <p className="text-gray-500 mb-4">No assignments yet</p>
-            <a
-              href="/faculty/assignments/new"
-              className="text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              Create your first assignment
-            </a>
+    <>
+      <FacultyTabBar />
+      <div className="max-w-6xl mx-auto px-4 py-12">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Assignments</h1>
+            <p className="text-gray-600 mt-2">Create and manage assignments</p>
           </div>
-        ) : (
-          assignments.map((assignment) => {
-            const deadlineDate = new Date(assignment.deadline)
-            const isPastDeadline = deadlineDate < new Date()
-            const repoUrl = `https://github.com/${assignment.templateOwner}/${assignment.templateRepo}`
+          <Link
+            href="/faculty/assignments/new"
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            New Assignment
+          </Link>
+        </div>
 
-            return (
-              <div
-                key={assignment.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+        <div className="space-y-4">
+          {assignments.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+              <p className="text-gray-500 mb-4">No assignments yet</p>
+              <Link
+                href="/faculty/assignments/new"
+                className="text-indigo-600 hover:text-indigo-700 font-medium"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2.5 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full">
-                        {assignment.subject}
-                      </span>
-                      {isPastDeadline && (
-                        <span className="px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
-                          Deadline passed
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                      {assignment.title}
-                    </h2>
-                    <p className="text-gray-600 text-sm mb-3">
-                      {assignment.description}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>Due {deadlineDate.toLocaleDateString()}</span>
-                      <span>{assignment.templateRepo}</span>
-                      <span>Created by @{assignment.createdBy}</span>
-                    </div>
-                  </div>
+                Create your first assignment
+              </Link>
+            </div>
+          ) : (
+            assignments.map((assignment) => {
+              const deadlineDate = new Date(assignment.deadline)
+              const isPastDeadline = deadlineDate < new Date()
+              const submissionCount = submissions.filter(
+                (s) => s.assignmentId === assignment.id
+              ).length
 
-                  <div className="flex items-center gap-2">
+              return (
+                <div
+                  key={assignment.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <span className="px-2.5 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full">
+                          {assignment.subject}
+                        </span>
+                        <span className="px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                          {assignment.assignedTeams.join(", ")}
+                        </span>
+                        {isPastDeadline && (
+                          <span className="px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                            Deadline passed
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                        {assignment.title}
+                      </h2>
+                      <p className="text-gray-600 text-sm mb-3">
+                        {assignment.description}
+                      </p>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span>Due {deadlineDate.toLocaleDateString()}</span>
+                        <span>
+                          {submissionCount} submission{submissionCount === 1 ? "" : "s"}
+                        </span>
+                        <span>Created by @{assignment.createdBy}</span>
+                      </div>
+                    </div>
+
                     <a
-                      href={repoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                      href={`/faculty/assignments/${assignment.id}`}
+                      className="flex-shrink-0 bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors inline-flex items-center gap-2"
                     >
-                      View Repo
+                      View Details →
                     </a>
                   </div>
                 </div>
-              </div>
-            )
-          })
-        )}
+              )
+            })
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

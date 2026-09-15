@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/backend/auth"
-import { getOrgToken, getOrgOwners } from "@/backend/lib/github"
+import { getOrgToken } from "@/backend/github/client"
+import { getOrgOwners } from "@/backend/github/org"
 
 export async function GET() {
   const session = await auth()

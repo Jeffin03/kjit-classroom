@@ -10,7 +10,7 @@ const announcements = [
     title: "Welcome to KJIT Classroom",
     date: "2026-09-01",
     content:
-      "Welcome to the new KJIT Classroom platform! This semester, we're using a GitHub-native workflow where you'll fork assignment repos to your own account. Solve problems your way, and build a permanent developer portfolio.",
+      "Welcome to the new KJIT Classroom platform! This semester, we're using a GitHub-native sprint workflow: build your own project repo, submit progress across Sprint 0–3 with commit hashes and docs, and build a permanent developer portfolio.",
     author: "KJIT Nexus",
   },
   {
@@ -18,7 +18,7 @@ const announcements = [
     title: "Portfolio Website Assignment Live",
     date: "2026-09-02",
     content:
-      "Your first assignment is now available! Fork the repo, read the problem statement, and start building your portfolio website. This project will help you showcase your skills to potential employers.",
+      "Your first assignment is now live! Create your project repo, submit Sprint 0 (abstract + repo link), read the problem statement, and build your portfolio website across the sprints. This project will help you showcase your skills to potential employers.",
     author: "Faculty Team",
   },
   {

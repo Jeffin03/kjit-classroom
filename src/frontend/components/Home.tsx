@@ -31,7 +31,8 @@ export default function Home() {
         </p>
 
         <p className="text-gray-500 mb-10 max-w-2xl mx-auto">
-          Fork assignment repos to your own GitHub account. Solve real problems.
+          Work through 4-sprint PBL assignments with your own GitHub repos.
+          Faculty review your commits and documentation at each sprint.
           Build a portfolio that follows you beyond graduation.
         </p>
 
@@ -75,14 +76,24 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Real-World Workflow</h3>
-            <p className="text-sm text-gray-600">Fork, branch, commit, PR. Learn the workflow used by professional development teams.</p>
+            <h3 className="font-semibold text-gray-900 mb-2">Sprint-Driven Learning</h3>
+            <p className="text-sm text-gray-600">Sprint 0 to Sprint 3. Commit, document, and pivot on feedback. Learn the workflow of professional development teams.</p>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-2">Continuous Faculty Review</h3>
+            <p className="text-sm text-gray-600">Faculty review code, documentation, and diff metrics at every sprint — not just at the end.</p>
           </div>
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
               <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">Permanent Portfolio</h3>

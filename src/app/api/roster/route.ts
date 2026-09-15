@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/backend/auth"
-import { getRoster, getTeams } from "@/backend/lib/data"
+import { getRoster, getTeams } from "@/backend/store/roster"
 
 export async function GET() {
   const session = await auth()

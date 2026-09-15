@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/backend/auth"
+import { getOrgToken } from "@/backend/github/client"
+import { getOrgOwners } from "@/backend/github/org"
+import { addTeamMaintainer } from "@/backend/github/teams"
 import {
   getPendingTeacherRequests,
   getTeacherByGithubUsername,
   approveTeacherRequest,
   denyTeacherRequest,
-} from "@/backend/lib/data"
-import { getOrgToken, getOrgOwners, addTeamMaintainer } from "@/backend/lib/github"
+} from "@/backend/store/teachers"
 
 export async function GET() {
   const session = await auth()

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/backend/auth"
-import { getOrgToken } from "@/backend/lib/github"
-import { getOrgOwners } from "@/backend/lib/github"
-import { getTeacherByGithubUsername } from "@/backend/lib/data"
+import { getOrgToken } from "@/backend/github/client"
+import { getOrgOwners } from "@/backend/github/org"
+import { getTeacherByGithubUsername } from "@/backend/store/teachers"
 
 interface CsvRow {
   rollNo: string

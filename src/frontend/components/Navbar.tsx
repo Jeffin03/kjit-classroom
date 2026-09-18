@@ -29,15 +29,15 @@ export default function Navbar() {
   }, [session])
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <nav className="bg-white border-b border-[var(--color-border)] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">K</span>
+              <div className="w-8 h-8 bg-[var(--color-accent)] rounded-lg flex items-center justify-center">
+                <span className="text-white font-semibold text-sm">K</span>
               </div>
-              <span className="font-bold text-xl text-gray-900">
+              <span className="font-semibold text-lg tracking-tight text-[var(--color-ink)]">
                 KJIT Classroom
               </span>
             </Link>
@@ -48,8 +48,8 @@ export default function Navbar() {
                   href="/assignments"
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive("/assignments")
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                      : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
                   }`}
                 >
                   Assignments
@@ -58,8 +58,8 @@ export default function Navbar() {
                   href="/dashboard"
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive("/dashboard")
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                      : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
                   }`}
                 >
                   My Dashboard
@@ -68,8 +68,8 @@ export default function Navbar() {
                   href="/announcements"
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive("/announcements")
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                      : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
                   }`}
                 >
                   Announcements
@@ -79,8 +79,8 @@ export default function Navbar() {
                     href="/faculty"
                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive("/faculty")
-                        ? "bg-indigo-50 text-indigo-700"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                        : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
                     }`}
                   >
                     Faculty
@@ -98,12 +98,12 @@ export default function Navbar() {
                   alt=""
                   className="w-8 h-8 rounded-full"
                 />
-                <span className="text-sm text-gray-700 hidden sm:block">
+                <span className="text-sm text-[var(--color-ink-muted)] hidden sm:block">
                   {session.user?.name}
                 </span>
                 <button
                   onClick={() => signOut()}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1 rounded-md hover:bg-gray-100"
+                  className="text-sm text-[var(--color-ink-faint)] hover:text-[var(--color-ink)] px-3 py-1 rounded-md hover:bg-[var(--color-canvas)]"
                 >
                   Sign out
                 </button>
@@ -111,7 +111,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/api/auth/signin"
-                className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+                className="bg-[var(--color-accent)] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#372FA8] transition-colors"
               >
                 Sign in with GitHub
               </Link>

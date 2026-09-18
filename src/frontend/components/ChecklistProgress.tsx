@@ -11,15 +11,15 @@ export default function ChecklistProgress({
 
   return (
     <div>
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+      <div className="flex items-center justify-between text-xs text-[var(--color-ink-faint)] mb-1">
         <span>
           Sprint {current} of {total}
         </span>
         <span>{pct}%</span>
       </div>
-      <div className="w-full bg-gray-100 rounded-full h-1.5">
+      <div className="w-full bg-[var(--color-border)] rounded-full h-1.5">
         <div
-          className="bg-indigo-600 h-1.5 rounded-full transition-all"
+          className="bg-[var(--color-accent)] h-1.5 rounded-full transition-all"
           style={{ width: `${pct}%` }}
         />
       </div>

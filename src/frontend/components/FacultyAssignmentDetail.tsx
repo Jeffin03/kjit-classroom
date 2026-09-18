@@ -142,92 +142,120 @@ export default function FacultyAssignmentDetail({
         <div className="flex items-start justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="px-2.5 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full">
+              <span className="inline-flex items-center rounded-md bg-[var(--color-accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent)]">
                 {assignment.subject}
               </span>
-              <span className="px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+              <span className="inline-flex items-center rounded-md bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-ink-muted)]">
                 {assignment.assignedTeams.join(", ")}
               </span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] mb-2">
               {assignment.title}
             </h1>
-            <p className="text-gray-600 text-sm mb-3">{assignment.description}</p>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
+            <p className="text-sm text-[var(--color-ink-muted)] mb-3">
+              {assignment.description}
+            </p>
+            <div className="flex items-center gap-4 text-sm text-[var(--color-ink-muted)]">
               <span>Due {new Date(assignment.deadline).toLocaleDateString()}</span>
               <span>{assignment.sprintCount} sprints</span>
-              <span>Created by @{assignment.createdBy}</span>
+              <span>
+                Created by{" "}
+                <span
+                  className="font-mono text-[13px] text-[var(--color-ink-muted)]"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  @{assignment.createdBy}
+                </span>
+              </span>
             </div>
           </div>
           <Link
             href="/faculty/assignments"
-            className="flex-shrink-0 bg-white border border-gray-300 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex-shrink-0 border border-[var(--color-border)] bg-white text-[var(--color-ink-muted)] text-sm font-medium px-4 py-2 rounded-md hover:bg-[var(--color-canvas)] transition-colors"
           >
             ← Back
           </Link>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white border border-gray-100 rounded-xl p-4">
-            <div className="text-2xl font-bold text-gray-900">
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
               {totalStudents}
             </div>
-            <div className="mt-1 text-sm text-gray-600">Total Students</div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--review" />
+              Total Students
+            </div>
           </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-4">
-            <div className="text-2xl font-bold text-green-600">
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
               {acceptedIds.length || acceptedCount}
             </div>
-            <div className="mt-1 text-sm text-gray-600">Accepted</div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--done" />
+              Accepted
+            </div>
           </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-4">
-            <div className="text-2xl font-bold text-blue-600">{activeCount}</div>
-            <div className="mt-1 text-sm text-gray-600">Active Submissions</div>
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
+              {activeCount}
+            </div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--active" />
+              Active Submissions
+            </div>
           </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-4">
-            <div className="text-2xl font-bold text-yellow-600">
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
               {noSubmission}
             </div>
-            <div className="mt-1 text-sm text-gray-600">No Submissions</div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--pending" />
+              No Submissions
+            </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">
+        <div className="rounded-lg border border-[var(--color-border)] bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--color-border)]">
+            <h2 className="text-base font-semibold tracking-tight text-[var(--color-ink)]">
               Student Submissions ({totalStudents})
             </h2>
           </div>
 
           {studentRows.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-sm text-[var(--color-ink-muted)]">
               No submissions yet
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-[var(--color-border)]">
               {studentRows.map((row) => {
                 const rosterEntry = rosterByUsername.get(row.studentUsername)
                 const sub = row.submission
 
                 return (
-                  <div
-                    key={row.studentUsername}
-                    className="px-6 py-4 hover:bg-gray-50 transition-colors"
-                  >
+                  <div key={row.studentUsername} className="px-6 py-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 bg-gray-200 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                        <div className="w-11 h-11 bg-[var(--color-border)] rounded-full flex items-center justify-center text-sm font-medium text-[var(--color-ink-muted)]">
                           {(rosterEntry?.rollNo?.[0] || row.studentUsername[0]).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-[var(--color-ink)]">
                             {rosterEntry?.rollNo || "@" + row.studentUsername}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            @{row.studentUsername} · {rosterEntry?.collegeEmail || "—"}
+                          <div className="text-sm text-[var(--color-ink-muted)]">
+                            <span
+                              className="font-mono text-[13px]"
+                              style={{ fontFamily: "var(--font-mono)" }}
+                            >
+                              @{row.studentUsername}
+                            </span>{" "}
+                            · {rosterEntry?.collegeEmail || "—"}
                           </div>
                           {row.pivot && (
-                            <div className="text-xs text-orange-600 mt-1">
+                            <div className="text-xs font-medium text-[var(--color-caution)] mt-1">
+                              <span className="status-dot status-dot--pivot" />
                               Pivoted at some sprint
                             </div>
                           )}
@@ -238,20 +266,21 @@ export default function FacultyAssignmentDetail({
                         {sub && (
                           <a
                             href={`/faculty/review?assignmentId=${assignmentId}`}
-                            className="text-sm text-indigo-600 hover:text-indigo-700"
+                            className="text-sm text-[var(--color-accent)] hover:underline"
                           >
                             Open Review →
                           </a>
                         )}
                         {acceptedIds.includes(sub?.id || "") ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <span className="inline-flex items-center text-[13px] font-medium text-[var(--color-success)]">
+                            <span className="status-dot status-dot--done" />
                             Accepted
                           </span>
                         ) : (
                           sub && (
                             <button
                               onClick={() => handleAccept(sub.id)}
-                              className="bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                              className="bg-[var(--color-accent)] text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-[#372FA8] transition-colors"
                             >
                               Accept
                             </button>
@@ -262,7 +291,7 @@ export default function FacultyAssignmentDetail({
 
                     {sub ? (
                       <div className="mt-3">
-                        <div className="flex gap-2 items-center">
+                        <div className="flex gap-4 items-center">
                           {Array.from({ length: assignment.sprintCount }).map(
                             (_, idx) => {
                               const sprint = sub.sprints.find(
@@ -271,15 +300,26 @@ export default function FacultyAssignmentDetail({
                               return (
                                 <span
                                   key={idx}
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                    sprint
-                                      ? sprint.isPivot
-                                        ? "bg-orange-100 text-orange-700"
-                                        : "bg-green-100 text-green-700"
-                                      : "bg-gray-100 text-gray-500"
-                                  }`}
+                                  className="inline-flex items-center text-[13px] font-medium"
                                 >
-                                  Sprint {idx} {sprint ? "✓" : "—"}
+                                  <span
+                                    className={`status-dot ${
+                                      sprint
+                                        ? sprint.isPivot
+                                          ? "status-dot--pivot"
+                                          : "status-dot--done"
+                                        : "status-dot--pending"
+                                    }`}
+                                  />
+                                  <span
+                                    className={
+                                      sprint
+                                        ? "text-[var(--color-ink)]"
+                                        : "text-[var(--color-ink-faint)]"
+                                    }
+                                  >
+                                    Sprint {idx}
+                                  </span>
                                 </span>
                               )
                             }
@@ -293,7 +333,7 @@ export default function FacultyAssignmentDetail({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-400 mt-2">
+                      <div className="text-sm text-[var(--color-ink-faint)] mt-2">
                         No submission after Sprint 0
                       </div>
                     )}

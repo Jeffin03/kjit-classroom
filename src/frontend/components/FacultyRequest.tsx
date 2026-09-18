@@ -90,8 +90,8 @@ export default function FacultyRequest() {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-64" />
-          <div className="h-64 bg-gray-200 rounded-xl" />
+          <div className="h-8 bg-[var(--color-border)] rounded w-64" />
+          <div className="h-64 bg-[var(--color-border)] rounded-xl" />
         </div>
       </div>
     )
@@ -100,10 +100,10 @@ export default function FacultyRequest() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
           Request Faculty Access
         </h1>
-        <p className="text-gray-600 mt-2">
+        <p className="text-sm text-[var(--color-ink-muted)] mt-2">
           Request to become a class animator. An org admin will verify and
           approve your request.
         </p>
@@ -113,8 +113,8 @@ export default function FacultyRequest() {
         <div
           className={`p-4 rounded-lg mb-6 ${
             result.type === "success"
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
+              ? "bg-[var(--color-success-soft)] text-[var(--color-success)] border border-[var(--color-border)]"
+              : "bg-[var(--color-danger-soft)] text-[var(--color-danger)] border border-[var(--color-border)]"
           }`}
         >
           {result.message}
@@ -122,9 +122,9 @@ export default function FacultyRequest() {
       )}
 
       {!result || result.type === "error" ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
+        <div className="rounded-lg border border-[var(--color-border)] bg-white p-7 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[var(--color-ink-muted)] mb-2">
               Your college email
             </label>
             <input
@@ -132,12 +132,12 @@ export default function FacultyRequest() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="25mca024@kristujayanti.com"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[var(--color-ink-muted)] mb-2">
               Select the classes you are the animator for
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -147,12 +147,12 @@ export default function FacultyRequest() {
                   onClick={() => toggleClass(team.name)}
                   className={`text-left p-3 rounded-lg border text-sm transition-colors ${
                     selectedClasses.includes(team.name)
-                      ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                      : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                      ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)] text-[var(--color-accent)]"
+                      : "bg-white border-[var(--color-border)] text-[var(--color-ink-muted)] hover:bg-[var(--color-canvas)]"
                   }`}
                 >
                   <div className="font-medium">{team.name}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-[var(--color-ink-faint)]">
                     {team.members_count} members
                   </div>
                 </button>
@@ -163,16 +163,16 @@ export default function FacultyRequest() {
           <button
             onClick={handleSubmit}
             disabled={!email || selectedClasses.length === 0 || submitting}
-            className="w-full bg-indigo-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--color-accent)] text-white px-4 py-3 rounded-md font-medium hover:bg-[#372FA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? "Submitting..." : "Submit Request"}
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="rounded-lg border border-[var(--color-border)] bg-white p-7 text-center">
+          <div className="w-16 h-16 bg-[var(--color-success-soft)] rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-8 h-8 text-green-600"
+              className="w-8 h-8 text-[var(--color-success)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -185,16 +185,16 @@ export default function FacultyRequest() {
               />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-xl font-semibold tracking-tight text-[var(--color-ink)] mb-2">
             Request Submitted
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-sm text-[var(--color-ink-muted)] mb-6">
             An org admin will review your request. You will be added as a
             maintainer to your class teams once approved.
           </p>
           <a
             href="/faculty"
-            className="text-indigo-600 hover:text-indigo-700 font-medium"
+            className="text-sm font-medium text-[var(--color-accent)] hover:underline"
           >
             Go to Faculty Dashboard
           </a>

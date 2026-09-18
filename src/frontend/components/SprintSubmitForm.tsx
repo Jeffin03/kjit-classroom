@@ -102,16 +102,16 @@ export default function SprintSubmitForm({
   }
 
   const inputClass =
-    "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-  const labelClass = "block text-sm font-medium text-gray-700 mb-2"
+    "w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+  const labelClass = "block text-sm font-medium text-[var(--color-ink-muted)] mb-2"
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
           {isSprint0 ? "Submit Project — Sprint 0" : `Submit Sprint ${sprintNumber}`}
         </h1>
-        <p className="mt-2 text-base text-gray-600">
+        <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
           {isSprint0
             ? "Set up your project repository and submit your abstract"
             : `${assignment.title} · ${assignment.subject}`}
@@ -119,8 +119,8 @@ export default function SprintSubmitForm({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="bg-white border border-gray-100 rounded-xl p-6 space-y-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="rounded-lg border border-[var(--color-border)] bg-white p-7 space-y-6">
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
             {isSprint0 ? "Project Repository" : "Repository"}
           </h2>
 
@@ -136,7 +136,7 @@ export default function SprintSubmitForm({
               onChange={(e) => setRepoUrl(e.target.value)}
               required
             />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
               {isSprint0
                 ? "Create a new repository on GitHub and paste the URL here"
                 : "Your project repository"}
@@ -154,20 +154,20 @@ export default function SprintSubmitForm({
                 onChange={(e) => setAbstractDocUrl(e.target.value)}
                 required
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
                 Paste a link to your Google Doc with the project abstract
               </p>
             </div>
           ) : (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="bg-[var(--color-caution-soft)] border border-[var(--color-border)] rounded-lg p-4">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 rounded accent-orange-600"
+                  className="w-4 h-4 rounded accent-[var(--color-caution)]"
                   checked={isPivot}
                   onChange={(e) => setIsPivot(e.target.checked)}
                 />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-[var(--color-ink-muted)]">
                   I&apos;m starting fresh with a new repository / approach
                 </span>
               </label>
@@ -184,7 +184,7 @@ export default function SprintSubmitForm({
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
               />
-              <p className="mt-1 text-xs text-red-600">
+              <p className="mt-1 text-xs text-[var(--color-danger)]">
                 This will reset your baseline. Previous sprints will be marked as
                 superseded.
               </p>
@@ -193,8 +193,8 @@ export default function SprintSubmitForm({
         </div>
 
         {!isSprint0 && (
-          <div className="bg-white border border-gray-100 rounded-xl p-6 space-y-6 mt-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-7 space-y-6 mt-6">
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
               Documentation
             </h2>
 
@@ -208,7 +208,7 @@ export default function SprintSubmitForm({
                 onChange={(e) => setDocumentationUrl(e.target.value)}
                 required
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
                 Link to your updated project documentation
               </p>
             </div>
@@ -298,7 +298,7 @@ export default function SprintSubmitForm({
         )}
 
         {error && (
-          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+          <div className="mt-6 bg-[var(--color-danger-soft)] border border-[var(--color-border)] rounded-lg p-4 text-sm text-[var(--color-danger)]">
             {error}
           </div>
         )}
@@ -306,14 +306,14 @@ export default function SprintSubmitForm({
         <div className="flex justify-between mt-6">
           <a
             href={isSprint0 ? "/assignments" : `#`}
-            className="text-sm text-gray-600 hover:text-gray-900 inline-flex items-center"
+            className="text-sm text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] inline-flex items-center"
           >
             ← {isSprint0 ? "Back to Assignments" : "Cancel"}
           </a>
           <button
             type="submit"
             disabled={loading}
-            className="bg-indigo-600 text-white text-sm font-medium px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60"
+            className="bg-[var(--color-accent)] text-white text-sm font-medium px-6 py-2 rounded-md hover:bg-[#372FA8] transition-colors disabled:opacity-60"
           >
             {loading
               ? "Submitting..."

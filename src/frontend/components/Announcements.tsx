@@ -32,7 +32,7 @@ const announcements = [
 ]
 
 export default function Announcements() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
 
   useEffect(() => {
@@ -45,10 +45,10 @@ export default function Announcements() {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
+          <div className="h-8 bg-[var(--color-border)] rounded w-48" />
           <div className="space-y-4 mt-8">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-xl" />
+              <div key={i} className="h-32 bg-[var(--color-border)] rounded-xl" />
             ))}
           </div>
         </div>
@@ -59,37 +59,54 @@ export default function Announcements() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Announcements</h1>
-        <p className="text-gray-600 mt-2">Stay updated with the latest news and assignments</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
+          Announcements
+        </h1>
+        <p className="text-sm text-[var(--color-ink-muted)] mt-2">
+          Stay updated with the latest news and assignments
+        </p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {announcements.map((announcement) => (
-          <div key={announcement.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div
+            key={announcement.id}
+            className="rounded-lg border border-[var(--color-border)] bg-white p-7"
+          >
             <div className="flex items-center gap-3 mb-3">
-              <span className="px-2.5 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full">{announcement.author}</span>
-              <span className="text-sm text-gray-500">
+              <span className="inline-flex items-center rounded-md bg-[var(--color-accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent)]">
+                {announcement.author}
+              </span>
+              <span className="text-[13px] text-[var(--color-ink-faint)]">
                 {new Date(announcement.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </span>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">{announcement.title}</h2>
-            <p className="text-gray-600">{announcement.content}</p>
+            <h2 className="text-xl font-semibold tracking-tight text-[var(--color-ink)] mb-2">
+              {announcement.title}
+            </h2>
+            <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">
+              {announcement.content}
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 bg-gray-50 rounded-xl p-6 border border-gray-200">
+      <div className="mt-6 rounded-lg bg-[var(--color-accent-soft)] p-6">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-8 h-8 bg-[var(--color-accent)] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h3 className="font-medium text-gray-900">Want to receive notifications?</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <h3 className="font-medium text-[var(--color-ink)]">
+              Want to receive notifications?
+            </h3>
+            <p className="text-sm text-[var(--color-ink-muted)] mt-1">
               Click the &quot;Watch&quot; button on the{" "}
-              <a href="#" className="text-indigo-600 hover:text-indigo-700 underline">Announcements repository</a>{" "}
+              <a href="#" className="text-[var(--color-accent)] underline">
+                Announcements repository
+              </a>{" "}
               on GitHub to get email notifications for new announcements.
             </p>
           </div>

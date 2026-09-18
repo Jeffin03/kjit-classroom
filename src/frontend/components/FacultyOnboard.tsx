@@ -48,7 +48,7 @@ export default function FacultyOnboard() {
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeam, setSelectedTeam] = useState<string>("")
   const [csvRows, setCsvRows] = useState<CsvRow[]>([])
-  const [csvPreview, setCsvPreview] = useState<string>("")
+  const [, setCsvPreview] = useState<string>("")
   const [matched, setMatched] = useState<MatchedStudent[]>([])
   const [unmatched, setUnmatched] = useState<UnmatchedStudent[]>([])
   const [loading, setLoading] = useState(false)
@@ -204,8 +204,8 @@ export default function FacultyOnboard() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-64" />
-          <div className="h-64 bg-gray-200 rounded-xl" />
+          <div className="h-8 bg-[var(--color-border)] rounded w-64" />
+          <div className="h-64 bg-[var(--color-border)] rounded-xl" />
         </div>
       </div>
     )
@@ -214,10 +214,10 @@ export default function FacultyOnboard() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
           Onboard Students
         </h1>
-        <p className="text-gray-600 mt-2">
+        <p className="text-sm text-[var(--color-ink-muted)] mt-2">
           Add students to your class team on GitHub
         </p>
       </div>
@@ -235,10 +235,10 @@ export default function FacultyOnboard() {
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
                       isComplete
-                        ? "bg-green-500 text-white"
+                        ? "bg-[var(--color-success)] text-white"
                         : isActive
-                          ? "bg-indigo-600 text-white"
-                          : "bg-gray-200 text-gray-500"
+                          ? "bg-[var(--color-accent)] text-white"
+                          : "bg-[var(--color-border)] text-[var(--color-ink-muted)]"
                     }`}
                   >
                     {isComplete ? (
@@ -260,7 +260,7 @@ export default function FacultyOnboard() {
                     )}
                   </div>
                   <span
-                    className={`text-xs mt-2 ${isActive ? "text-indigo-600 font-medium" : "text-gray-500"}`}
+                    className={`text-xs mt-2 ${isActive ? "text-[var(--color-accent)] font-medium" : "text-[var(--color-ink-muted)]"}`}
                   >
                     {label}
                   </span>
@@ -268,7 +268,7 @@ export default function FacultyOnboard() {
                 {i < STEPS.length - 1 && (
                   <div
                     className={`flex-1 h-0.5 mx-2 mt-[-20px] ${
-                      isComplete ? "bg-green-500" : "bg-gray-200"
+                      isComplete ? "bg-[var(--color-success)]" : "bg-[var(--color-border)]"
                     }`}
                   />
                 )}
@@ -279,11 +279,11 @@ export default function FacultyOnboard() {
       </div>
 
       {/* Step content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="rounded-lg border border-[var(--color-border)] bg-white p-7">
         {/* Step 1: Select Class */}
         {step === 1 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
               Select Class
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -293,12 +293,12 @@ export default function FacultyOnboard() {
                   onClick={() => setSelectedTeam(team.name)}
                   className={`text-left p-4 rounded-lg border transition-colors ${
                     selectedTeam === team.name
-                      ? "bg-indigo-50 border-indigo-300"
-                      : "bg-white border-gray-200 hover:bg-gray-50"
+                      ? "bg-[var(--color-accent-soft)] border-[var(--color-accent)]"
+                      : "bg-white border-[var(--color-border)] hover:bg-[var(--color-canvas)]"
                   }`}
                 >
-                  <div className="font-medium text-gray-900">{team.name}</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="font-medium text-[var(--color-ink)]">{team.name}</div>
+                  <div className="text-sm text-[var(--color-ink-muted)]">
                     {team.members_count} members
                   </div>
                 </button>
@@ -308,7 +308,7 @@ export default function FacultyOnboard() {
               <button
                 onClick={() => setStep(2)}
                 disabled={!selectedTeam}
-                className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[#372FA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue
               </button>
@@ -319,14 +319,14 @@ export default function FacultyOnboard() {
         {/* Step 2: Upload CSV */}
         {step === 2 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-2">
               Upload Student CSV
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Format: <code className="bg-gray-100 px-1 rounded">roll_no, college_email</code>
+            <p className="text-sm text-[var(--color-ink-muted)] mb-4">
+              Format: <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>roll_no, college_email</code>
             </p>
-            <p className="text-xs text-gray-500 mb-4">
-              Example: <code className="bg-gray-100 px-1 rounded">25MCA024, 25mca024@kristujayanti.com</code>
+            <p className="text-xs text-[var(--color-ink-faint)] mb-4">
+              Example: <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>25MCA024, 25mca024@kristujayanti.com</code>
             </p>
 
             <input
@@ -338,10 +338,10 @@ export default function FacultyOnboard() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+              className="w-full border-2 border-dashed border-[var(--color-border)] rounded-lg p-8 text-center hover:border-[var(--color-accent)] hover:bg-[var(--color-accent-soft)] transition-colors"
             >
               <svg
-                className="w-8 h-8 text-gray-400 mx-auto mb-2"
+                className="w-8 h-8 text-[var(--color-ink-faint)] mx-auto mb-2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -353,7 +353,7 @@ export default function FacultyOnboard() {
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                 />
               </svg>
-              <p className="text-gray-600">
+              <p className="text-[var(--color-ink-muted)]">
                 {csvRows.length > 0
                   ? `${csvRows.length} rows loaded`
                   : "Click to select CSV file"}
@@ -361,14 +361,14 @@ export default function FacultyOnboard() {
             </button>
 
             {csvRows.length > 0 && (
-              <div className="mt-4 bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-2">
+              <div className="mt-4 bg-[var(--color-canvas)] rounded-lg p-4 border border-[var(--color-border)]">
+                <p className="text-sm text-[var(--color-ink-muted)] mb-2">
                   Preview (first 5 rows):
                 </p>
                 <div className="overflow-x-auto">
                   <table className="text-xs">
                     <thead>
-                      <tr className="text-gray-500">
+                      <tr className="text-[var(--color-ink-faint)]">
                         <th className="text-left pr-4 pb-1">Roll No</th>
                         <th className="text-left pb-1">College Email</th>
                       </tr>
@@ -376,10 +376,10 @@ export default function FacultyOnboard() {
                     <tbody>
                       {csvRows.slice(0, 5).map((row, i) => (
                         <tr key={i}>
-                          <td className="pr-4 pb-1 text-gray-800">
+                          <td className="pr-4 pb-1 text-[var(--color-ink)]">
                             {row.rollNo}
                           </td>
-                          <td className="pb-1 text-gray-800">
+                          <td className="pb-1 text-[var(--color-ink)]">
                             {row.collegeEmail}
                           </td>
                         </tr>
@@ -393,14 +393,14 @@ export default function FacultyOnboard() {
             <div className="mt-6 flex justify-between">
               <button
                 onClick={() => setStep(1)}
-                className="text-gray-600 hover:text-gray-900 font-medium"
+                className="text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] font-medium"
               >
                 Back
               </button>
               <button
                 onClick={handleMatch}
                 disabled={!csvRows.length || loading}
-                className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[#372FA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Matching..." : "Match with GitHub"}
               </button>
@@ -411,20 +411,20 @@ export default function FacultyOnboard() {
         {/* Step 3: Verify Students */}
         {step === 3 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
               Verify Students
             </h2>
 
             <div className="flex gap-4 mb-4">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-green-500 rounded-full" />
-                <span className="text-sm text-gray-600">
+                <span className="w-3 h-3 bg-[var(--color-success)] rounded-full" />
+                <span className="text-sm text-[var(--color-ink-muted)]">
                   Matched ({matched.length})
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 bg-red-500 rounded-full" />
-                <span className="text-sm text-gray-600">
+                <span className="w-3 h-3 bg-[var(--color-danger)] rounded-full" />
+                <span className="text-sm text-[var(--color-ink-muted)]">
                   Not on GitHub ({unmatched.length})
                 </span>
               </div>
@@ -432,20 +432,20 @@ export default function FacultyOnboard() {
 
             {matched.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">
+                <h3 className="text-sm font-medium text-[var(--color-ink-muted)] mb-2">
                   Matched Students
                 </h3>
-                <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                <div className="border border-[var(--color-border)] rounded-lg divide-y divide-[var(--color-border)] max-h-64 overflow-y-auto">
                   {matched.map((student) => (
                     <label
                       key={student.rollNo}
-                      className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer"
+                      className="flex items-center gap-3 p-3 hover:bg-[var(--color-canvas)] cursor-pointer"
                     >
                       <input
                         type="checkbox"
                         checked={student.selected}
                         onChange={() => toggleStudent(student.rollNo)}
-                        className="w-4 h-4 text-indigo-600 rounded"
+                        className="w-4 h-4 accent-[var(--color-accent)] rounded"
                       />
                       <img
                         src={student.githubAvatar}
@@ -453,10 +453,10 @@ export default function FacultyOnboard() {
                         className="w-8 h-8 rounded-full"
                       />
                       <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-[var(--color-ink)]">
                           {student.rollNo} — @{student.githubUsername}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-[var(--color-ink-muted)]">
                           {student.collegeEmail}
                         </div>
                       </div>
@@ -469,30 +469,30 @@ export default function FacultyOnboard() {
             {unmatched.length > 0 && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-gray-700">
+                  <h3 className="text-sm font-medium text-[var(--color-ink-muted)]">
                     Not on GitHub
                   </h3>
                   <button
                     onClick={downloadNoAccountCsv}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                    className="text-sm text-[var(--color-accent)] hover:underline font-medium"
                   >
                     Download List CSV
                   </button>
                 </div>
-                <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                <div className="border border-[var(--color-border)] rounded-lg divide-y divide-[var(--color-border)] max-h-48 overflow-y-auto">
                   {unmatched.map((student) => (
                     <div
                       key={student.rollNo}
                       className="flex items-center gap-3 p-3"
                     >
-                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-red-600 text-xs font-medium">
+                      <div className="w-8 h-8 bg-[var(--color-danger-soft)] rounded-full flex items-center justify-center text-[var(--color-danger)] text-xs font-medium">
                         ?
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-[var(--color-ink)]">
                           {student.rollNo}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-[var(--color-ink-muted)]">
                           {student.collegeEmail}
                         </div>
                       </div>
@@ -505,14 +505,14 @@ export default function FacultyOnboard() {
             <div className="flex justify-between">
               <button
                 onClick={() => setStep(2)}
-                className="text-gray-600 hover:text-gray-900 font-medium"
+                className="text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] font-medium"
               >
                 Back
               </button>
               <button
                 onClick={() => setStep(4)}
                 disabled={matched.filter((s) => s.selected).length === 0}
-                className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[#372FA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue
               </button>
@@ -523,33 +523,33 @@ export default function FacultyOnboard() {
         {/* Step 4: Confirm & Invite */}
         {step === 4 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
               Confirm & Send Invites
             </h2>
 
             <div className="space-y-3 mb-6">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-600">
+              <div className="flex items-center justify-between p-3 bg-[var(--color-canvas)] rounded-lg">
+                <span className="text-sm text-[var(--color-ink-muted)]">
                   Students to add to team
                 </span>
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-[var(--color-ink)]">
                   {matched.filter((s) => s.selected).length}
                 </span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm text-gray-600">
+              <div className="flex items-center justify-between p-3 bg-[var(--color-canvas)] rounded-lg">
+                <span className="text-sm text-[var(--color-ink-muted)]">
                   Students needing org invites
                 </span>
-                <span className="font-medium text-blue-600">
+                <span className="font-medium text-[var(--color-accent)]">
                   {matched.filter((s) => s.selected).length}
                 </span>
               </div>
               {unmatched.length > 0 && (
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-gray-600">
+                <div className="flex items-center justify-between p-3 bg-[var(--color-canvas)] rounded-lg">
+                  <span className="text-sm text-[var(--color-ink-muted)]">
                     Students without GitHub accounts
                   </span>
-                  <span className="font-medium text-red-600">
+                  <span className="font-medium text-[var(--color-danger)]">
                     {unmatched.length}
                   </span>
                 </div>
@@ -559,14 +559,14 @@ export default function FacultyOnboard() {
             <div className="flex justify-between">
               <button
                 onClick={() => setStep(3)}
-                className="text-gray-600 hover:text-gray-900 font-medium"
+                className="text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] font-medium"
               >
                 Back
               </button>
               <button
                 onClick={handleInvite}
                 disabled={loading}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[#372FA8] transition-colors disabled:opacity-50"
               >
                 {loading ? "Processing..." : "Confirm & Send Invites"}
               </button>
@@ -577,9 +577,9 @@ export default function FacultyOnboard() {
         {/* Step 5: Complete */}
         {step === 5 && result && (
           <div className="text-center py-4">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-[var(--color-success-soft)] rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
-                className="w-8 h-8 text-green-600"
+                className="w-8 h-8 text-[var(--color-success)]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -592,44 +592,44 @@ export default function FacultyOnboard() {
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-xl font-semibold tracking-tight text-[var(--color-ink)] mb-2">
               Onboarding Complete
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-sm text-[var(--color-ink-muted)] mb-6">
               {selectedTeam}
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 max-w-lg mx-auto">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-gray-900">
+              <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
+                <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
                   {result.addedToTeam}
                 </div>
-                <div className="text-xs text-gray-500">Added to team</div>
+                <div className="text-xs text-[var(--color-ink-muted)]">Added to team</div>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">
+              <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
+                <div className="text-2xl font-semibold tracking-tight text-[var(--color-accent)]">
                   {result.invited}
                 </div>
-                <div className="text-xs text-gray-500">Invites sent</div>
+                <div className="text-xs text-[var(--color-ink-muted)]">Invites sent</div>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
+              <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
+                <div className="text-2xl font-semibold tracking-tight text-[var(--color-success)]">
                   {result.alreadyMember}
                 </div>
-                <div className="text-xs text-gray-500">Already members</div>
+                <div className="text-xs text-[var(--color-ink-muted)]">Already members</div>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-red-600">
+              <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
+                <div className="text-2xl font-semibold tracking-tight text-[var(--color-danger)]">
                   {result.noAccount}
                 </div>
-                <div className="text-xs text-gray-500">No account</div>
+                <div className="text-xs text-[var(--color-ink-muted)]">No account</div>
               </div>
             </div>
 
             {unmatched.length > 0 && (
               <button
                 onClick={downloadNoAccountCsv}
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors mb-6"
+                className="bg-white border border-[var(--color-border)] text-[var(--color-ink-muted)] px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-canvas)] transition-colors mb-6"
               >
                 Download No-Account List CSV
               </button>
@@ -638,11 +638,11 @@ export default function FacultyOnboard() {
             <div className="flex justify-center gap-4">
               <a
                 href="/faculty/roster"
-                className="text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-[var(--color-accent)] hover:underline font-medium"
               >
                 View Roster
               </a>
-              <span className="text-gray-300">|</span>
+              <span className="text-[var(--color-border)]">|</span>
               <button
                 onClick={() => {
                   setStep(1)
@@ -653,7 +653,7 @@ export default function FacultyOnboard() {
                   setUnmatched([])
                   setResult(null)
                 }}
-                className="text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-[var(--color-accent)] hover:underline font-medium"
               >
                 Onboard Another Class
               </button>

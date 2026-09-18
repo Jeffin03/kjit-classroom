@@ -136,34 +136,50 @@ export default function FacultyReview({
       <FacultyTabBar />
       <div className="max-w-6xl mx-auto px-4 py-12">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Sprint Review</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
+            Sprint Review
+          </h1>
+          <p className="text-sm text-[var(--color-ink-muted)] mt-2">
             Review sprint work and accept submissions
           </p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-            <div className="text-sm text-gray-600">Total Submissions</div>
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
+              {stats.total}
+            </div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--review" />
+              Total Submissions
+            </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-2xl font-bold text-yellow-600">
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
               {stats.pending}
             </div>
-            <div className="text-sm text-gray-600">Awaiting Review</div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--active" />
+              Awaiting Review
+            </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-2xl font-bold text-blue-600">
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
               {stats.reviewed}
             </div>
-            <div className="text-sm text-gray-600">Partially Reviewed</div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--review" />
+              Partially Reviewed
+            </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div className="text-2xl font-bold text-green-600">
+          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
+            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
               {stats.accepted}
             </div>
-            <div className="text-sm text-gray-600">Accepted</div>
+            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
+              <span className="status-dot status-dot--done" />
+              Accepted
+            </div>
           </div>
         </div>
 
@@ -171,7 +187,7 @@ export default function FacultyReview({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -181,7 +197,7 @@ export default function FacultyReview({
           <select
             value={filterAssignment}
             onChange={(e) => setFilterAssignment(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
           >
             <option value="all">All Assignments</option>
             {assignments.map((a) => (
@@ -194,7 +210,7 @@ export default function FacultyReview({
 
         <div className="space-y-3">
           {filtered.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-500">
+            <div className="rounded-lg border border-[var(--color-border)] bg-white p-8 text-center text-sm text-[var(--color-ink-muted)]">
               No submissions found
             </div>
           ) : (
@@ -202,39 +218,39 @@ export default function FacultyReview({
               const assignment = getAssignment(submission.assignmentId)
               const isSaving = savingId === submission.id
               const statusConfig = {
-                active: "bg-yellow-100 text-yellow-700",
-                completed: "bg-blue-100 text-blue-700",
-                accepted: "bg-green-100 text-green-700",
+                active: { dot: "status-dot--active", label: "In Progress" },
+                completed: { dot: "status-dot--review", label: "Awaiting Acceptance" },
+                accepted: { dot: "status-dot--done", label: "Accepted" },
               }[submission.status]
 
               return (
                 <div
                   key={submission.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"
+                  className="rounded-lg border border-[var(--color-border)] bg-white p-5"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-medium">
+                      <div className="w-11 h-11 bg-[var(--color-border)] rounded-full flex items-center justify-center text-[var(--color-ink-muted)] font-medium">
                         {submission.studentUsername[0].toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-[var(--color-ink)]">
                           @{submission.studentUsername}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-[var(--color-ink-muted)]">
                           {assignment?.title || submission.assignmentId}
                           {(assignment?.assignedTeams || []).length > 0 && (
-                            <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                            <span className="ml-2 text-xs rounded-md bg-[var(--color-accent-soft)] text-[var(--color-accent)] px-2 py-0.5">
                               {assignment?.assignedTeams.join(", ")}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-2 mt-1 text-xs text-[var(--color-ink-faint)]">
                           <a
                             href={submission.repoUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-indigo-600 hover:text-indigo-700 font-medium"
+                            className="text-[var(--color-accent)] font-medium hover:underline"
                           >
                             View Repo
                           </a>
@@ -243,7 +259,7 @@ export default function FacultyReview({
                               href={submission.abstractDocUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-700 font-medium"
+                              className="text-[var(--color-accent)] font-medium hover:underline"
                             >
                               Abstract
                             </a>
@@ -252,14 +268,14 @@ export default function FacultyReview({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig}`}
-                      >
-                        {submission.status}
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center text-[13px] font-medium text-[var(--color-ink-muted)]">
+                        <span className={`status-dot ${statusConfig.dot}`} />
+                        {statusConfig.label}
                       </span>
                       {submission.sprints.some((s) => s.isPivot) && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                        <span className="inline-flex items-center text-xs font-medium text-[var(--color-caution)]">
+                          <span className="status-dot status-dot--pivot" />
                           Pivoted
                         </span>
                       )}
@@ -276,9 +292,9 @@ export default function FacultyReview({
                           return (
                             <div
                               key={idx}
-                              className="text-sm text-gray-400 flex items-center gap-2"
+                              className="text-sm text-[var(--color-ink-faint)] flex items-center gap-2"
                             >
-                              <span className="w-20 text-gray-500">
+                              <span className="w-20 text-[var(--color-ink-muted)]">
                                 Sprint {idx}
                               </span>
                               Not submitted
@@ -294,13 +310,14 @@ export default function FacultyReview({
                         return (
                           <div
                             key={idx}
-                            className={`border rounded-lg p-3 ${reviewed ? "border-green-200 bg-green-50/50" : "border-gray-200"}`}
+                            className={`border rounded-lg p-3 ${reviewed ? "border-[var(--color-success)] bg-[var(--color-success-soft)]/50" : "border-[var(--color-border)]"}`}
                           >
                             <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-sm font-medium text-[var(--color-ink)]">
                                 Sprint {idx}
                                 {sprint.isPivot && (
-                                  <span className="ml-2 text-xs font-medium text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full">
+                                  <span className="ml-2 text-xs font-medium text-[var(--color-caution)]">
+                                    <span className="status-dot status-dot--pivot" />
                                     Pivot
                                   </span>
                                 )}
@@ -310,23 +327,25 @@ export default function FacultyReview({
                                   href={`/api/github/commit?repoUrl=${encodeURIComponent(submission.repoUrl)}&sha=${sprint.commitSha}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-indigo-600 hover:text-indigo-700 font-mono"
+                                  className="text-xs text-[var(--color-accent)] hover:underline font-mono"
+                                  style={{ fontFamily: "var(--font-mono)" }}
                                 >
                                   {sprint.commitSha.slice(0, 7)}
                                 </a>
                                 {diff ? (
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-[var(--color-ink-muted)]">
                                     +{diff.additions} -{diff.deletions} ·{" "}
                                     {diff.filesChanged} files ·{" "}
                                     {diff.totalCommits} commits
                                   </span>
                                 ) : (
-                                  <span className="text-xs text-gray-400">
+                                  <span className="text-xs text-[var(--color-ink-faint)]">
                                     No diff recorded
                                   </span>
                                 )}
                                 {reviewed && (
-                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                  <span className="inline-flex items-center text-xs font-medium text-[var(--color-success)]">
+                                    <span className="status-dot status-dot--done" />
                                     Reviewed
                                   </span>
                                 )}
@@ -347,7 +366,7 @@ export default function FacultyReview({
                                   [sprint.id]: e.target.value,
                                 }))
                               }
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              className="w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
                             />
                           </div>
                         )
@@ -361,14 +380,14 @@ export default function FacultyReview({
                         <button
                           onClick={() => handleReview(submission.id)}
                           disabled={isSaving}
-                          className="px-4 py-1.5 rounded-lg text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                          className="px-4 py-1.5 rounded-md text-sm font-medium text-[var(--color-accent)] bg-[var(--color-accent-soft)] hover:bg-[#DDD6FE]/60 transition-colors disabled:opacity-50"
                         >
                           {isSaving ? "Saving…" : "Save Notes"}
                         </button>
                         <button
                           onClick={() => handleAccept(submission.id)}
                           disabled={isSaving}
-                          className="px-4 py-1.5 rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50"
+                          className="px-4 py-1.5 rounded-md text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[#372FA8] transition-colors disabled:opacity-50"
                         >
                           {isSaving ? "Saving…" : "Accept"}
                         </button>

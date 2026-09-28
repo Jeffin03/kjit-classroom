@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
+import StatusPill from "./StatusPill"
 
 interface AssignmentCardProps {
   subject: string
@@ -32,19 +33,14 @@ export function AssignmentCard({
   return (
     <Link
       href={href}
-      className="card-interactive group block rounded-lg border border-[var(--color-border)] bg-white p-7"
+      className="card-interactive group block rounded-2xl border border-[var(--color-border)] bg-white p-6"
     >
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="inline-flex items-center rounded-md bg-[var(--color-accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent)]">
-              {subject}
-            </span>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <StatusPill tone="accent">{subject}</StatusPill>
             {isPastDeadline && (
-              <span className="inline-flex items-center text-xs font-medium text-[var(--color-danger)]">
-                <span className="status-dot status-dot--overdue" />
-                Deadline passed
-              </span>
+              <StatusPill tone="danger">Deadline passed</StatusPill>
             )}
           </div>
 
@@ -59,34 +55,34 @@ export function AssignmentCard({
 
         <span
           aria-hidden
-          className="flex-shrink-0 mt-1 text-[var(--color-ink-faint)] transition-transform group-hover:translate-x-0.5"
+          className="mt-1 shrink-0 text-[var(--color-ink-faint)] transition-transform group-hover:translate-x-0.5"
         >
           →
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-6 border-t border-[var(--color-border)] pt-4">
-        <div className="flex items-center gap-5 text-[13px] text-[var(--color-ink-faint)]">
-          <span>Due {deadlineDate}</span>
-          {showCounts && (
-            <>
-              <span className="w-1 h-1 rounded-full bg-[var(--color-border)]" />
-              <span>
-                <span className="text-[var(--color-ink-muted)] font-medium">
-                  {submittedCount}
+        <div className="flex items-center justify-between gap-6 border-t border-[var(--color-border)] pt-4">
+          <div className="flex items-center gap-5 text-[13px] text-[var(--color-ink-muted)]">
+            <span>Due {deadlineDate}</span>
+            {showCounts && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-[var(--color-border)]" />
+                <span>
+                  <span className="text-[var(--color-ink-muted)] font-medium">
+                    {submittedCount}
+                  </span>
+                  /{totalStudents} submitted
                 </span>
-                /{totalStudents} submitted
-              </span>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
 
-        {primaryAction ? (
-          <span className="text-sm font-medium text-[var(--color-accent)]">
-            {primaryAction}
-          </span>
-        ) : null}
-      </div>
+          {primaryAction ? (
+            <span className="text-sm font-medium text-[var(--color-accent)]">
+              {primaryAction}
+            </span>
+          ) : null}
+        </div>
     </Link>
   )
 }

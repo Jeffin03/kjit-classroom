@@ -9,7 +9,7 @@ export interface Assignment {
   objectives: string[]
   requirements: string[]
   evaluationCriteria: string[]
-  sprintCount: 4
+  sprintCount: number
   createdBy: string
   createdAt: string
   updatedAt: string

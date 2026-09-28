@@ -53,7 +53,7 @@ export default function Home() {
         ) : (
           <Link
             href="/assignments"
-            className="inline-flex items-center gap-2 bg-[var(--color-accent)] text-white px-8 py-4 rounded-xl text-lg font-medium hover:bg-[#372FA8] transition-colors shadow-lg"
+            className="inline-flex items-center gap-2 bg-[var(--color-accent)] text-white px-8 py-4 rounded-xl text-lg font-medium hover:bg-[var(--color-accent-hover)] transition-colors shadow-lg"
           >
             View Assignments
           </Link>

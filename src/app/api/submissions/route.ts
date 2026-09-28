@@ -1,57 +1,62 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
 import {
   getSubmissionsForStudent,
   getSubmissionsForAssignment,
-  getAllSubmissions,
+  getSubmissionsForFaculty,
   createSubmission,
 } from "@/backend/services/submission.service"
-import { isFaculty } from "@/backend/services/auth.service"
-import { getAssignment } from "@/backend/store/assignments"
+import {
+  authenticate,
+  authorize,
+  canAccessAssignment,
+  canUseRepo,
+  resolveAssignment,
+} from "@/backend/services/permissions"
+import { parseRepoUrl } from "@/backend/github/repos"
 import { isStudentAssigned } from "@/backend/services/assignment.service"
-import { getTeamForUser } from "@/backend/services/roster.service"
 
 export async function GET(request: Request) {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
-
   const { searchParams } = new URL(request.url)
   const assignmentId = searchParams.get("assignmentId")
 
   if (assignmentId) {
-    const faculty = await isFaculty(username)
-    if (!faculty) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const auth = await authorize("submission.readAll")
+    if (!auth.ok) return auth.response
+
+    const assignment = resolveAssignment(assignmentId)
+    if (!assignment) {
+      return NextResponse.json({ error: "Assignment not found" }, { status: 404 })
     }
+    if (!canAccessAssignment(auth.session.access, assignment)) {
+      return NextResponse.json(
+        { error: "This assignment is outside your classes" },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(getSubmissionsForAssignment(assignmentId))
   }
 
-  const faculty = await isFaculty(username)
-  if (faculty) {
-    return NextResponse.json(getAllSubmissions())
+  const auth = await authenticate()
+  if (!auth.ok) return auth.response
+  const { access } = auth.session
+
+  if (access.capabilities.has("submission.readAll")) {
+    return NextResponse.json(getSubmissionsForFaculty(access.scopedClasses))
   }
 
-  const submissions = getSubmissionsForStudent(username)
-  return NextResponse.json(submissions)
+  if (access.capabilities.has("submission.readOwn")) {
+    return NextResponse.json(getSubmissionsForStudent(access.username))
+  }
+
+  return NextResponse.json([])
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authorize("submission.create")
+  if (!auth.ok) return auth.response
 
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
+  const { access } = auth.session
 
   const body = await request.json()
   const { assignmentId, repoUrl, abstractDocUrl } = body
@@ -63,7 +68,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const assignment = getAssignment(assignmentId)
+  const assignment = resolveAssignment(assignmentId)
   if (!assignment) {
     return NextResponse.json(
       { error: "Assignment not found" },
@@ -71,17 +76,36 @@ export async function POST(request: Request) {
     )
   }
 
-  const team = getTeamForUser(username)
-  if (!isStudentAssigned(assignment, team)) {
+  if (!isStudentAssigned(assignment, access.team)) {
     return NextResponse.json(
       { error: "This assignment is not assigned to your team" },
       { status: 403 }
     )
   }
 
+  // Sprint 0 must satisfy the same repo-ownership rule as every later sprint,
+  // otherwise a submission could be started on someone else's repo and then
+  // be impossible to advance.
+  let repoOwner: string
+  try {
+    ;({ owner: repoOwner } = parseRepoUrl(repoUrl))
+  } catch {
+    return NextResponse.json(
+      { error: "Malformed repository URL" },
+      { status: 400 }
+    )
+  }
+
+  if (!canUseRepo(access, repoOwner)) {
+    return NextResponse.json(
+      { error: "You can only submit from your own repositories" },
+      { status: 403 }
+    )
+  }
+
   try {
     const submission = createSubmission({
-      studentUsername: username,
+      studentUsername: access.username,
       assignmentId,
       repoUrl,
       abstractDocUrl,

@@ -1,4 +1,4 @@
-import type { TeacherProfile } from "../types"
+import type { ApprovedTeacherRole, TeacherProfile } from "../types"
 
 const teachers: TeacherProfile[] = []
 
@@ -25,11 +25,12 @@ export function getPendingTeacherRequests(): TeacherProfile[] {
 
 export function approveTeacherRequest(
   githubUsername: string,
-  approvedBy: string
+  approvedBy: string,
+  role: ApprovedTeacherRole = "animator"
 ): void {
   const teacher = teachers.find((t) => t.githubUsername === githubUsername)
   if (teacher) {
-    teacher.role = "animator"
+    teacher.role = role
     teacher.approvedBy = approvedBy
     teacher.approvedAt = new Date().toISOString()
   }

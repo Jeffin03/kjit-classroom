@@ -1,33 +1,24 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
-import { isFaculty } from "@/backend/services/auth.service"
 import { getSubmissionById } from "@/backend/store/submissions"
 import {
   reviewSprint,
   acceptSubmission,
 } from "@/backend/services/submission.service"
+import { authorize, canAccessSubmission } from "@/backend/services/permissions"
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const body = await request.json()
+  const accepting = body?.accept === true
 
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
+  const auth = await authorize(
+    accepting ? "submission.accept" : "submission.review"
+  )
+  if (!auth.ok) return auth.response
 
-  const faculty = await isFaculty(username)
-  if (!faculty) {
-    return NextResponse.json(
-      { error: "Only faculty can add review notes" },
-      { status: 403 }
-    )
-  }
+  const { access } = auth.session
 
   const { id } = await params
   const submission = getSubmissionById(id)
@@ -35,11 +26,16 @@ export async function PUT(
     return NextResponse.json({ error: "Submission not found" }, { status: 404 })
   }
 
-  const body = await request.json()
+  if (!canAccessSubmission(access, submission)) {
+    return NextResponse.json(
+      { error: "This submission is outside your classes" },
+      { status: 403 }
+    )
+  }
 
-  if (body.accept === true) {
+  if (accepting) {
     try {
-      acceptSubmission(id, username)
+      acceptSubmission(id, access.username)
       return NextResponse.json({ message: "Submission accepted" })
     } catch (err) {
       const message =
@@ -57,10 +53,11 @@ export async function PUT(
   }
 
   try {
-    reviewSprint(sprintSubmissionId, username, notes)
+    reviewSprint(sprintSubmissionId, access.username, notes)
     return NextResponse.json({ message: "Review notes saved" })
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to save review notes"
+    const message =
+      err instanceof Error ? err.message : "Failed to save review notes"
     return NextResponse.json({ error: message }, { status: 404 })
   }
 }

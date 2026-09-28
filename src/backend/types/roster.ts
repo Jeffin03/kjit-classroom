@@ -9,11 +9,16 @@ export interface RosterEntry {
   onboardedAt: string
 }
 
+export type ApprovedTeacherRole =
+  | "animator"
+  | "subject-teacher"
+  | "elective-teacher"
+
 export interface TeacherProfile {
   id: string
   githubUsername: string
   email: string
-  role: "pending" | "animator" | "subject-teacher" | "elective-teacher"
+  role: "pending" | ApprovedTeacherRole
   classes: string[]
   approvedBy?: string
   approvedAt?: string

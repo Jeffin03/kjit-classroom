@@ -1,4 +1,4 @@
-import FacultyReview from "@/frontend/components/FacultyReview"
+import FacultyReview from "@/frontend/components/Faculty/FacultyReview"
 
 export default async function ReviewPage({
   searchParams,

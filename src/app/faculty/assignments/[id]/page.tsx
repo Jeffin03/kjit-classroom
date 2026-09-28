@@ -1,4 +1,4 @@
-import FacultyAssignmentDetail from "@/frontend/components/FacultyAssignmentDetail"
+import FacultyAssignmentDetail from "@/frontend/components/Faculty/FacultyAssignmentDetail"
 
 export default async function FacultyAssignmentDetailPage({
   params,

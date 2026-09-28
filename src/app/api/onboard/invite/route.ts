@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
 import { getOrgToken } from "@/backend/github/client"
 import {
   inviteToOrg,
   checkOrgMember,
 } from "@/backend/github/org"
-import { addTeamMember } from "@/backend/github/teams"
+import { addTeamMember, findTeam } from "@/backend/github/teams"
 import { addRosterEntries } from "@/backend/store/roster"
+import { authorize, canAccessClass } from "@/backend/services/permissions"
 
 interface MatchedStudent {
   rollNo: string
@@ -16,11 +16,11 @@ interface MatchedStudent {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
+  const auth = await authorize("roster.write")
+  if (!auth.ok) return auth.response
 
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { access } = auth.session
+  const currentUser = access.username
 
   const org = process.env.GITHUB_ORG
   if (!org) {
@@ -30,13 +30,8 @@ export async function POST(request: Request) {
     )
   }
 
-  const currentUser = session.user?.name
-  if (!currentUser) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
-
   const body = await request.json()
-  const { matched, unmatched, classTeam } = body
+  const { matched, unmatched, classTeam, classTeamSlug } = body
 
   if (!matched?.length && !unmatched?.length) {
     return NextResponse.json(
@@ -45,31 +40,63 @@ export async function POST(request: Request) {
     )
   }
 
+  if (!classTeam || !canAccessClass(access, classTeam)) {
+    return NextResponse.json(
+      { error: "You are not permitted to onboard students for this class" },
+      { status: 403 }
+    )
+  }
+
   try {
     const token = await getOrgToken()
-    const teamSlug = classTeam
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
+
+    // Never derive the slug locally — look up the team GitHub actually
+    // returned so onboarding cannot silently target a non-existent team.
+    const team = await findTeam(token, org, {
+      name: classTeam,
+      slug: classTeamSlug,
+    })
+
+    if (!team) {
+      return NextResponse.json(
+        {
+          error: `GitHub team "${classTeam}" not found in organization ${org}. It may not exist, or it may be a Secret team that is only visible to organization owners. Set the team visibility to Closed and reload.`,
+        },
+        { status: 400 }
+      )
+    }
 
     let addedToTeam = 0
     let invited = 0
     let alreadyMember = 0
+    let alreadyInTeam = 0
     const errors: string[] = []
 
     for (const student of matched as MatchedStudent[]) {
       try {
         const isMember = await checkOrgMember(token, org, student.githubUsername)
 
-        if (isMember) {
-          alreadyMember++
-        } else {
-          await inviteToOrg(token, org, student.githubUsername)
+        if (!isMember) {
+          // Invite with the team attached. A pending invitee is not a valid
+          // membership target yet, so calling addTeamMember here would fail.
+          await inviteToOrg(token, org, student.githubUsername, "direct_member", [
+            team.id,
+          ])
           invited++
+        } else {
+          alreadyMember++
+          const membership = await addTeamMember(
+            token,
+            org,
+            team.slug,
+            student.githubUsername
+          )
+          if (membership === "added") {
+            addedToTeam++
+          } else {
+            alreadyInTeam++
+          }
         }
-
-        await addTeamMember(token, org, teamSlug, student.githubUsername)
-        addedToTeam++
       } catch (err) {
         errors.push(
           `${student.githubUsername}: ${err instanceof Error ? err.message : "Unknown error"}`
@@ -101,9 +128,11 @@ export async function POST(request: Request) {
     addRosterEntries([...rosterEntries, ...unmatchedEntries])
 
     return NextResponse.json({
+      team: { name: team.name, slug: team.slug },
       addedToTeam,
       invited,
       alreadyMember,
+      alreadyInTeam,
       noAccount: unmatched?.length || 0,
       errors: errors.length > 0 ? errors : undefined,
     })

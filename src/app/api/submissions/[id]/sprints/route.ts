@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
 import { getSubmissionById } from "@/backend/store/submissions"
 import { submitSprint } from "@/backend/services/submission.service"
+import { authorize, canUseRepo } from "@/backend/services/permissions"
+import { parseRepoUrl } from "@/backend/github/repos"
 import type { SubmitSprintInput } from "@/backend/types"
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authorize("submission.create")
+  if (!auth.ok) return auth.response
 
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
+  const { access, accessToken } = auth.session
 
   const { id } = await params
   const submission = getSubmissionById(id)
@@ -24,7 +20,7 @@ export async function POST(
     return NextResponse.json({ error: "Submission not found" }, { status: 404 })
   }
 
-  if (submission.studentUsername !== username) {
+  if (submission.studentUsername !== access.username) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -52,14 +48,38 @@ export async function POST(
     )
   }
 
+  // The commit is read with the caller's own token, which can see any repo they
+  // can personally read. Without this check a student could record sprint
+  // metrics from a private repo they merely collaborate on.
+  let repoOwner: string
   try {
-    const sprint = await submitSprint(id, {
-      sprintNumber,
-      repoUrl: effectiveRepoUrl,
-      documentationUrl,
-      summary,
-      isPivot,
-    })
+    ;({ owner: repoOwner } = parseRepoUrl(effectiveRepoUrl))
+  } catch {
+    return NextResponse.json(
+      { error: "Malformed repository URL" },
+      { status: 400 }
+    )
+  }
+
+  if (!canUseRepo(access, repoOwner)) {
+    return NextResponse.json(
+      { error: "You can only submit from your own repositories" },
+      { status: 403 }
+    )
+  }
+
+  try {
+    const sprint = await submitSprint(
+      id,
+      {
+        sprintNumber,
+        repoUrl: effectiveRepoUrl,
+        documentationUrl,
+        summary,
+        isPivot,
+      },
+      accessToken
+    )
     return NextResponse.json(sprint, { status: 201 })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to submit sprint"

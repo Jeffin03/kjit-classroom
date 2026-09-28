@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
-import { isFaculty } from "@/backend/services/auth.service"
 import { getSubmissionById, getSprintSubmission } from "@/backend/store/submissions"
 import { updateSprintCommitHash } from "@/backend/services/submission.service"
+import {
+  authenticate,
+  authorize,
+  canAccessSubmission,
+} from "@/backend/services/permissions"
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string; sprint: string }> }
 ) {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authenticate()
+  if (!auth.ok) return auth.response
+
+  const { access } = auth.session
 
   const { id, sprint } = await params
   const sprintNumber = parseInt(sprint, 10)
@@ -24,13 +27,7 @@ export async function GET(
     return NextResponse.json({ error: "Submission not found" }, { status: 404 })
   }
 
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
-
-  const faculty = await isFaculty(username)
-  if (!faculty && submission.studentUsername !== username) {
+  if (!canAccessSubmission(access, submission)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -46,28 +43,27 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string; sprint: string }> }
 ) {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authorize("submission.commitOverride")
+  if (!auth.ok) return auth.response
 
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
-
-  const faculty = await isFaculty(username)
-  if (!faculty) {
-    return NextResponse.json(
-      { error: "Only faculty can update a commit hash" },
-      { status: 403 }
-    )
-  }
+  const { access } = auth.session
 
   const { id, sprint } = await params
   const sprintNumber = parseInt(sprint, 10)
   if (isNaN(sprintNumber)) {
     return NextResponse.json({ error: "Invalid sprint number" }, { status: 400 })
+  }
+
+  const submission = getSubmissionById(id)
+  if (!submission) {
+    return NextResponse.json({ error: "Submission not found" }, { status: 404 })
+  }
+
+  if (!canAccessSubmission(access, submission)) {
+    return NextResponse.json(
+      { error: "This submission is outside your classes" },
+      { status: 403 }
+    )
   }
 
   const body = await request.json()
@@ -79,13 +75,8 @@ export async function PUT(
     )
   }
 
-  const submission = getSubmissionById(id)
-  if (!submission) {
-    return NextResponse.json({ error: "Submission not found" }, { status: 404 })
-  }
-
   try {
-    updateSprintCommitHash(id, sprintNumber, commitSha, username)
+    updateSprintCommitHash(id, sprintNumber, commitSha, access.username)
     return NextResponse.json({ message: "Commit hash updated" })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update commit hash"

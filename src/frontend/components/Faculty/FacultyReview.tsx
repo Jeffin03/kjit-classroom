@@ -4,10 +4,16 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import type { Assignment, SubmissionWithSprints } from "@/backend/types"
-import FacultyTabBar from "./FacultyTabBar"
+import FacultyPageHeader from "./FacultyPageHeader"
 
 interface ReviewDraft {
   [sprintSubmissionId: string]: string
+}
+
+/** GitHub's own permalink for a commit — no API round trip needed. */
+function commitUrl(repoUrl: string, sha: string): string {
+  const base = repoUrl.trim().replace(/\.git\/?$/, "").replace(/\/+$/, "")
+  return `${/^https?:\/\//i.test(base) ? base : `https://${base}`}/commit/${sha}`
 }
 
 export default function FacultyReview({
@@ -26,6 +32,7 @@ export default function FacultyReview({
   )
   const [drafts, setDrafts] = useState<ReviewDraft>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const load = async () => {
     try {
@@ -53,14 +60,11 @@ export default function FacultyReview({
     }
   }, [user, isFaculty, userLoading, router])
 
-  useEffect(() => {
-    if (filterAssignment !== "all") {
-      fetch(`/api/submissions?assignmentId=${filterAssignment}`)
-        .then((r) => r.json())
-        .then((subs) => setSubmissions(Array.isArray(subs) ? subs : []))
-        .catch(() => {})
-    }
-  }, [filterAssignment])
+  /**
+   * `submissions` always holds every submission the server will show this
+   * caller (class-scoped), and `filtered` narrows it by the filters below —
+   * so switching filters never needs a refetch and cannot go stale.
+   */
 
   const getAssignment = (id: string) => assignments.find((a) => a.id === id)
 
@@ -73,19 +77,29 @@ export default function FacultyReview({
 
   const handleReview = async (submissionId: string) => {
     setSavingId(submissionId)
+    setActionError(null)
     try {
       for (const sprint of submissions.find((s) => s.id === submissionId)
         ?.sprints || []) {
         const notes = drafts[sprint.id]
         if (notes !== undefined && notes.trim() !== "") {
-          await fetch(`/api/submissions/${submissionId}/review`, {
+          const res = await fetch(`/api/submissions/${submissionId}/review`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sprintSubmissionId: sprint.id, notes }),
           })
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            throw new Error(data.error || "Failed to save review notes")
+          }
         }
       }
       await load()
+    } catch (err) {
+      // Keep the drafts in place so the reviewer can retry.
+      setActionError(
+        err instanceof Error ? err.message : "Failed to save review notes"
+      )
     } finally {
       setSavingId(null)
     }
@@ -93,13 +107,22 @@ export default function FacultyReview({
 
   const handleAccept = async (submissionId: string) => {
     setSavingId(submissionId)
+    setActionError(null)
     try {
-      await fetch(`/api/submissions/${submissionId}/review`, {
+      const res = await fetch(`/api/submissions/${submissionId}/review`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accept: true }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to accept submission")
+      }
       await load()
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to accept submission"
+      )
     } finally {
       setSavingId(null)
     }
@@ -118,7 +141,7 @@ export default function FacultyReview({
 
   if (loading || userLoading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="max-w-6xl">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-48" />
           <div className="space-y-4 mt-8">
@@ -133,16 +156,17 @@ export default function FacultyReview({
 
   return (
     <>
-      <FacultyTabBar />
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
-            Sprint Review
-          </h1>
-          <p className="text-sm text-[var(--color-ink-muted)] mt-2">
-            Review sprint work and accept submissions
-          </p>
-        </div>
+      <div className="max-w-6xl">
+        {actionError && (
+          <div className="mb-6 rounded-md border border-[var(--color-danger)] bg-[var(--color-danger-soft)] px-4 py-3 text-sm text-[var(--color-danger)]">
+            {actionError}
+          </div>
+        )}
+
+        <FacultyPageHeader
+          title="Sprint Review"
+          subtitle="Review sprint work and accept submissions"
+        />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
@@ -324,7 +348,10 @@ export default function FacultyReview({
                               </div>
                               <div className="flex items-center gap-2">
                                 <a
-                                  href={`/api/github/commit?repoUrl=${encodeURIComponent(submission.repoUrl)}&sha=${sprint.commitSha}`}
+                                  href={commitUrl(
+                                    submission.repoUrl,
+                                    sprint.commitSha
+                                  )}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-xs text-[var(--color-accent)] hover:underline font-mono"
@@ -387,7 +414,7 @@ export default function FacultyReview({
                         <button
                           onClick={() => handleAccept(submission.id)}
                           disabled={isSaving}
-                          className="px-4 py-1.5 rounded-md text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[#372FA8] transition-colors disabled:opacity-50"
+                          className="px-4 py-1.5 rounded-md text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50"
                         >
                           {isSaving ? "Saving…" : "Accept"}
                         </button>

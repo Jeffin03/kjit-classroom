@@ -1,47 +1,36 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
-import { isFaculty } from "@/backend/services/auth.service"
 import {
   createAssignment,
   getAssignmentsForStudent,
-  getAssignmentsForTeam,
+  getAssignmentsForFaculty,
 } from "@/backend/services/assignment.service"
+import { authenticate, authorize, canAccessClass } from "@/backend/services/permissions"
 import type { CreateAssignmentInput } from "@/backend/types"
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await authenticate()
+  if (!auth.ok) return auth.response
+
+  const { access } = auth.session
+
+  if (access.isFaculty) {
+    return NextResponse.json(getAssignmentsForFaculty(access.scopedClasses))
   }
 
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
+  // Unrostered users have nothing to see; an empty list keeps the UI clean
+  // without leaking whether an assignment exists.
+  if (!access.capabilities.has("assignment.read")) {
+    return NextResponse.json([])
   }
 
-  const faculty = await isFaculty(username)
-  if (faculty) {
-    return NextResponse.json(getAssignmentsForTeam(null))
-  }
-
-  return NextResponse.json(getAssignmentsForStudent(username))
+  return NextResponse.json(getAssignmentsForStudent(access.username))
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authorize("assignment.create")
+  if (!auth.ok) return auth.response
 
-  const username = session.user?.name
-  if (!username) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
-
-  const faculty = await isFaculty(username)
-  if (!faculty) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  const { access } = auth.session
 
   const body = (await request.json()) as CreateAssignmentInput
   const {
@@ -70,6 +59,14 @@ export async function POST(request: Request) {
     )
   }
 
-  const assignment = createAssignment(body, username)
+  const outsideScope = assignedTeams.filter((t) => !canAccessClass(access, t))
+  if (outsideScope.length > 0) {
+    return NextResponse.json(
+      { error: `You cannot assign to these classes: ${outsideScope.join(", ")}` },
+      { status: 403 }
+    )
+  }
+
+  const assignment = createAssignment(body, access.username)
   return NextResponse.json(assignment, { status: 201 })
 }

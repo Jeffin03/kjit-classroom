@@ -22,9 +22,6 @@ import {
   hasCommitHash,
 } from "../store/submissions"
 import { getAssignment } from "../store/assignments"
-import {
-  getOrgToken,
-} from "../github/client"
 import { parseRepoUrl, getLatestCommit, getDiffMetrics } from "../github/repos"
 
 export function createSubmission(
@@ -69,6 +66,24 @@ export function getAllSubmissions(): SubmissionWithSprints[] {
   return getSubmissions().map((s) => withSprints(s))
 }
 
+/**
+ * Submissions across every assignment, narrowed to the class teams a scoped
+ * member of staff is allowed to see. Pass null for unrestricted access.
+ */
+export function getSubmissionsForFaculty(
+  scopedClasses: string[] | null
+): SubmissionWithSprints[] {
+  if (scopedClasses === null) return getAllSubmissions()
+
+  return getSubmissions()
+    .filter((s) => {
+      const assignment = getAssignment(s.assignmentId)
+      if (!assignment) return false
+      return assignment.assignedTeams.some((t) => scopedClasses.includes(t))
+    })
+    .map((s) => withSprints(s))
+}
+
 export function getSubmissionForStudentAndAssignment(
   studentUsername: string,
   assignmentId: string
@@ -84,9 +99,29 @@ function withSprints(sub: Submission): SubmissionWithSprints {
   }
 }
 
+/** Normalizes a repo URL to `owner/repo` (lowercase) for equality checks. */
+function repoUrlKey(url: string): string {
+  try {
+    const { owner, repo } = parseRepoUrl(url)
+    return `${owner.toLowerCase()}/${repo.toLowerCase()}`
+  } catch {
+    return url.trim().toLowerCase()
+  }
+}
+
+/**
+ * Records a sprint submission.
+ *
+ * `studentToken` must be the submitting student's own OAuth token, not the org
+ * token: students keep their project in a personal repo, which an org-scoped
+ * credential (App installation token, or a PAT owned by someone else) cannot
+ * see. GitHub answers 404 for repos it will not show you, so using the wrong
+ * token here fails as "Not Found" on a repo the student can open fine.
+ */
 export async function submitSprint(
   submissionId: string,
-  input: SubmitSprintInput
+  input: SubmitSprintInput,
+  studentToken: string
 ): Promise<SprintSubmission> {
   const submission = getSubmissionById(submissionId)
   if (!submission) {
@@ -114,16 +149,24 @@ export async function submitSprint(
 
   const { owner, repo } = parseRepoUrl(input.repoUrl)
 
-  const token = await getOrgToken()
-  const latest = await getLatestCommit(token, owner, repo)
+  const latest = await getLatestCommit(studentToken, owner, repo)
   const headSha = latest.sha
 
+  // The previous sprint always lives in the repository that was current when
+  // it was recorded — `submission.repoUrl` only changes on a pivot, and this
+  // pivot has not been applied yet. A pivot therefore changes repos, and
+  // GitHub cannot compare commits across two different repositories, so the
+  // diff is skipped rather than failing the whole submission.
+  const sameRepoAsPrevious =
+    !input.isPivot ||
+    repoUrlKey(input.repoUrl) === repoUrlKey(submission.repoUrl)
+
   let diffMetrics: DiffMetrics | undefined
-  if (input.sprintNumber > 0) {
+  if (input.sprintNumber > 0 && sameRepoAsPrevious) {
     const base = getSprintSubmission(submissionId, input.sprintNumber - 1)
     if (base) {
       diffMetrics = await getDiffMetrics(
-        token,
+        studentToken,
         owner,
         repo,
         base.commitSha,

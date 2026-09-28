@@ -1,4 +1,4 @@
-import FacultyDashboard from "@/frontend/components/FacultyDashboard"
+import FacultyDashboard from "@/frontend/components/Faculty/FacultyDashboard"
 
 export default function FacultyPage() {
   return <FacultyDashboard />

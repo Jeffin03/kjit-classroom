@@ -1,12 +1,6 @@
 import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
 
-declare module "next-auth" {
-  interface Session {
-    accessToken?: string
-  }
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...(process.env.AUTH_URL ? { url: process.env.AUTH_URL } : {}),
   providers: [
@@ -21,18 +15,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
+        // Kept in the JWT only. Read server-side via getToken() in
+        // services/permissions.ts. Never copy it onto `session` — Auth.js
+        // serializes the session to the browser on /api/auth/session.
         ;(token as Record<string, unknown>).accessToken =
           account.access_token
+
+        // The provider maps `name` to profile.name, which is the user's
+        // display name. Authorization must key off the login, not the
+        // display name, so capture it explicitly.
+        const login = (profile as { login?: string } | undefined)?.login
+        if (login) {
+          ;(token as Record<string, unknown>).login = login
+        }
       }
       return token
     },
-    async session({ session, token }) {
-      session.accessToken = (token as Record<string, unknown>)
-        .accessToken as string
-      return session
-    },
   },
-
 })

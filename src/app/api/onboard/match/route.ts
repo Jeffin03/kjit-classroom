@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
 import { getOrgToken } from "@/backend/github/client"
-import { getOrgOwners } from "@/backend/github/org"
-import { getTeacherByGithubUsername } from "@/backend/store/teachers"
+import { authorize, canAccessClass } from "@/backend/services/permissions"
 
 interface CsvRow {
   rollNo: string
@@ -23,11 +21,10 @@ interface UnmatchedStudent {
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
+  const auth = await authorize("roster.write")
+  if (!auth.ok) return auth.response
 
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { access } = auth.session
 
   const org = process.env.GITHUB_ORG
   if (!org) {
@@ -37,28 +34,6 @@ export async function POST(request: Request) {
     )
   }
 
-  const currentUser = session.user?.name
-  if (!currentUser) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
-
-  const teacher = getTeacherByGithubUsername(currentUser)
-  const owners = await (async () => {
-    try {
-      const token = await getOrgToken()
-      return await getOrgOwners(token, org)
-    } catch {
-      return []
-    }
-  })()
-
-  const isOwner = owners.includes(currentUser)
-  const isAnimator = teacher?.role === "animator"
-
-  if (!isOwner && !isAnimator) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
   const body = await request.json()
   const { csvRows, classTeam } = body
 
@@ -66,6 +41,13 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "csvRows and classTeam are required" },
       { status: 400 }
+    )
+  }
+
+  if (!canAccessClass(access, classTeam)) {
+    return NextResponse.json(
+      { error: "You are not permitted to onboard students for this class" },
+      { status: 403 }
     )
   }
 

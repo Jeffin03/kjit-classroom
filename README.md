@@ -8,7 +8,8 @@ Students build projects in their own GitHub repos and submit progressively acros
 
 ```bash
 npm install
-cp .env.local.example .env.local   # fill in your values (see AGENTS.md)
+# create .env.local with AUTH_SECRET, AUTH_GITHUB_ID, AUTH_GITHUB_SECRET,
+# GITHUB_ORG, and either GITHUB_ORG_TOKEN or the GITHUB_APP_* trio
 npm run dev
 ```
 
@@ -35,7 +36,7 @@ Open http://localhost:3000.
 
 ### Faculty
 
-- Request animator (class teacher) role → admin approves
+- Request access with the classes you teach → org owner approves
 - Create assignments with problem statement, objectives, requirements, evaluation criteria, and assigned teams
 - Per-assignment detail view: per-student sprint breakdown with checklist progress
 - Review sprints in lab and record notes digitally; accept submissions (marks all sprints reviewed)
@@ -47,7 +48,7 @@ Open http://localhost:3000.
 - `status: active → completed (all sprints submitted) → accepted (faculty review)`
 - Two-token auth: user token (per-session) + org token (GitHub App or PAT)
 - Dynamic org owner detection (not hardcoded)
-- Middleware protecting `/dashboard`, `/faculty`, `/assignments`
+- Route gate (`src/proxy.ts`) protecting `/dashboard`, `/faculty`, `/assignments`, backed by per-role capability checks in `services/permissions.ts`
 
 ## Project structure
 
@@ -69,7 +70,7 @@ kjit-classroom/src/
 │   ├── auth.ts                   # NextAuth config (GitHub provider, JWT)
 │   ├── types/                    # Shared interfaces (assignment, submission/sprints, roster, teacher)
 │   ├── store/                    # In-memory stores — all state lost on restart
-│   ├── services/                 # Business logic (assignment, submission, auth, roster)
+│   ├── services/                 # Business logic (assignment, submission, permissions, auth, roster)
 │   └── github/                   # GitHub API helpers: client (tokens), repos (commit/diff), org, teams
 │
 ├── frontend/                     # Client-side components, hooks, styles
@@ -79,7 +80,7 @@ kjit-classroom/src/
 │                                 # SprintSubmitForm, SubmissionCard, ChecklistProgress) and
 │                                 # Faculty (Dashboard, Assignments, AssignmentDetail, Review,
 │                                 # NewAssignment, Onboard, Roster, Requests) components
-└── middleware.ts                 # Route protection (/dashboard, /faculty, /assignments)
+└── proxy.ts                      # Route gate (/dashboard, /faculty, /assignments)
 ```
 
 ### Conventions
@@ -88,7 +89,7 @@ kjit-classroom/src/
 - **Backend** (`src/backend/`) is never imported by components directly — only by API routes.
 - **Frontend** (`src/frontend/`) never imports from `backend/` — it fetches `/api/*` routes.
 - API routes call backend helpers via `@/backend/...`; components use `@/frontend/...`.
-- Tailwind CSS 4 only. Palette: indigo-600 (primary), gray-900/600/500 (text), green-600 (success), red-600 (danger), blue-100/700 (info), purple (reviewed), orange (pivot).
+- Tailwind CSS 4 only. Colors come from the CSS custom properties in `src/frontend/globals.css` — components use `var(--color-*)` tokens (plus the remapped palette in the `@theme inline` block) instead of raw palette classes.
 - No direct GitHub API calls from components; use the `/api/github/*` proxy routes.
 
 ## Docs

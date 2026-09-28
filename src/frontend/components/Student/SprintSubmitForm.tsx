@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import type { Assignment, SubmissionWithSprints } from "@/backend/types"
 
 export interface Sprint0Payload {
@@ -42,6 +43,7 @@ export default function SprintSubmitForm({
   const isSprint0 = sprintNumber === 0
 
   const [repoUrl, setRepoUrl] = useState(submission?.repoUrl || "")
+  const [pivotRepoUrl, setPivotRepoUrl] = useState("")
   const [abstractDocUrl, setAbstractDocUrl] = useState("")
   const [documentationUrl, setDocumentationUrl] = useState(
     isSprint0 ? "" : submission?.sprints[sprintNumber - 1]?.documentationUrl || ""
@@ -52,6 +54,7 @@ export default function SprintSubmitForm({
   const [blockers, setBlockers] = useState("")
   const [demoUrl, setDemoUrl] = useState("")
   const [isPivot, setIsPivot] = useState(false)
+  const [clientError, setClientError] = useState<string | null>(null)
 
   const addCompleted = () => {
     const value = completedInput.trim()
@@ -68,7 +71,7 @@ export default function SprintSubmitForm({
     e.preventDefault()
     if (isSprint0) {
       if (!repoUrl || !abstractDocUrl) {
-        alert("Please fill in the repository URL and abstract link")
+        setClientError("Please fill in the repository URL and abstract link")
         return
       }
       onSubmit({
@@ -79,16 +82,18 @@ export default function SprintSubmitForm({
       return
     }
 
-    if (!repoUrl) {
-      alert("Please provide the repository URL")
+    const effectiveRepoUrl = isPivot ? pivotRepoUrl : submission?.repoUrl
+    if (!effectiveRepoUrl) {
+      setClientError("Please provide the repository URL")
       return
     }
     if (!documentationUrl) {
-      alert("Please provide a documentation link")
+      setClientError("Please provide a documentation link")
       return
     }
+    setClientError(null)
     onSubmit({
-      repoUrl,
+      repoUrl: effectiveRepoUrl,
       documentationUrl,
       summary: {
         completed,
@@ -102,7 +107,7 @@ export default function SprintSubmitForm({
   }
 
   const inputClass =
-    "w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+    "w-full min-h-10 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
   const labelClass = "block text-sm font-medium text-[var(--color-ink-muted)] mb-2"
 
   return (
@@ -119,7 +124,7 @@ export default function SprintSubmitForm({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="rounded-lg border border-[var(--color-border)] bg-white p-7 space-y-6">
+        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 space-y-6">
           <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
             {isSprint0 ? "Project Repository" : "Repository"}
           </h2>
@@ -132,14 +137,15 @@ export default function SprintSubmitForm({
               type="url"
               className={inputClass}
               placeholder="https://github.com/username/repo-name"
-              value={repoUrl}
-              onChange={(e) => setRepoUrl(e.target.value)}
+              value={isSprint0 ? repoUrl : submission?.repoUrl ?? ""}
+              onChange={(e) => isSprint0 && setRepoUrl(e.target.value)}
+              readOnly={!isSprint0}
               required
             />
-            <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
+            <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
               {isSprint0
                 ? "Create a new repository on GitHub and paste the URL here"
-                : "Your project repository"}
+                : "Your project repository — tick pivot below to switch"}
             </p>
           </div>
 
@@ -154,12 +160,12 @@ export default function SprintSubmitForm({
                 onChange={(e) => setAbstractDocUrl(e.target.value)}
                 required
               />
-              <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
+              <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
                 Paste a link to your Google Doc with the project abstract
               </p>
             </div>
           ) : (
-            <div className="bg-[var(--color-caution-soft)] border border-[var(--color-border)] rounded-lg p-4">
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-caution-soft)] p-4">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -175,25 +181,28 @@ export default function SprintSubmitForm({
           )}
 
           {isPivot && (
-            <div>
-              <label className={labelClass}>New Repository URL *</label>
-              <input
-                type="url"
-                className={inputClass}
-                placeholder="https://github.com/username/new-repo"
-                value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
-              />
-              <p className="mt-1 text-xs text-[var(--color-danger)]">
-                This will reset your baseline. Previous sprints will be marked as
-                superseded.
-              </p>
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>New Repository URL *</label>
+                <input
+                  type="url"
+                  className={inputClass}
+                  placeholder="https://github.com/username/new-repo"
+                  value={pivotRepoUrl}
+                  onChange={(e) => setPivotRepoUrl(e.target.value)}
+                  required
+                />
+                <p className="mt-1 text-xs text-[var(--color-danger-text)]">
+                  This will reset your baseline. Previous sprints will be marked
+                  as superseded.
+                </p>
+              </div>
             </div>
           )}
         </div>
 
         {!isSprint0 && (
-          <div className="rounded-lg border border-[var(--color-border)] bg-white p-7 space-y-6 mt-6">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 space-y-6 mt-6">
             <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
               Documentation
             </h2>
@@ -208,7 +217,7 @@ export default function SprintSubmitForm({
                 onChange={(e) => setDocumentationUrl(e.target.value)}
                 required
               />
-              <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
+              <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
                 Link to your updated project documentation
               </p>
             </div>
@@ -228,7 +237,7 @@ export default function SprintSubmitForm({
                     <button
                       type="button"
                       onClick={() => removeCompleted(idx)}
-                      className="text-gray-400 hover:text-red-500 transition-colors px-2 text-lg leading-none"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg leading-none text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-danger-soft)] hover:text-[var(--color-danger-text)]"
                       aria-label="Remove item"
                     >
                       ×
@@ -251,7 +260,7 @@ export default function SprintSubmitForm({
                   <button
                     type="button"
                     onClick={addCompleted}
-                    className="text-gray-400 hover:text-green-500 transition-colors px-2 text-lg leading-none"
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg leading-none text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-success-soft)] hover:text-[var(--color-success-text)]"
                     aria-label="Add item"
                   >
                     +
@@ -297,23 +306,27 @@ export default function SprintSubmitForm({
           </div>
         )}
 
-        {error && (
-          <div className="mt-6 bg-[var(--color-danger-soft)] border border-[var(--color-border)] rounded-lg p-4 text-sm text-[var(--color-danger)]">
-            {error}
+        {(error || clientError) && (
+          <div className="mt-6 rounded-2xl border border-[var(--color-danger)] bg-[var(--color-danger-soft)] p-4 text-sm text-[var(--color-danger-text)]">
+            {error || clientError}
           </div>
         )}
 
         <div className="flex justify-between mt-6">
-          <a
-            href={isSprint0 ? "/assignments" : `#`}
-            className="text-sm text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] inline-flex items-center"
+          <Link
+            href={
+              isSprint0
+                ? "/assignments"
+                : `/assignments/timeline?assignmentId=${assignment.id}`
+            }
+            className="inline-flex min-h-10 items-center text-sm text-[var(--color-ink-muted)] transition-colors hover:text-[var(--color-ink)]"
           >
             ← {isSprint0 ? "Back to Assignments" : "Cancel"}
-          </a>
+          </Link>
           <button
             type="submit"
             disabled={loading}
-            className="bg-[var(--color-accent)] text-white text-sm font-medium px-6 py-2 rounded-md hover:bg-[#372FA8] transition-colors disabled:opacity-60"
+            className="inline-flex min-h-10 items-center rounded-lg bg-[var(--color-accent)] px-6 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-60"
           >
             {loading
               ? "Submitting..."

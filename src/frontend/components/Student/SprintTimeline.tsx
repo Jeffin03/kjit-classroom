@@ -9,11 +9,13 @@ export default function SprintTimeline({
   sprintCount = 4,
   repoUrl,
   submissionId,
+  assignmentId,
 }: {
   sprints: SprintSubmission[]
   sprintCount?: number
   repoUrl?: string
   submissionId?: string
+  assignmentId?: string
 }) {
   const router = useRouter()
   const entries: (SprintSubmission | null)[] = []
@@ -24,7 +26,7 @@ export default function SprintTimeline({
   const latestSprint = sprints.length > 0 ? sprints[sprints.length - 1] : null
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-white px-6">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-white px-5 sm:px-6">
       {entries.map((entry, idx) => {
         const label = idx === 0 ? "Abstract" : ""
 
@@ -37,9 +39,11 @@ export default function SprintTimeline({
               label={label}
               status="pending"
               onSubmit={
-                submissionId && isNext
+                submissionId && assignmentId && isNext
                   ? () => {
-                      router.push(`/assignments/submit?sprint=${idx}`)
+                      router.push(
+                        `/assignments/submit?assignmentId=${assignmentId}&sprint=${idx}`
+                      )
                     }
                   : undefined
               }
@@ -47,7 +51,6 @@ export default function SprintTimeline({
           )
         }
 
-        const isPivot = entry.isPivot
         const showRepo =
           latestSprint?.sprintNumber === idx ? repoUrl : undefined
         const fmtDate = new Date(
@@ -63,7 +66,13 @@ export default function SprintTimeline({
             key={idx}
             index={idx}
             label={label}
-            status={isPivot ? "pivot" : "done"}
+            status={
+              entry.isPivot
+                ? "pivot"
+                : entry.reviewedAt
+                  ? "reviewed"
+                  : "submitted"
+            }
             repoUrl={showRepo}
             previousRepoUrl={entry.previousRepoUrl}
             commitSha={entry.commitSha}

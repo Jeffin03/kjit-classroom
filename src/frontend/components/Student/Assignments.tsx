@@ -5,13 +5,13 @@ import { useEffect } from "react"
 import { useAssignments } from "@/frontend/hooks/useAssignments"
 import { useSubmissions } from "@/frontend/hooks/useSubmissions"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
-import { AssignmentCard } from "./AssignmentCard"
+import { AssignmentCard } from "../AssignmentCard"
 
 export default function Assignments() {
   const router = useRouter()
   const { user, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
-  const { submissions } = useSubmissions()
+  const { submissions, loading: submissionsLoading } = useSubmissions()
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -19,7 +19,7 @@ export default function Assignments() {
     }
   }, [user, userLoading, router])
 
-  const loading = userLoading || assignmentsLoading
+  const loading = userLoading || assignmentsLoading || submissionsLoading
 
   if (loading) {
     return (
@@ -29,7 +29,7 @@ export default function Assignments() {
           <div className="h-4 bg-[var(--color-border)] rounded w-96" />
           <div className="space-y-4 mt-8">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-[var(--color-border)] rounded-xl" />
+              <div key={i} className="h-32 bg-[var(--color-border)] rounded-2xl" />
             ))}
           </div>
         </div>
@@ -84,9 +84,9 @@ export default function Assignments() {
         })}
 
         {assignments.length === 0 && (
-          <div className="rounded-lg border border-[var(--color-border)] bg-white p-8 text-center">
+          <div className="rounded-2xl border border-[var(--color-border)] bg-white p-8 text-center">
             <svg
-              className="w-12 h-12 text-[var(--color-ink-faint)] mx-auto mb-4"
+              className="mx-auto mb-4 h-12 w-12 text-[var(--color-ink-faint)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

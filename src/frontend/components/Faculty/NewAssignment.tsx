@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import FacultyPageHeader from "./FacultyPageHeader"
 
 function ListInput({
   label,
@@ -66,7 +67,8 @@ function ListInput({
 
 export default function NewAssignment() {
   const router = useRouter()
-  const { user, isFaculty, loading: userLoading } = useSessionUser()
+  const { user, capabilities, loading: userLoading } = useSessionUser()
+  const canCreate = capabilities.includes("assignment.create")
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -77,6 +79,7 @@ export default function NewAssignment() {
   const [requirements, setRequirements] = useState<string[]>([""])
   const [evaluationCriteria, setEvaluationCriteria] = useState<string[]>([""])
   const [teams, setTeams] = useState<string[]>([])
+  const [teamsError, setTeamsError] = useState(false)
   const [assignedTeams, setAssignedTeams] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{
@@ -87,17 +90,20 @@ export default function NewAssignment() {
   useEffect(() => {
     if (!userLoading) {
       if (!user) router.push("/")
-      else if (!isFaculty) router.push("/dashboard")
+      else if (!canCreate) router.push("/faculty")
     }
-  }, [user, isFaculty, userLoading, router])
+  }, [user, canCreate, userLoading, router])
 
   useEffect(() => {
     fetch("/api/roster")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("roster request failed")
+        return r.json()
+      })
       .then((data) => {
         if (Array.isArray(data.teams)) setTeams(data.teams)
       })
-      .catch(() => {})
+      .catch(() => setTeamsError(true))
   }, [])
 
   const toggleTeam = (team: string) => {
@@ -158,7 +164,7 @@ export default function NewAssignment() {
 
   if (userLoading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-3xl">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-[var(--color-border)] rounded w-48" />
           <div className="h-96 bg-[var(--color-border)] rounded-xl" />
@@ -168,13 +174,11 @@ export default function NewAssignment() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">Create Assignment</h1>
-        <p className="text-sm text-[var(--color-ink-muted)] mt-2">
-          Set up a 4-sprint PBL assignment for one or more class teams
-        </p>
-      </div>
+    <div className="max-w-3xl">
+      <FacultyPageHeader
+        title="Create Assignment"
+        subtitle="Set up a 4-sprint PBL assignment for one or more class teams"
+      />
 
       {result && (
         <div
@@ -261,7 +265,13 @@ export default function NewAssignment() {
                       <span className="text-sm text-[var(--color-ink-muted)]">{team}</span>
                     </label>
                   ))}
-                  {teams.length === 0 && (
+                  {teamsError && (
+                    <p className="text-sm text-[var(--color-danger)]">
+                      Couldn&apos;t load class teams. Refresh the page to try
+                      again.
+                    </p>
+                  )}
+                  {!teamsError && teams.length === 0 && (
                     <p className="text-sm text-[var(--color-ink-faint)]">
                       No class teams onboarded yet
                     </p>
@@ -336,7 +346,7 @@ export default function NewAssignment() {
                 assignedTeams.length === 0 ||
                 submitting
               }
-              className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[#372FA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? "Creating..." : "Create Assignment"}
             </button>

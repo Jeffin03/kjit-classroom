@@ -2,12 +2,13 @@
 
 import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useAssignments } from "@/frontend/hooks/useAssignments"
 import { useSubmissions } from "@/frontend/hooks/useSubmissions"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import SprintSubmitForm, {
   type SprintSubmitPayload,
-} from "@/frontend/components/SprintSubmitForm"
+} from "@/frontend/components/Student/SprintSubmitForm"
 
 export default function SubmitPage({
   searchParams,
@@ -36,10 +37,10 @@ export default function SubmitPage({
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-64" />
+          <div className="h-8 bg-[var(--color-border)] rounded w-64" />
           <div className="space-y-6 mt-8">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 bg-gray-200 rounded-xl" />
+              <div key={i} className="h-40 bg-[var(--color-border)] rounded-2xl" />
             ))}
           </div>
         </div>
@@ -49,7 +50,7 @@ export default function SubmitPage({
 
   if (!assignmentId) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-500">
+      <div className="max-w-3xl mx-auto px-4 py-12 text-sm text-[var(--color-ink-muted)]">
         No assignment specified.
       </div>
     )
@@ -60,7 +61,7 @@ export default function SubmitPage({
 
   if (!assignment) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-500">
+      <div className="max-w-3xl mx-auto px-4 py-12 text-sm text-[var(--color-ink-muted)]">
         Assignment not found.
       </div>
     )
@@ -68,14 +69,14 @@ export default function SubmitPage({
 
   if (sprintNumber === 0 && submission) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-500">
+      <div className="max-w-3xl mx-auto px-4 py-12 text-sm text-[var(--color-ink-muted)]">
         You already started this assignment.{" "}
-        <a
+        <Link
           href={`/assignments/timeline?assignmentId=${assignment.id}`}
-          className="text-indigo-600 hover:text-indigo-700 font-medium"
+          className="font-medium text-[var(--color-accent)] hover:underline"
         >
           View timeline →
-        </a>
+        </Link>
       </div>
     )
   }
@@ -85,18 +86,18 @@ export default function SubmitPage({
     (!submission || submission.sprints.length !== sprintNumber)
   ) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-500">
+      <div className="max-w-3xl mx-auto px-4 py-12 text-sm text-[var(--color-ink-muted)]">
         Sprint {sprintNumber} is not ready to submit yet.{" "}
-        <a
+        <Link
           href={
             submission
               ? `/assignments/timeline?assignmentId=${assignment.id}`
               : `/assignments/submit?assignmentId=${assignment.id}&sprint=0`
           }
-          className="text-indigo-600 hover:text-indigo-700 font-medium"
+          className="font-medium text-[var(--color-accent)] hover:underline"
         >
           {submission ? "View timeline →" : "Start Sprint 0 →"}
-        </a>
+        </Link>
       </div>
     )
   }

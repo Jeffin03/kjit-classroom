@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import StatusPill from "@/frontend/components/StatusPill"
 
 const announcements = [
   {
@@ -48,7 +49,7 @@ export default function Announcements() {
           <div className="h-8 bg-[var(--color-border)] rounded w-48" />
           <div className="space-y-4 mt-8">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-[var(--color-border)] rounded-xl" />
+              <div key={i} className="h-32 bg-[var(--color-border)] rounded-2xl" />
             ))}
           </div>
         </div>
@@ -71,13 +72,11 @@ export default function Announcements() {
         {announcements.map((announcement) => (
           <div
             key={announcement.id}
-            className="rounded-lg border border-[var(--color-border)] bg-white p-7"
+            className="rounded-2xl border border-[var(--color-border)] bg-white p-6"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <span className="inline-flex items-center rounded-md bg-[var(--color-accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent)]">
-                {announcement.author}
-              </span>
-              <span className="text-[13px] text-[var(--color-ink-faint)]">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <StatusPill tone="accent">{announcement.author}</StatusPill>
+              <span className="text-[13px] text-[var(--color-ink-muted)]">
                 {new Date(announcement.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </span>
             </div>
@@ -91,7 +90,7 @@ export default function Announcements() {
         ))}
       </div>
 
-      <div className="mt-6 rounded-lg bg-[var(--color-accent-soft)] p-6">
+      <div className="mt-6 rounded-2xl bg-[var(--color-accent-soft)] p-6">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 bg-[var(--color-accent)] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,11 +101,8 @@ export default function Announcements() {
             <h3 className="font-medium text-[var(--color-ink)]">
               Want to receive notifications?
             </h3>
-            <p className="text-sm text-[var(--color-ink-muted)] mt-1">
-              Click the &quot;Watch&quot; button on the{" "}
-              <a href="#" className="text-[var(--color-accent)] underline">
-                Announcements repository
-              </a>{" "}
+            <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
+              Click the &quot;Watch&quot; button on the Announcements repository
               on GitHub to get email notifications for new announcements.
             </p>
           </div>

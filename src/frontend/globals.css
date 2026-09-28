@@ -9,6 +9,7 @@
 
   --color-accent: #4338CA;
   --color-accent-soft: #EEF2FF;
+  --color-accent-hover: #372FA8;
 
   --color-success: #059669;
   --color-success-soft: #ECFDF5;
@@ -16,6 +17,14 @@
   --color-caution-soft: #FFFBEB;
   --color-danger: #DC2626;
   --color-danger-soft: #FEF2F2;
+
+  /* Pill label colors — one step darker than the 500/600 tones above so tinted
+     pill text clears WCAG AA (4.5:1) on its own soft background. */
+  --color-success-text: #065F46;
+  --color-caution-text: #9A3412;
+  --color-danger-text: #B91C1C;
+  --color-reviewed-soft: #F5F3FF;
+  --color-reviewed-text: #6D28D9;
 
   --font-mono: var(--font-jetbrains);
 }

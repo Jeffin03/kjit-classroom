@@ -1,4 +1,4 @@
-import NewAssignment from "@/frontend/components/NewAssignment"
+import NewAssignment from "@/frontend/components/Faculty/NewAssignment"
 
 export default function NewAssignmentPage() {
   return <NewAssignment />

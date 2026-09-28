@@ -1,20 +1,29 @@
 "use client"
 
+import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import FacultyPageHeader from "./FacultyPageHeader"
 
 interface Team {
   name: string
   slug: string
-  members_count: number
+  members_count?: number
 }
 
 export default function FacultyRequest() {
   const { data: session, status } = useSession()
+  const {
+    isFaculty,
+    isOrgOwner,
+    loading: accessLoading,
+  } = useSessionUser()
   const router = useRouter()
 
   const [teams, setTeams] = useState<Team[]>([])
+  const [teamsError, setTeamsError] = useState(false)
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(true)
@@ -31,22 +40,39 @@ export default function FacultyRequest() {
   }, [status, router])
 
   useEffect(() => {
-    if (session) {
-      Promise.all([
-        fetch("/api/org/owners").then((r) => r.json()),
-        fetch("/api/org/teams").then((r) => r.json()),
-      ]).then(([ownersData, teamsData]) => {
-        if (ownersData.owners?.includes(session.user?.name)) {
-          router.push("/faculty/requests")
-          return
-        }
+    if (accessLoading) return
+
+    if (status === "unauthenticated") {
+      router.push("/")
+      return
+    }
+
+    if (isOrgOwner) {
+      router.push("/faculty/requests")
+      return
+    }
+
+    if (isFaculty) {
+      router.push("/faculty")
+      return
+    }
+
+    fetch("/api/org/teams")
+      .then((r) => {
+        if (!r.ok) throw new Error("teams request failed")
+        return r.json()
+      })
+      .then((teamsData) => {
         if (Array.isArray(teamsData.teams)) {
           setTeams(teamsData.teams)
         }
         setLoading(false)
-      }).catch(() => setLoading(false))
-    }
-  }, [session, router])
+      })
+      .catch(() => {
+        setTeamsError(true)
+        setLoading(false)
+      })
+  }, [status, isOrgOwner, isFaculty, accessLoading, router])
 
   const toggleClass = (teamName: string) => {
     setSelectedClasses((prev) =>
@@ -67,7 +93,6 @@ export default function FacultyRequest() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          githubUsername: session.user.name,
           email,
           classes: selectedClasses,
         }),
@@ -88,7 +113,7 @@ export default function FacultyRequest() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-3xl">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-[var(--color-border)] rounded w-64" />
           <div className="h-64 bg-[var(--color-border)] rounded-xl" />
@@ -98,16 +123,11 @@ export default function FacultyRequest() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
-          Request Faculty Access
-        </h1>
-        <p className="text-sm text-[var(--color-ink-muted)] mt-2">
-          Request to become a class animator. An org admin will verify and
-          approve your request.
-        </p>
-      </div>
+    <div className="max-w-3xl">
+      <FacultyPageHeader
+        title="Request Faculty Access"
+        subtitle="Request a teaching role for your classes. An org admin will verify and approve your request."
+      />
 
       {result && (
         <div
@@ -138,9 +158,14 @@ export default function FacultyRequest() {
 
           <div>
             <label className="block text-sm font-medium text-[var(--color-ink-muted)] mb-2">
-              Select the classes you are the animator for
+              Select the classes you teach
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {teamsError && (
+                <p className="text-sm text-[var(--color-danger)] col-span-full">
+                  Couldn&apos;t load classes. Refresh the page to try again.
+                </p>
+              )}
               {teams.map((team) => (
                 <button
                   key={team.slug}
@@ -152,9 +177,11 @@ export default function FacultyRequest() {
                   }`}
                 >
                   <div className="font-medium">{team.name}</div>
-                  <div className="text-xs text-[var(--color-ink-faint)]">
-                    {team.members_count} members
-                  </div>
+                  {typeof team.members_count === "number" && (
+                    <div className="text-xs text-[var(--color-ink-faint)]">
+                      {team.members_count} members
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -163,7 +190,7 @@ export default function FacultyRequest() {
           <button
             onClick={handleSubmit}
             disabled={!email || selectedClasses.length === 0 || submitting}
-            className="w-full bg-[var(--color-accent)] text-white px-4 py-3 rounded-md font-medium hover:bg-[#372FA8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--color-accent)] text-white px-4 py-3 rounded-md font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? "Submitting..." : "Submit Request"}
           </button>
@@ -192,12 +219,12 @@ export default function FacultyRequest() {
             An org admin will review your request. You will be added as a
             maintainer to your class teams once approved.
           </p>
-          <a
-            href="/faculty"
+          <Link
+            href="/dashboard"
             className="text-sm font-medium text-[var(--color-accent)] hover:underline"
           >
-            Go to Faculty Dashboard
-          </a>
+            Back to dashboard
+          </Link>
         </div>
       )}
     </div>

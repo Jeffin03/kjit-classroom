@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
 import { getOrgToken } from "@/backend/github/client"
 import { listTeams } from "@/backend/github/teams"
+import { authorize } from "@/backend/services/permissions"
 
 export async function GET() {
-  const session = await auth()
-
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const auth = await authorize("team.read")
+  if (!auth.ok) return auth.response
 
   const org = process.env.GITHUB_ORG
   if (!org) {
@@ -16,8 +13,22 @@ export async function GET() {
   }
 
   try {
-    const token = await getOrgToken()
-    const teams = await listTeams(token, org)
+    const { access } = auth.session
+    const allTeams = await listTeams(await getOrgToken(), org)
+    // Scoped teachers only ever pick from their own classes.
+    const teams =
+      access.scopedClasses === null
+        ? allTeams
+        : allTeams.filter((t) => access.scopedClasses!.includes(t.name))
+
+    // Only faculty see team metadata; everyone else just needs the class names
+    // to pick from when requesting a role.
+    if (!access.isFaculty) {
+      return NextResponse.json({
+        teams: teams.map((t) => ({ name: t.name, slug: t.slug })),
+      })
+    }
+
     return NextResponse.json({ teams })
   } catch {
     return NextResponse.json({ teams: [] })

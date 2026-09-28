@@ -2,10 +2,11 @@
 
 import { use, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useAssignments } from "@/frontend/hooks/useAssignments"
 import { useSubmissions } from "@/frontend/hooks/useSubmissions"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
-import SprintTimeline from "@/frontend/components/SprintTimeline"
+import SprintTimeline from "@/frontend/components/Student/SprintTimeline"
 
 export default function TimelinePage({
   searchParams,
@@ -29,11 +30,11 @@ export default function TimelinePage({
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-64" />
-          <div className="h-4 bg-gray-200 rounded w-96" />
+          <div className="h-8 bg-[var(--color-border)] rounded w-64" />
+          <div className="h-4 bg-[var(--color-border)] rounded w-96" />
           <div className="space-y-6 mt-8">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded-xl" />
+              <div key={i} className="h-20 bg-[var(--color-border)] rounded-2xl" />
             ))}
           </div>
         </div>
@@ -43,7 +44,7 @@ export default function TimelinePage({
 
   if (!assignmentId) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-500">
+      <div className="max-w-4xl mx-auto px-4 py-12 text-sm text-[var(--color-ink-muted)]">
         No assignment specified.
       </div>
     )
@@ -54,7 +55,7 @@ export default function TimelinePage({
 
   if (!assignment) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-500">
+      <div className="max-w-4xl mx-auto px-4 py-12 text-sm text-[var(--color-ink-muted)]">
         Assignment not found.
       </div>
     )
@@ -62,14 +63,14 @@ export default function TimelinePage({
 
   if (!submission) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-500">
+      <div className="max-w-4xl mx-auto px-4 py-12 text-sm text-[var(--color-ink-muted)]">
         You haven&apos;t started this assignment yet.{" "}
-        <a
+        <Link
           href={`/assignments/submit?assignmentId=${assignment.id}&sprint=0`}
-          className="text-indigo-600 hover:text-indigo-700 font-medium"
+          className="font-medium text-[var(--color-accent)] hover:underline"
         >
           Start Sprint 0 →
-        </a>
+        </Link>
       </div>
     )
   }
@@ -77,8 +78,10 @@ export default function TimelinePage({
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">{assignment.title}</h1>
-        <p className="mt-2 text-base text-gray-600">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
+          {assignment.title}
+        </h1>
+        <p className="mt-2 text-sm text-[var(--color-ink-muted)]">
           {assignment.subject} · Due{" "}
           {new Date(assignment.deadline).toLocaleDateString()}
         </p>
@@ -90,6 +93,7 @@ export default function TimelinePage({
           sprintCount={assignment.sprintCount}
           repoUrl={submission.repoUrl}
           submissionId={submission.id}
+          assignmentId={assignment.id}
         />
       </div>
     </div>

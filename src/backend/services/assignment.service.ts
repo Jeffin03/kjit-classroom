@@ -3,6 +3,8 @@ import { addAssignment, getAssignment, getAssignments } from "../store/assignmen
 import { getSubmissionsByAssignment, getSprintSubmissions } from "../store/submissions"
 import { getClassTeamForUsername } from "../store/roster"
 
+export const DEFAULT_SPRINT_COUNT = 4
+
 export function createAssignment(
   data: CreateAssignmentInput,
   createdBy: string
@@ -18,7 +20,7 @@ export function createAssignment(
     objectives: data.objectives || [],
     requirements: data.requirements || [],
     evaluationCriteria: data.evaluationCriteria || [],
-    sprintCount: 4,
+    sprintCount: DEFAULT_SPRINT_COUNT,
     createdBy,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -36,10 +38,16 @@ export function getAssignmentsForStudent(
   return all.filter((a) => a.assignedTeams.includes(team))
 }
 
-export function getAssignmentsForTeam(team: string | null): Assignment[] {
+/**
+ * Assignments visible to a member of staff. `scopedClasses` of null means
+ * unrestricted; otherwise only assignments targeting those class teams.
+ */
+export function getAssignmentsForFaculty(
+  scopedClasses: string[] | null
+): Assignment[] {
   const all = getAssignments()
-  if (!team) return all
-  return all.filter((a) => a.assignedTeams.includes(team))
+  if (scopedClasses === null) return all
+  return all.filter((a) => a.assignedTeams.some((t) => scopedClasses.includes(t)))
 }
 
 export function getAssignmentWithStats(

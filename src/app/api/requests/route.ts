@@ -1,63 +1,47 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
 import { getOrgToken } from "@/backend/github/client"
-import { getOrgOwners } from "@/backend/github/org"
-import { addTeamMaintainer } from "@/backend/github/teams"
+import { addTeamMaintainer, findTeam } from "@/backend/github/teams"
 import {
   getPendingTeacherRequests,
   getTeacherByGithubUsername,
   approveTeacherRequest,
   denyTeacherRequest,
 } from "@/backend/store/teachers"
+import { authorize } from "@/backend/services/permissions"
+
+/** Roles an owner may grant when approving a request. */
+const GRANTABLE_ROLES = [
+  "animator",
+  "subject-teacher",
+  "elective-teacher",
+] as const
+
+type GrantableRole = (typeof GRANTABLE_ROLES)[number]
+
+function orgNotConfigured() {
+  return NextResponse.json(
+    { error: "GITHUB_ORG not configured" },
+    { status: 500 }
+  )
+}
 
 export async function GET() {
-  const session = await auth()
+  const auth = await authorize("teacher.approve")
+  if (!auth.ok) return auth.response
 
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  if (!process.env.GITHUB_ORG) return orgNotConfigured()
 
-  const org = process.env.GITHUB_ORG
-  if (!org) {
-    return NextResponse.json(
-      { error: "GITHUB_ORG not configured" },
-      { status: 500 }
-    )
-  }
-
-  try {
-    const token = await getOrgToken()
-    const owners = await getOrgOwners(token, org)
-    const currentUser = session.user?.name
-
-    if (!currentUser || !owners.includes(currentUser)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    const requests = getPendingTeacherRequests()
-    return NextResponse.json({ requests })
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed" },
-      { status: 500 }
-    )
-  }
+  return NextResponse.json({ requests: getPendingTeacherRequests() })
 }
 
 export async function PUT(request: Request) {
-  const session = await auth()
+  const auth = await authorize("teacher.approve")
+  if (!auth.ok) return auth.response
 
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { access } = auth.session
 
   const org = process.env.GITHUB_ORG
-  if (!org) {
-    return NextResponse.json(
-      { error: "GITHUB_ORG not configured" },
-      { status: 500 }
-    )
-  }
+  if (!org) return orgNotConfigured()
 
   const body = await request.json()
   const { githubUsername, action } = body
@@ -69,45 +53,65 @@ export async function PUT(request: Request) {
     )
   }
 
-  try {
-    const token = await getOrgToken()
-    const owners = await getOrgOwners(token, org)
-    const currentUser = session.user?.name
+  if (action === "approve") {
+    const requestedRole = (body.role ?? "animator") as string
+    if (!GRANTABLE_ROLES.includes(requestedRole as GrantableRole)) {
+      return NextResponse.json(
+        { error: `role must be one of: ${GRANTABLE_ROLES.join(", ")}` },
+        { status: 400 }
+      )
+    }
+    const role = requestedRole as GrantableRole
 
-    if (!currentUser || !owners.includes(currentUser)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    const teacher = getTeacherByGithubUsername(githubUsername)
+    if (!teacher || teacher.role !== "pending") {
+      return NextResponse.json(
+        { error: "No pending request found for this user" },
+        { status: 404 }
+      )
     }
 
-    if (action === "approve") {
-      const teacher = getTeacherByGithubUsername(githubUsername)
-      if (!teacher || teacher.role !== "pending") {
+    // Resolve every class team first so a typo cannot grant access for a class
+    // the teacher does not actually teach.
+    const token = await getOrgToken()
+    const teams = []
+    for (const className of teacher.classes) {
+      const team = await findTeam(token, org, { name: className })
+      if (!team) {
         return NextResponse.json(
-          { error: "No pending request found for this user" },
-          { status: 404 }
+          {
+            error: `GitHub team "${className}" not found in organization ${org}. Create the team (Closed visibility) or fix the requested class before approving.`,
+          },
+          { status: 400 }
         )
       }
-
-      approveTeacherRequest(githubUsername, currentUser)
-
-      for (const className of teacher.classes) {
-        const teamSlug = className
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "")
-        await addTeamMaintainer(token, org, teamSlug, githubUsername)
-      }
-
-      return NextResponse.json({ message: "Request approved" })
-    } else if (action === "deny") {
-      denyTeacherRequest(githubUsername)
-      return NextResponse.json({ message: "Request denied" })
+      teams.push(team)
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 })
-  } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed" },
-      { status: 500 }
-    )
+    const warnings: string[] = []
+    for (const team of teams) {
+      try {
+        await addTeamMaintainer(token, org, team.slug, githubUsername)
+      } catch (err) {
+        warnings.push(
+          `${team.name}: ${err instanceof Error ? err.message : "failed to grant maintainer access"}`
+        )
+      }
+    }
+
+    approveTeacherRequest(githubUsername, access.username, role)
+
+    return NextResponse.json({
+      message: "Request approved",
+      role,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    })
   }
+
+  if (action === "deny") {
+    denyTeacherRequest(githubUsername)
+    return NextResponse.json({ message: "Request denied" })
+  }
+
+  return NextResponse.json({ error: "Invalid action" }, { status: 400 })
 }

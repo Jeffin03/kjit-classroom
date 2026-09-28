@@ -1,9 +1,10 @@
 import type { DiffMetrics, SprintSummary } from "@/backend/types"
+import SprintPill, { type SprintState } from "../SprintPill"
 
 interface SprintRowProps {
   index: number
   label: string
-  status: "done" | "pending" | "pivot"
+  status: SprintState
   repoUrl?: string
   commitSha?: string
   submittedDate?: string
@@ -18,8 +19,8 @@ interface SprintRowProps {
 function CommitFileList({ label, files }: { label: string; files: string[] }) {
   if (files.length === 0) return null
   return (
-    <div className="text-[13px] text-[var(--color-ink-faint)]">
-      <span className="text-[var(--color-ink-muted)]">{label}:</span>{" "}
+    <div className="text-[13px] text-[var(--color-ink-muted)]">
+      <span className="font-medium text-[var(--color-ink)]">{label}:</span>{" "}
       {files.slice(0, 3).join(", ")}
       {files.length > 3 && ` +${files.length - 3} more`}
     </div>
@@ -41,33 +42,25 @@ export function SprintRow({
   onSubmit,
 }: SprintRowProps) {
   return (
-    <div className="flex gap-4 py-5 border-b border-[var(--color-border)] last:border-0">
-      <div className="flex flex-col items-center pt-1">
-        <span className={`status-dot status-dot--${status}`} />
+    <div className="border-b border-[var(--color-border)] py-5 last:border-0">
+      <div className="flex flex-wrap items-center gap-3">
+        <h4 className="text-base font-medium text-[var(--color-ink)]">
+          Sprint {index}
+          {label ? ` — ${label}` : ""}
+        </h4>
+        <SprintPill state={status} />
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2 mb-1">
-          <h4 className="text-base font-medium text-[var(--color-ink)]">
-            Sprint {index}
-            {label ? ` — ${label}` : ""}
-          </h4>
-          {status === "pivot" && (
-            <span className="text-xs text-[var(--color-caution)]">
-              pivoted here
-            </span>
-          )}
-        </div>
-
+      <div className="mt-3 min-w-0">
         {status === "pending" ? (
           <>
-            <p className="text-sm text-[var(--color-ink-faint)] mb-3">
+            <p className="mb-3 text-sm text-[var(--color-ink-muted)]">
               Not submitted yet
             </p>
             {onSubmit && (
               <button
                 onClick={onSubmit}
-                className="text-sm font-medium text-white bg-[var(--color-accent)] px-4 py-2 rounded-md hover:bg-[#372FA8] transition-colors"
+                className="inline-flex min-h-10 items-center rounded-lg bg-[var(--color-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
               >
                 Submit Sprint {index}
               </button>
@@ -96,7 +89,7 @@ export function SprintRow({
                   href={previousRepoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-[13px] text-[var(--color-ink-faint)] hover:underline"
+                  className="font-mono text-[13px] text-[var(--color-ink-muted)] hover:underline"
                   style={{ fontFamily: "var(--font-mono)" }}
                 >
                   {previousRepoUrl.replace("https://github.com/", "")}
@@ -166,7 +159,7 @@ export function SprintRow({
               </div>
             )}
             {diffMetrics && (
-              <div className="mt-2 rounded-lg bg-[var(--color-canvas)] border border-[var(--color-border)] p-4">
+              <div className="mt-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-canvas)] p-4">
                 <div className="text-[13px] font-medium text-[var(--color-ink)] mb-2">
                   Changes since previous sprint
                 </div>

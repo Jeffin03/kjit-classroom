@@ -3,30 +3,16 @@
 import Link from "next/link"
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 
 export default function Navbar() {
   const { data: session } = useSession()
   const pathname = usePathname()
-  const [isFaculty, setIsFaculty] = useState(false)
+  const { isFaculty, role, team, loading: accessLoading } = useSessionUser()
 
   const isActive = (path: string) => pathname === path
 
-  useEffect(() => {
-    if (session) {
-      const username = session.user?.name
-      if (!username) return
-
-      Promise.all([
-        fetch("/api/org/owners").then((r) => r.json()),
-        fetch("/api/teachers").then((r) => r.json()),
-      ]).then(([ownersData, teacherData]) => {
-        const isOwner = ownersData.owners?.includes(username)
-        const isAnimator = teacherData.profile?.role === "animator"
-        setIsFaculty(isOwner || isAnimator)
-      })
-    }
-  }, [session])
+  if (pathname.startsWith("/faculty")) return null
 
   return (
     <nav className="bg-white border-b border-[var(--color-border)] sticky top-0 z-50">
@@ -44,6 +30,16 @@ export default function Navbar() {
 
             {session && (
               <div className="hidden md:flex items-center gap-4">
+                {!accessLoading && role === "unrostered" && (
+                  <span className="px-3 py-1 rounded-md text-xs font-medium bg-[var(--color-caution-soft)] text-[var(--color-caution-text)]">
+                    Not on roster
+                  </span>
+                )}
+                {!accessLoading && team && !isFaculty && (
+                  <span className="px-3 py-1 rounded-md text-xs font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+                    {team}
+                  </span>
+                )}
                 <Link
                   href="/assignments"
                   className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -86,6 +82,18 @@ export default function Navbar() {
                     Faculty
                   </Link>
                 )}
+                {!accessLoading && !isFaculty && (
+                  <Link
+                    href="/faculty/request"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive("/faculty/request")
+                        ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                        : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
+                    }`}
+                  >
+                    Request access
+                  </Link>
+                )}
               </div>
             )}
           </div>
@@ -103,7 +111,7 @@ export default function Navbar() {
                 </span>
                 <button
                   onClick={() => signOut()}
-                  className="text-sm text-[var(--color-ink-faint)] hover:text-[var(--color-ink)] px-3 py-1 rounded-md hover:bg-[var(--color-canvas)]"
+                  className="text-sm text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] px-3 py-1 rounded-md hover:bg-[var(--color-canvas)]"
                 >
                   Sign out
                 </button>
@@ -111,7 +119,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/api/auth/signin"
-                className="bg-[var(--color-accent)] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#372FA8] transition-colors"
+                className="bg-[var(--color-accent)] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors"
               >
                 Sign in with GitHub
               </Link>

@@ -1,80 +1,111 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useSession } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 
-export interface SessionUserInfo {
-  user: { name: string; image: string } | null
+export type Role =
+  | "owner"
+  | "animator"
+  | "subject-teacher"
+  | "elective-teacher"
+  | "student"
+  | "unrostered"
+
+export interface AccessInfo {
+  username: string
+  role: Role
   isFaculty: boolean
+  isOrgOwner: boolean
   team: string | null
+  classes: string[]
+  capabilities: string[]
+}
+
+export interface SessionUserInfo extends AccessInfo {
+  user: { name: string; image: string } | null
   loading: boolean
 }
 
-interface TeacherProfile {
-  role: string
+const GUEST: AccessInfo = {
+  username: "",
+  role: "unrostered",
+  isFaculty: false,
+  isOrgOwner: false,
+  team: null,
+  classes: [],
+  capabilities: [],
 }
 
-interface RosterResponse {
-  roster: { githubUsername?: string; classTeam: string }[]
-  teams: string[]
+interface AccessResponse {
+  status: number
+  access: AccessInfo
 }
 
+/**
+ * Several components mount this hook at once (Navbar, the page, the faculty
+ * shell). They share one in-flight request instead of racing three identical
+ * fetches; the entry is cleared on settle so the next mount refetches.
+ */
+let inflight: { key: string; promise: Promise<AccessResponse> } | null = null
+
+function requestAccess(key: string): Promise<AccessResponse> {
+  if (inflight?.key === key) return inflight.promise
+
+  const promise: Promise<AccessResponse> = fetch("/api/me")
+    .then(async (res) => {
+      const body = res.ok ? await res.json().catch(() => null) : null
+      return {
+        status: res.status,
+        access: (body as AccessInfo | null) ?? GUEST,
+      }
+    })
+    .catch(() => ({ status: 0, access: GUEST }))
+    .finally(() => {
+      if (inflight?.promise === promise) inflight = null
+    })
+
+  inflight = { key, promise }
+  return promise
+}
+
+/**
+ * Single source of truth for the caller's role and capabilities, backed by
+ * GET /api/me. The server is authoritative; the client only renders from this.
+ */
 export function useSessionUser(): SessionUserInfo {
   const { data: session, status } = useSession()
-  const [isFaculty, setIsFaculty] = useState(false)
-  const [team, setTeam] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
+  const [resolved, setResolved] = useState<AccessInfo | null>(null)
+
+  const authenticated = status === "authenticated" && !!session
+  const sessionKey = authenticated ? session.user?.name : null
 
   useEffect(() => {
-    if (status === "loading" || !session) return
+    if (!sessionKey) return
 
     let cancelled = false
 
-    Promise.all([
-      fetch("/api/org/owners")
-        .then((res) => (res.ok ? res.json() : { owners: [] }))
-        .catch(() => ({ owners: [] })),
-      fetch("/api/teachers")
-        .then((res) => (res.ok ? res.json() : { profile: null }))
-        .catch(() => ({ profile: null })),
-      fetch("/api/roster")
-        .then((res) => (res.ok ? res.json() : { roster: [], teams: [] }))
-        .catch(() => ({ roster: [], teams: [] })),
-    ]).then(([ownersData, teacherData, rosterData]: [
-      { owners: string[] },
-      { profile: TeacherProfile | null },
-      RosterResponse
-    ]) => {
+    requestAccess(sessionKey).then(({ status, access }) => {
       if (cancelled) return
+      setResolved(access)
 
-      const username = session.user?.name
-      const ownerList = Array.isArray(ownersData.owners) ? ownersData.owners : []
-      const isOwner = username ? ownerList.includes(username) : false
-      const teacher = teacherData.profile as TeacherProfile | null
-      const teacherRole =
-        teacher?.role === "animator" ||
-        teacher?.role === "subject-teacher" ||
-        teacher?.role === "elective-teacher"
-
-      setIsFaculty(isOwner || teacherRole)
-
-      const rosterList = Array.isArray(rosterData.roster) ? rosterData.roster : []
-      const entry = rosterList.find((r) => r.githubUsername === username)
-      setTeam(entry?.classTeam ?? null)
-      setReady(true)
+      // Auth.js still reports a session but the server rejects it: the cookie
+      // predates the `login` claim or the signing secret changed. Clear it so
+      // the user signs in again instead of seeing a permanent guest state.
+      if (status === 401) void signOut({ redirect: false })
     })
 
     return () => {
       cancelled = true
     }
-  }, [session, status])
+  }, [sessionKey])
+
+  const access = authenticated && resolved ? resolved : GUEST
 
   return {
+    ...access,
     user: session?.user
       ? { name: session.user.name || "", image: session.user.image || "" }
       : null,
-    isFaculty,
-    team,
-    loading: status === "loading" || (session ? !ready : false),
+    loading: status === "loading" || (authenticated && !resolved),
   }
 }

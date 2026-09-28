@@ -1,44 +1,44 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/backend/auth"
 import {
   getTeacherByGithubUsername,
   addTeacherProfile,
 } from "@/backend/store/teachers"
+import { authenticate, authorize } from "@/backend/services/permissions"
 
 export async function GET() {
-  const session = await auth()
+  const auth = await authenticate()
+  if (!auth.ok) return auth.response
 
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const githubUser = session.user?.name || session.user?.email
-  if (!githubUser) {
-    return NextResponse.json({ error: "No user info" }, { status: 400 })
-  }
-
-  const profile = getTeacherByGithubUsername(githubUser)
-  return NextResponse.json({ profile: profile || null })
+  const { access } = auth.session
+  const profile = getTeacherByGithubUsername(access.username)
+  return NextResponse.json({ profile: profile ?? null })
 }
 
 export async function POST(request: Request) {
-  const session = await auth()
+  const auth = await authorize("teacher.request")
+  if (!auth.ok) return auth.response
 
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const { access } = auth.session
 
   const body = await request.json()
-  const { githubUsername, email, classes } = body
+  const { email, classes } = body
 
-  if (!githubUsername || !email || !classes?.length) {
+  if (!email || !classes?.length) {
     return NextResponse.json(
-      { error: "githubUsername, email, and classes are required" },
+      { error: "email and classes are required" },
       { status: 400 }
     )
   }
 
-  const existing = getTeacherByGithubUsername(githubUsername)
+  // A request may only be filed for yourself, and only for classes you teach.
+  if (access.isFaculty) {
+    return NextResponse.json(
+      { error: "You already hold a faculty role" },
+      { status: 409 }
+    )
+  }
+
+  const existing = getTeacherByGithubUsername(access.username)
   if (existing && existing.role !== "pending") {
     return NextResponse.json(
       { error: "Teacher profile already exists with active role" },
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
   const profile = {
     id: existing?.id || `teacher-${Date.now()}`,
-    githubUsername,
+    githubUsername: access.username,
     email,
     role: "pending" as const,
     classes,

@@ -61,11 +61,14 @@ export async function inviteToOrg(
   token: string,
   org: string,
   username: string,
-  role: string = "direct_member"
+  role: string = "direct_member",
+  teamIds: number[] = []
 ): Promise<OrgInvitation> {
   const res = await githubFetch(`/orgs/${org}/invitations`, token, {
     method: "POST",
-    body: JSON.stringify({ username, role }),
+    // `team_ids` is the only way to get an invited (not yet accepted) user onto
+    // a team — the membership endpoint rejects them until they accept.
+    body: JSON.stringify({ username, role, ...(teamIds.length ? { team_ids: teamIds } : {}) }),
   })
 
   if (res.status === 201) return res.json()
@@ -85,18 +88,4 @@ export async function checkOrgMember(
 ): Promise<boolean> {
   const res = await githubFetch(`/orgs/${org}/members/${username}`, token)
   return res.ok
-}
-
-export async function getUserByEmail(
-  token: string,
-  org: string,
-  email: string
-): Promise<GitHubUser | null> {
-  const res = await githubFetch(
-    `/orgs/${org}/members?query=${encodeURIComponent(email)}`,
-    token
-  )
-  if (!res.ok) return null
-  const data = await res.json()
-  return data.items?.[0] || null
 }

@@ -45,6 +45,19 @@ export function updateRosterEntry(
   }
 }
 
+/** Removes one student from one class. Returns the removed entry, if any. */
+export function removeRosterEntry(
+  rollNo: string,
+  classTeam: string
+): RosterEntry | undefined {
+  const index = roster.findIndex(
+    (r) => r.rollNo === rollNo && r.classTeam === classTeam
+  )
+  if (index < 0) return undefined
+  const [removed] = roster.splice(index, 1)
+  return removed
+}
+
 export function getClassTeamForUsername(username: string): string | null {
   const entry = roster.find((r) => r.githubUsername === username)
   return entry?.classTeam ?? null

@@ -4,8 +4,11 @@ import FacultyPageHeader from "./FacultyPageHeader"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { useEffect, useState, useRef } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import Breadcrumbs from "@/frontend/components/Breadcrumbs"
+import KpiCard from "@/frontend/components/KpiCard"
 
 interface Team {
   name: string
@@ -327,10 +330,19 @@ export default function FacultyOnboard() {
   return (
     <>
       <div className="max-w-4xl">
-        <FacultyPageHeader
-          title="Onboard Students"
-          subtitle="Add students to your class team on GitHub"
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", href: "/faculty" },
+            { label: "Roster", href: "/faculty/roster" },
+            { label: "Onboard" },
+          ]}
         />
+        <div className="mt-4">
+          <FacultyPageHeader
+            title="Onboard Students"
+            subtitle="Add students to your class team on GitHub"
+          />
+        </div>
 
         {/* Step indicator */}
         <div className="mb-8">
@@ -634,11 +646,17 @@ export default function FacultyOnboard() {
                           onChange={() => toggleStudent(student.rollNo)}
                           className="w-4 h-4 accent-[var(--color-accent)] rounded"
                         />
-                        <img
-                          src={student.githubAvatar}
-                          alt=""
-                          className="w-8 h-8 rounded-full"
-                        />
+                        {student.githubAvatar ? (
+                          <Image
+                            src={student.githubAvatar}
+                            alt=""
+                            width={32}
+                            height={32}
+                            className="rounded-full"
+                          />
+                        ) : (
+                          <span className="size-8 shrink-0 rounded-full bg-accent-soft" />
+                        )}
                         <div className="flex-1">
                           <div className="text-sm font-medium text-[var(--color-ink)]">
                             {student.rollNo} — @{student.githubUsername}
@@ -823,31 +841,30 @@ export default function FacultyOnboard() {
                 {result?.team?.name ?? selectedTeam?.name}
               </p>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 max-w-lg mx-auto">
-                <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
-                  <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
-                    {result.addedToTeam}
-                  </div>
-                  <div className="text-xs text-[var(--color-ink-muted)]">Added to team</div>
-                </div>
-                <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
-                  <div className="text-2xl font-semibold tracking-tight text-[var(--color-accent)]">
-                    {result.invited}
-                  </div>
-                  <div className="text-xs text-[var(--color-ink-muted)]">Invites sent</div>
-                </div>
-                <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
-                  <div className="text-2xl font-semibold tracking-tight text-[var(--color-success)]">
-                    {result.alreadyMember}
-                  </div>
-                  <div className="text-xs text-[var(--color-ink-muted)]">Already members</div>
-                </div>
-                <div className="p-3 bg-[var(--color-canvas)] rounded-lg">
-                  <div className="text-2xl font-semibold tracking-tight text-[var(--color-danger)]">
-                    {result.noAccount}
-                  </div>
-                  <div className="text-xs text-[var(--color-ink-muted)]">No account</div>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 max-w-2xl mx-auto text-left">
+                <KpiCard
+                  label="Added to team"
+                  value={result.addedToTeam}
+                  hint="on GitHub"
+                  tone="success"
+                />
+                <KpiCard
+                  label="Invites sent"
+                  value={result.invited}
+                  hint="email invites"
+                  tone="accent"
+                />
+                <KpiCard
+                  label="Already members"
+                  value={result.alreadyMember}
+                  hint="no change needed"
+                />
+                <KpiCard
+                  label="No account"
+                  value={result.noAccount}
+                  hint="needs GitHub"
+                  tone={result.noAccount ? "danger" : "neutral"}
+                />
               </div>
 
               {(result.alreadyInTeam ?? 0) > 0 && (
@@ -889,11 +906,10 @@ export default function FacultyOnboard() {
               <div className="flex justify-center gap-4">
                 <Link
                   href="/faculty/roster"
-                  className="text-[var(--color-accent)] hover:underline font-medium"
+                  className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
                 >
-                  View Roster
+                  Back to roster
                 </Link>
-                <span className="text-[var(--color-border)]">|</span>
                 <button
                   onClick={() => {
                     setStep(1)
@@ -908,7 +924,7 @@ export default function FacultyOnboard() {
                     // Allow the same file to be selected again next time.
                     if (fileInputRef.current) fileInputRef.current.value = ""
                   }}
-                  className="text-[var(--color-accent)] hover:underline font-medium"
+                  className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
                 >
                   Onboard Another Class
                 </button>

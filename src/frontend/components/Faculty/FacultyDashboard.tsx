@@ -6,30 +6,39 @@ import Link from "next/link"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import { useAssignments } from "@/frontend/hooks/useAssignments"
 import { useSubmissions } from "@/frontend/hooks/useSubmissions"
-import type { Assignment, SubmissionWithSprints } from "@/backend/types"
-import ChecklistProgress from "@/frontend/components/ChecklistProgress"
-import StatCard from "@/frontend/components/StatCard"
-import StatusPill, { type StatusTone } from "@/frontend/components/StatusPill"
+import AnnouncementModule from "@/frontend/components/AnnouncementModule"
+import KpiCard from "@/frontend/components/KpiCard"
+import ClassCard from "@/frontend/components/ClassCard"
+import Avatar from "@/frontend/components/Avatar"
+import {
+  CheckCircleIcon,
+  ClipboardIcon,
+  UsersIcon,
+} from "@/frontend/components/Icons"
 import FacultyPageHeader from "./FacultyPageHeader"
 
-const statusMeta: Record<
-  SubmissionWithSprints["status"],
-  { label: string; tone: StatusTone }
-> = {
-  active: { label: "In progress", tone: "accent" },
-  completed: { label: "Awaiting acceptance", tone: "caution" },
-  accepted: { label: "Accepted", tone: "success" },
+interface RosterEntry {
+  githubUsername?: string
+  rollNo: string
+  classTeam: string
 }
+
+const DAY = 24 * 60 * 60 * 1000
 
 export default function FacultyDashboard() {
   const router = useRouter()
-  const { user, isFaculty, loading: userLoading } = useSessionUser()
+  const {
+    user,
+    isFaculty,
+    isOrgOwner,
+    capabilities,
+    loading: userLoading,
+  } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading } = useSubmissions()
-  const [selectedAssignment, setSelectedAssignment] = useState<string>("all")
-  const [roster, setRoster] = useState<
-    { githubUsername?: string; rollNo: string }[]
-  >([])
+  const [roster, setRoster] = useState<RosterEntry[]>([])
+  const [teams, setTeams] = useState<{ name: string }[]>([])
+  const [pendingCount, setPendingCount] = useState(0)
 
   useEffect(() => {
     if (!userLoading) {
@@ -45,59 +54,120 @@ export default function FacultyDashboard() {
         if (Array.isArray(data.roster)) setRoster(data.roster)
       })
       .catch(() => {})
+
+    fetch("/api/org/teams")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.teams)) setTeams(data.teams)
+      })
+      .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!capabilities.includes("teacher.approve")) return
+    fetch("/api/requests")
+      .then((r) => (r.ok ? r.json() : { requests: [] }))
+      .then((data) => {
+        if (Array.isArray(data.requests)) setPendingCount(data.requests.length)
+      })
+      .catch(() => {})
+  }, [capabilities])
+
+  const classNames = useMemo(() => {
+    const set = new Set<string>(teams.map((t) => t.name))
+    roster.forEach((entry) => set.add(entry.classTeam))
+    assignments.forEach((a) => a.assignedTeams.forEach((team) => set.add(team)))
+    return [...set].sort()
+  }, [teams, roster, assignments])
+
   const assignmentById = useMemo(() => {
-    const map = new Map<string, Assignment>()
+    const map = new Map<string, (typeof assignments)[number]>()
     assignments.forEach((a) => map.set(a.id, a))
     return map
   }, [assignments])
 
-  const filteredSubmissions = useMemo(
-    () =>
-      selectedAssignment === "all"
-        ? submissions
-        : submissions.filter((s) => s.assignmentId === selectedAssignment),
-    [submissions, selectedAssignment]
-  )
+  const rollupFor = (team: string) => {
+    const teamRoster = roster.filter((r) => r.classTeam === team)
+    const teamAssignments = assignments.filter((a) =>
+      a.assignedTeams.includes(team)
+    )
+    const ids = new Set(teamAssignments.map((a) => a.id))
+    const teamSubs = submissions.filter((s) => ids.has(s.assignmentId))
+    return {
+      students: teamRoster.length,
+      assignments: teamAssignments.length,
+      inProgress: teamSubs.filter((s) => s.status !== "accepted").length,
+      toReview: teamSubs.filter(
+        (s) =>
+          s.status !== "accepted" && s.sprints.some((sp) => !sp.reviewedAt)
+      ).length,
+      subjects: [...new Set(teamAssignments.map((a) => a.subject))].sort(),
+    }
+  }
 
-  const stats = useMemo(() => {
-    const active = filteredSubmissions.filter((s) => s.status === "active")
-    const completed = filteredSubmissions.filter(
-      (s) => s.status === "completed"
-    )
-    const accepted = filteredSubmissions.filter((s) => s.status === "accepted")
-    const pendingReview = filteredSubmissions.filter(
-      (s) =>
-        s.status !== "accepted" &&
-        s.sprints.some((sprint) => !sprint.reviewedAt)
-    )
-    return { active, completed, accepted, pendingReview }
-  }, [filteredSubmissions])
+  const recent = useMemo(() => {
+    const now = new Date().getTime()
+    return submissions
+      .flatMap((submission) =>
+        submission.sprints.map((sprint) => ({ submission, sprint }))
+      )
+      .filter(({ sprint }) => now - new Date(sprint.submittedAt).getTime() < 7 * DAY)
+      .sort(
+        (a, b) =>
+          new Date(b.sprint.submittedAt).getTime() -
+          new Date(a.sprint.submittedAt).getTime()
+      )
+      .slice(0, 8)
+  }, [submissions])
 
   const rosterByUsername = useMemo(() => {
-    const map = new Map<string, string>()
+    const map = new Map<string, RosterEntry>()
     roster.forEach((entry) => {
-      if (entry.githubUsername) map.set(entry.githubUsername, entry.rollNo)
+      if (entry.githubUsername) map.set(entry.githubUsername, entry)
     })
     return map
   }, [roster])
 
+  const stats = useMemo(() => {
+    const now = new Date().getTime()
+    const pendingReview = submissions.filter(
+      (s) => s.status !== "accepted" && s.sprints.some((sp) => !sp.reviewedAt)
+    ).length
+    const acceptedThisWeek = submissions.filter(
+      (s) =>
+        s.status === "accepted" &&
+        s.sprints.some(
+          (sp) =>
+            sp.reviewedAt &&
+            now - new Date(sp.reviewedAt).getTime() < 7 * DAY
+        )
+    ).length
+    return {
+      students: roster.length,
+      live: assignments.length,
+      pendingReview,
+      acceptedThisWeek,
+      noGithub: roster.filter((r) => !r.githubUsername).length,
+      subjects: new Set(assignments.map((a) => a.subject)).size,
+    }
+  }, [roster, assignments, submissions])
+
   const loading = userLoading || assignmentsLoading || submissionsLoading
+  const canCreate = capabilities.includes("assignment.create")
 
   if (loading) {
     return (
       <div className="max-w-6xl">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 rounded-2xl bg-[var(--color-border)]" />
+          <div className="h-8 w-64 rounded bg-border" />
           <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-28 rounded-2xl bg-[var(--color-border)]" />
+              <div key={i} className="h-28 rounded-2xl bg-border" />
             ))}
           </div>
-          <div className="mt-8 space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-16 rounded-2xl bg-[var(--color-border)]" />
+          <div className="mt-8 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-52 rounded-2xl bg-border" />
             ))}
           </div>
         </div>
@@ -108,166 +178,179 @@ export default function FacultyDashboard() {
   return (
     <div className="max-w-6xl">
       <FacultyPageHeader
-        title="Faculty Dashboard"
-        subtitle="Track submissions and pending reviews for the selected assignment"
+        title={isOrgOwner ? "Admin Dashboard" : "Faculty Dashboard"}
+        subtitle="Your classes at a glance"
         action={
-          <Link
-            href="/faculty/review"
-            className="inline-flex min-h-10 items-center rounded-lg bg-[var(--color-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
-          >
-            Open Review
-          </Link>
+          <>
+            {canCreate && (
+              <Link
+                href="/faculty/assignments/new"
+                className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                New assignment
+              </Link>
+            )}
+            <Link
+              href="/faculty/review"
+              className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-canvas"
+            >
+              Open review queue
+            </Link>
+          </>
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard
-          label="Active"
-          value={stats.active.length}
+      {isOrgOwner && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="Pending requests"
+            value={pendingCount}
+            hint="role changes"
+            tone={pendingCount ? "caution" : "neutral"}
+            to="/faculty/requests"
+          />
+          <KpiCard
+            label="Org students"
+            value={stats.students}
+            hint={`${classNames.length} classes`}
+            to="/faculty/roster"
+            icon={<UsersIcon className="size-4" />}
+          />
+          <KpiCard
+            label="Classes"
+            value={classNames.length}
+            hint="in your org"
+            icon={<UsersIcon className="size-4" />}
+            to="/faculty/onboard"
+          />
+          <KpiCard
+            label="Roster health"
+            value={stats.noGithub}
+            hint="without GitHub account"
+            tone={stats.noGithub ? "danger" : "success"}
+            to="/faculty/roster"
+          />
+        </div>
+      )}
+
+      <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-4 ${isOrgOwner ? "mt-4" : ""}`}>
+        <KpiCard
+          label="Students"
+          value={stats.students}
+          hint="across your classes"
+          icon={<UsersIcon className="size-4" />}
+          to="/faculty/roster"
+        />
+        <KpiCard
+          label="Live assignments"
+          value={stats.live}
+          hint={`in ${stats.subjects} subjects`}
           tone="accent"
-          hint="Submissions in progress"
+          icon={<ClipboardIcon className="size-4" />}
+          to="/faculty#classes"
         />
-        <StatCard
-          label="Completed"
-          value={stats.completed.length}
+        <KpiCard
+          label="To review"
+          value={stats.pendingReview}
+          hint="sprint submissions"
           tone="caution"
-          hint="All sprints submitted"
-        />
-        <StatCard
-          label="Accepted"
-          value={stats.accepted.length}
-          tone="success"
-          hint="Reviewed and accepted"
-        />
-        <StatCard
-          label="Pending review"
-          value={stats.pendingReview.length}
-          tone="neutral"
-          hint="Have unreviewed sprints"
+          icon={<ClipboardIcon className="size-4" />}
           to="/faculty/review"
         />
+        <KpiCard
+          label="Accepted this week"
+          value={stats.acceptedThisWeek}
+          hint="faculty sign-offs"
+          tone="success"
+          icon={<CheckCircleIcon className="size-4" />}
+          to="/faculty/review?status=accepted"
+        />
       </div>
 
-      <div className="mt-8 rounded-2xl border border-[var(--color-border)] bg-white">
-        <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-base font-semibold tracking-tight text-[var(--color-ink)]">
-            Sprint submissions
-          </h2>
-          <label className="flex items-center gap-2 text-sm text-[var(--color-ink-muted)]">
-            <span>Assignment</span>
-            <select
-              value={selectedAssignment}
-              onChange={(e) => setSelectedAssignment(e.target.value)}
-              className="min-h-10 rounded-lg border border-[var(--color-border)] bg-white px-3 text-sm text-[var(--color-ink)] focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:outline-none"
-            >
-              <option value="all">All assignments</option>
-              {assignments.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <div className="mt-6">
+        <AnnouncementModule />
+      </div>
 
-        {filteredSubmissions.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-[var(--color-ink-muted)]">
-            No submissions yet
-          </p>
+      <section id="classes" className="mt-10">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-subtle">
+          Your classes
+        </h2>
+        {classNames.length === 0 ? (
+          <div className="mt-4 rounded-2xl border border-border bg-surface p-8 text-center">
+            <p className="text-sm text-ink-muted">
+              You haven&apos;t been assigned a class yet. An org owner assigns
+              classes from GitHub teams.
+            </p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[46rem]">
-              <thead>
-                <tr className="bg-[var(--color-canvas)] text-left text-xs font-medium uppercase tracking-wide text-[var(--color-ink-muted)]">
-                  <th scope="col" className="px-5 py-3">
-                    Student
-                  </th>
-                  <th scope="col" className="px-5 py-3">
-                    Sprints
-                  </th>
-                  <th scope="col" className="px-5 py-3">
-                    Progress
-                  </th>
-                  <th scope="col" className="px-5 py-3">
-                    Status
-                  </th>
-                  <th scope="col" className="px-5 py-3 text-right">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border)]">
-                {filteredSubmissions.map((submission) => {
-                  const assignment = assignmentById.get(submission.assignmentId)
-                  const rollNo = rosterByUsername.get(submission.studentUsername)
-                  const sprintCount = assignment?.sprintCount || 4
-                  const status = statusMeta[submission.status]
-                  const hasPivot = submission.sprints.some((s) => s.isPivot)
-
-                  return (
-                    <tr
-                      key={submission.id}
-                      className="transition-colors hover:bg-[var(--color-canvas)]"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <span
-                            aria-hidden
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-canvas)] text-sm font-medium text-[var(--color-ink-muted)] ring-1 ring-[var(--color-border)]"
-                          >
-                            {(rollNo || submission.studentUsername)
-                              .charAt(0)
-                              .toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-[var(--color-ink)]">
-                              {rollNo || `@${submission.studentUsername}`}
-                            </div>
-                            <div className="truncate text-sm text-[var(--color-ink-muted)]">
-                              {assignment?.title || submission.assignmentId}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="text-sm text-[var(--color-ink-muted)]">
-                          <span className="font-medium text-[var(--color-ink)]">
-                            {submission.sprints.length}
-                          </span>
-                          /{sprintCount} submitted
-                        </div>
-                        {hasPivot ? (
-                          <StatusPill tone="caution" className="mt-1.5">
-                            Pivoted
-                          </StatusPill>
-                        ) : null}
-                      </td>
-                      <td className="w-40 px-5 py-4">
-                        <ChecklistProgress
-                          current={submission.sprints.length}
-                          total={sprintCount}
-                          compact
-                        />
-                      </td>
-                      <td className="px-5 py-4">
-                        <StatusPill tone={status.tone}>{status.label}</StatusPill>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <Link
-                          href={`/faculty/assignments/${submission.assignmentId}`}
-                          className="inline-flex min-h-10 items-center rounded-lg px-2 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent-soft)]"
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {classNames.map((team) => (
+              <ClassCard key={team} team={team} {...rollupFor(team)} />
+            ))}
           </div>
         )}
-      </div>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-subtle">
+            Recent submissions
+          </h2>
+          <span className="text-xs text-ink-subtle">last 7 days</span>
+        </div>
+        <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface">
+          {recent.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-ink-muted">
+              No submissions in the last 7 days
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recent.map(({ submission, sprint }) => {
+                const assignment = assignmentById.get(submission.assignmentId)
+                const entry = rosterByUsername.get(submission.studentUsername)
+                const when = new Date(sprint.submittedAt)
+                return (
+                  <li
+                    key={`${submission.id}-${sprint.sprintNumber}`}
+                    className="flex flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-canvas"
+                  >
+                    <Avatar
+                      name={entry?.rollNo || submission.studentUsername}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {entry?.rollNo || `@${submission.studentUsername}`}
+                      </p>
+                      <p className="truncate text-xs text-ink-muted">
+                        {entry?.classTeam ? `${entry.classTeam} · ` : ""}
+                        {assignment?.title || submission.assignmentId} · Sprint{" "}
+                        {sprint.sprintNumber}
+                      </p>
+                    </div>
+                    <span className="text-xs text-ink-subtle">
+                      {when.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}{" "}
+                      {when.toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <Link
+                      href={`/faculty/review?assignmentId=${submission.assignmentId}`}
+                      className="inline-flex min-h-9 items-center rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-accent-soft"
+                    >
+                      Review
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
     </div>
   )
 }

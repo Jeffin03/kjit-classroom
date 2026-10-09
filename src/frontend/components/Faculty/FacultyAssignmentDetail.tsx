@@ -9,10 +9,13 @@ import type {
   SprintSubmission,
   SubmissionWithSprints,
 } from "@/backend/types"
-import ChecklistProgress from "@/frontend/components/ChecklistProgress"
-import StatCard from "@/frontend/components/StatCard"
-import StatusPill from "@/frontend/components/StatusPill"
+import Breadcrumbs from "@/frontend/components/Breadcrumbs"
+import KpiCard from "@/frontend/components/KpiCard"
+import StudentCard, { type StudentCardRow } from "@/frontend/components/StudentCard"
 import SprintPill, { type SprintState } from "@/frontend/components/SprintPill"
+import StatusPill from "@/frontend/components/StatusPill"
+import ChecklistProgress from "@/frontend/components/ChecklistProgress"
+import type { BadgeStatus } from "@/frontend/components/Badge"
 import FacultyPageHeader from "./FacultyPageHeader"
 
 interface RosterEntry {
@@ -42,6 +45,13 @@ function sprintState(sprint: SprintSubmission | undefined): SprintState {
   return sprint.reviewedAt ? "reviewed" : "submitted"
 }
 
+function badgeStatus(submission?: SubmissionWithSprints): BadgeStatus {
+  if (!submission) return "not-started"
+  if (submission.status === "accepted") return "accepted"
+  if (submission.status === "completed") return "awaiting"
+  return "in-progress"
+}
+
 export default function FacultyAssignmentDetail({
   assignmentId,
 }: {
@@ -55,6 +65,9 @@ export default function FacultyAssignmentDetail({
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [view, setView] = useState<"grid" | "table">("grid")
 
   const load = async () => {
     try {
@@ -192,19 +205,53 @@ export default function FacultyAssignmentDetail({
     }
   }, [rows])
 
+  const cardRows = useMemo<StudentCardRow[]>(() => {
+    if (!assignment) return []
+    return rows.map((row) => ({
+      key: row.studentUsername || row.rollNo,
+      rollNo: row.rollNo,
+      studentUsername: row.studentUsername,
+      collegeEmail: row.collegeEmail,
+      latestCommit: row.latestCommit,
+      status: badgeStatus(row.submission),
+      sprintStates: Array.from({ length: assignment.sprintCount }, (_, index) =>
+        sprintState(
+          row.submission?.sprints.find(
+            (sprint) => sprint.sprintNumber === index
+          )
+        )
+      ),
+      sprintCount: assignment.sprintCount,
+      pivoted: row.submission?.sprints.some((sprint) => sprint.isPivot) ?? false,
+      accepted: row.submission?.status === "accepted",
+    }))
+  }, [assignment, rows])
+
+  const visibleCards = cardRows.filter((row) => {
+    const query = search.trim().toLowerCase()
+    const matchesSearch =
+      !query ||
+      row.rollNo.toLowerCase().includes(query) ||
+      row.studentUsername.toLowerCase().includes(query) ||
+      row.collegeEmail.toLowerCase().includes(query)
+    const matchesStatus = statusFilter === "all" || row.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
   if (loading || userLoading) {
     return (
       <div className="max-w-6xl">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 w-64 rounded-2xl bg-[var(--color-border)]" />
-          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="h-4 w-64 rounded bg-border" />
+          <div className="h-8 w-72 rounded bg-border" />
+          <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-28 rounded-2xl bg-[var(--color-border)]" />
+              <div key={i} className="h-28 rounded-2xl bg-border" />
             ))}
           </div>
-          <div className="mt-8 space-y-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 rounded-2xl bg-[var(--color-border)]" />
+              <div key={i} className="h-44 rounded-2xl bg-border" />
             ))}
           </div>
         </div>
@@ -215,8 +262,8 @@ export default function FacultyAssignmentDetail({
   if (!assignment) {
     return (
       <div className="max-w-6xl">
-        <FacultyPageHeader title="Assignment" />
-        <p className="text-sm text-[var(--color-ink-muted)]">
+        <Breadcrumbs items={[{ label: "Dashboard", href: "/faculty" }]} />
+        <p className="mt-6 text-sm text-ink-muted">
           {loadError ?? "Assignment not found."}
         </p>
       </div>
@@ -227,232 +274,316 @@ export default function FacultyAssignmentDetail({
     { length: assignment.sprintCount },
     (_, index) => index
   )
+  const homeTeam = assignment.assignedTeams[0]
 
   return (
     <div className="max-w-6xl">
-      <FacultyPageHeader
-        title={assignment.title}
-        subtitle={assignment.description}
-        action={
-          <>
-            <Link
-              href="/faculty/assignments"
-              className="inline-flex min-h-10 items-center rounded-lg border border-[var(--color-border)] bg-white px-4 text-sm font-medium text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
-            >
-              Assignments
-            </Link>
-            <Link
-              href={`/faculty/review?assignmentId=${assignmentId}`}
-              className="inline-flex min-h-10 items-center rounded-lg bg-[var(--color-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
-            >
-              Open Review
-            </Link>
-          </>
-        }
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/faculty" },
+          ...(homeTeam
+            ? [
+                {
+                  label: homeTeam,
+                  href: `/faculty/class/${encodeURIComponent(homeTeam)}`,
+                },
+              ]
+            : []),
+          { label: assignment.title },
+        ]}
       />
 
+      <div className="mt-4">
+        <FacultyPageHeader
+          title={assignment.title}
+          subtitle={assignment.description}
+          action={
+            <>
+              <Link
+                href="/faculty"
+                className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
+              >
+                Classes
+              </Link>
+              <Link
+                href={`/faculty/review?assignmentId=${assignmentId}`}
+                className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                Open review
+              </Link>
+            </>
+          }
+        />
+      </div>
+
       {actionError && (
-        <div className="mb-6 rounded-md border border-[var(--color-danger)] bg-[var(--color-danger-soft)] px-4 py-3 text-sm text-[var(--color-danger)]">
+        <div className="mb-6 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-text">
           {actionError}
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm text-[var(--color-ink-muted)]">
+      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
         <StatusPill tone="accent">{assignment.subject}</StatusPill>
         <StatusPill>{assignment.assignedTeams.join(", ")}</StatusPill>
         <span>Due {new Date(assignment.deadline).toLocaleDateString()}</span>
         <span aria-hidden>·</span>
-        <span>
-          {assignment.sprintCount} sprints
-        </span>
+        <span>{assignment.sprintCount} sprints</span>
         <span aria-hidden>·</span>
         <span>
           Created by{" "}
-          <span
-            className="font-mono text-[13px]"
-            style={{ fontFamily: "var(--font-mono)" }}
-          >
-            @{assignment.createdBy}
-          </span>
+          <span className="font-mono text-[13px]">@{assignment.createdBy}</span>
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <StatCard label="Students" value={stats.total} tone="neutral" />
-        <StatCard
+        <KpiCard
+          label="Students"
+          value={stats.total}
+          hint="on this assignment"
+          onClick={() => {
+            setStatusFilter("all")
+            setSearch("")
+          }}
+        />
+        <KpiCard
           label="In progress"
           value={stats.inFlight}
           tone="accent"
-          hint="Active or awaiting acceptance"
+          hint="active or awaiting"
         />
-        <StatCard
+        <KpiCard
           label="Accepted"
           value={stats.accepted}
           tone="success"
-          hint="Reviewed and accepted"
+          hint="signed off"
+          onClick={() => setStatusFilter("accepted")}
         />
-        <StatCard
-          label="No submission"
+        <KpiCard
+          label="Not started"
           value={stats.noSubmission}
-          tone="caution"
-          hint="Nothing submitted yet"
+          tone={stats.noSubmission ? "caution" : "neutral"}
+          hint="nothing submitted"
+          onClick={() => setStatusFilter("not-started")}
         />
       </div>
 
-      <div className="mt-8 rounded-2xl border border-[var(--color-border)] bg-white">
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
-          <h2 className="text-base font-semibold tracking-tight text-[var(--color-ink)]">
-            Student submissions ({stats.total})
-          </h2>
-          <span className="text-sm text-[var(--color-ink-muted)]">
-            {sprintNumbers.length} sprints
-          </span>
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 items-center gap-2">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search student…"
+            aria-label="Search students"
+            className="h-10 w-full max-w-xs rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
+          />
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            aria-label="Filter by status"
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
+          >
+            <option value="all">All statuses</option>
+            <option value="not-started">Not started</option>
+            <option value="in-progress">In progress</option>
+            <option value="awaiting">Awaiting acceptance</option>
+            <option value="accepted">Accepted</option>
+          </select>
         </div>
 
-        {rows.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-[var(--color-ink-muted)]">
-            No students assigned to this assignment yet
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-ink-subtle">View</span>
+          <div className="flex rounded-lg border border-border bg-surface p-0.5">
+            {(["grid", "table"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setView(mode)}
+                aria-pressed={view === mode}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                  view === mode
+                    ? "bg-accent-soft text-accent"
+                    : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {view === "grid" ? (
+        visibleCards.length === 0 ? (
+          <p className="mt-8 rounded-2xl border border-border bg-surface px-5 py-10 text-center text-sm text-ink-muted">
+            {rows.length === 0
+              ? "No students assigned to this assignment yet"
+              : "No students match this filter"}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[60rem]">
-              <thead>
-                <tr className="bg-[var(--color-canvas)] text-left text-xs font-medium uppercase tracking-wide text-[var(--color-ink-muted)]">
-                  <th scope="col" className="px-5 py-3">
-                    Student
-                  </th>
-                  {sprintNumbers.map((sprintNumber) => (
-                    <th
-                      key={sprintNumber}
-                      scope="col"
-                      className="px-3 py-3 whitespace-nowrap"
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleCards.map((row) => (
+              <StudentCard
+                key={row.key}
+                row={row}
+                actions={
+                  <>
+                    <Link
+                      href={`/faculty/review?assignmentId=${assignmentId}`}
+                      className="inline-flex min-h-9 items-center rounded-lg px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
                     >
-                      Sprint {sprintNumber}
-                    </th>
-                  ))}
-                  <th scope="col" className="px-5 py-3">
-                    Progress
-                  </th>
-                  <th scope="col" className="px-5 py-3">
-                    Status
-                  </th>
-                  <th scope="col" className="px-5 py-3 text-right">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-border)]">
-                {rows.map((row) => {
-                  const submission = row.submission
-                  const status = submission
-                    ? submissionStatusMeta[submission.status]
-                    : null
-
-                  return (
-                    <tr
-                      key={row.studentUsername || row.rollNo}
-                      className="transition-colors hover:bg-[var(--color-canvas)]"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <span
-                            aria-hidden
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-canvas)] text-sm font-medium text-[var(--color-ink-muted)] ring-1 ring-[var(--color-border)]"
-                          >
-                            {row.rollNo.charAt(0).toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-[var(--color-ink)]">
-                              {row.rollNo}
-                            </div>
-                            <div className="truncate text-sm text-[var(--color-ink-muted)]">
-                              {row.studentUsername ? (
-                                <span
-                                  className="font-mono text-[13px]"
-                                  style={{ fontFamily: "var(--font-mono)" }}
-                                >
-                                  @{row.studentUsername}
-                                </span>
-                              ) : (
-                                <span>No GitHub account</span>
-                              )}
-                            </div>
-                            <div className="truncate text-xs text-[var(--color-ink-muted)]">
-                              {row.collegeEmail}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {sprintNumbers.map((sprintNumber) => (
-                        <td key={sprintNumber} className="px-3 py-4">
-                          <SprintPill
-                            number={sprintNumber}
-                            state={sprintState(
-                              submission?.sprints.find(
-                                (sprint) =>
-                                  sprint.sprintNumber === sprintNumber
-                              )
-                            )}
-                          />
-                        </td>
-                      ))}
-
-                      <td className="w-40 px-5 py-4">
-                        <ChecklistProgress
-                          current={submission?.sprints.length ?? 0}
-                          total={assignment.sprintCount}
-                          compact
-                        />
-                        {row.latestCommit ? (
-                          <span
-                            className="mt-1.5 block font-mono text-xs text-[var(--color-ink-muted)]"
-                            style={{ fontFamily: "var(--font-mono)" }}
-                          >
-                            {row.latestCommit.slice(0, 7)}
-                          </span>
-                        ) : null}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        {status ? (
-                          <StatusPill tone={status.tone}>{status.label}</StatusPill>
-                        ) : (
-                          <StatusPill>Not started</StatusPill>
-                        )}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          {submission ? (
-                            <>
-                              <Link
-                                href={`/faculty/review?assignmentId=${assignmentId}`}
-                                className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent-soft)]"
-                              >
-                                Review
-                              </Link>
-                              {submission.status === "accepted" ? null : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAccept(submission.id)}
-                                  className="inline-flex min-h-10 items-center rounded-lg bg-[var(--color-accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)]"
-                                >
-                                  Accept
-                                </button>
-                              )}
-                            </>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                      Open
+                    </Link>
+                    {row.status !== "accepted" &&
+                      submissions.find(
+                        (s) =>
+                          s.studentUsername === row.studentUsername
+                      ) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleAccept(
+                              submissions.find(
+                                (s) =>
+                                  s.studentUsername === row.studentUsername
+                              )!.id
+                            )
+                          }
+                          className="inline-flex min-h-9 items-center rounded-lg bg-accent px-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+                        >
+                          Accept
+                        </button>
+                      )}
+                  </>
+                }
+              />
+            ))}
           </div>
-        )}
-      </div>
+        )
+      ) : (
+        <div className="mt-6 overflow-x-auto rounded-2xl border border-border bg-surface">
+          <table className="w-full min-w-[60rem]">
+            <thead>
+              <tr className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-ink-muted">
+                <th scope="col" className="px-5 py-3">
+                  Student
+                </th>
+                {sprintNumbers.map((sprintNumber) => (
+                  <th
+                    key={sprintNumber}
+                    scope="col"
+                    className="whitespace-nowrap px-3 py-3"
+                  >
+                    Sprint {sprintNumber}
+                  </th>
+                ))}
+                <th scope="col" className="px-5 py-3">
+                  Progress
+                </th>
+                <th scope="col" className="px-5 py-3">
+                  Status
+                </th>
+                <th scope="col" className="px-5 py-3 text-right">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((row) => {
+                const submission = row.submission
+                const status = submission
+                  ? submissionStatusMeta[submission.status]
+                  : null
+
+                return (
+                  <tr
+                    key={row.studentUsername || row.rollNo}
+                    className="transition-colors hover:bg-canvas"
+                  >
+                    <td className="px-5 py-4">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">
+                          {row.rollNo}
+                        </div>
+                        <div className="truncate text-sm text-ink-muted">
+                          {row.studentUsername ? (
+                            <span className="font-mono text-[13px]">
+                              @{row.studentUsername}
+                            </span>
+                          ) : (
+                            <span>No GitHub account</span>
+                          )}
+                        </div>
+                        <div className="truncate text-xs text-ink-muted">
+                          {row.collegeEmail}
+                        </div>
+                      </div>
+                    </td>
+
+                    {sprintNumbers.map((sprintNumber) => (
+                      <td key={sprintNumber} className="px-3 py-4">
+                        <SprintPill
+                          number={sprintNumber}
+                          state={sprintState(
+                            submission?.sprints.find(
+                              (sprint) => sprint.sprintNumber === sprintNumber
+                            )
+                          )}
+                        />
+                      </td>
+                    ))}
+
+                    <td className="w-40 px-5 py-4">
+                      <ChecklistProgress
+                        current={submission?.sprints.length ?? 0}
+                        total={assignment.sprintCount}
+                        compact
+                      />
+                      {row.latestCommit ? (
+                        <span className="mt-1.5 block font-mono text-xs text-ink-muted">
+                          {row.latestCommit.slice(0, 7)}
+                        </span>
+                      ) : null}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      {status ? (
+                        <StatusPill tone={status.tone}>{status.label}</StatusPill>
+                      ) : (
+                        <StatusPill>Not started</StatusPill>
+                      )}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        {submission ? (
+                          <>
+                            <Link
+                              href={`/faculty/review?assignmentId=${assignmentId}`}
+                              className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-accent-soft"
+                            >
+                              Review
+                            </Link>
+                            {submission.status === "accepted" ? null : (
+                              <button
+                                type="button"
+                                onClick={() => handleAccept(submission.id)}
+                                className="inline-flex min-h-10 items-center rounded-lg bg-accent px-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+                              >
+                                Accept
+                              </button>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

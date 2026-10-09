@@ -3,123 +3,151 @@
 import Link from "next/link"
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import Avatar from "./Avatar"
 
 export default function Navbar() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const { isFaculty, team, loading: accessLoading } = useSessionUser()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  const isActive = (path: string) => pathname === path
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointerDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false)
+    }
+    document.addEventListener("mousedown", onPointerDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [menuOpen])
 
-  if (pathname.startsWith("/faculty")) return null
+  // The landing page and sign-in render their own chrome; faculty uses the
+  // sidebar shell.
+  if (pathname === "/" || pathname === "/signin" || pathname.startsWith("/faculty")) {
+    return null
+  }
+
+  const isActive = (path: string) =>
+    pathname === path || pathname.startsWith(`${path}/`)
+
+  const links: { label: string; href: string }[] = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Assignments", href: "/assignments" },
+  ]
+
+  const displayName = session?.user?.name || "Account"
+  const image = session?.user?.image || undefined
 
   return (
-    <nav className="bg-white border-b border-[var(--color-border)] sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[var(--color-accent)] rounded-lg flex items-center justify-center">
-                <span className="text-white font-semibold text-sm">K</span>
-              </div>
-              <span className="font-semibold text-lg tracking-tight text-[var(--color-ink)]">
-                KJIT Classroom
-              </span>
-            </Link>
+    <nav className="sticky top-0 z-40 h-16 border-b border-border bg-surface">
+      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-6">
+          <Link
+            href={session ? "/dashboard" : "/"}
+            className="flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-white">
+              K
+            </span>
+            <strong className="hidden text-sm sm:block">KJIT Classroom</strong>
+          </Link>
 
-            {session && (
-              <div className="hidden md:flex items-center gap-4">
-                {!accessLoading && team && !isFaculty && (
-                  <span className="px-3 py-1 rounded-md text-xs font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
-                    {team}
-                  </span>
-                )}
+          {session && (
+            <div className="flex items-center gap-1">
+              {links.map((link) => (
                 <Link
-                  href="/assignments"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive("/assignments")
-                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                      : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
+                  key={link.href}
+                  href={link.href}
+                  aria-current={isActive(link.href) ? "page" : undefined}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
+                    isActive(link.href)
+                      ? "bg-accent-soft text-accent"
+                      : "text-ink-muted hover:bg-canvas hover:text-ink"
                   }`}
                 >
-                  Assignments
+                  {link.label}
                 </Link>
-                <Link
-                  href="/dashboard"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive("/dashboard")
-                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                      : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
-                  }`}
-                >
-                  My Dashboard
-                </Link>
-                <Link
-                  href="/announcements"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive("/announcements")
-                      ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                      : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
-                  }`}
-                >
-                  Announcements
-                </Link>
-                {isFaculty && (
-                  <Link
-                    href="/faculty"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive("/faculty")
-                        ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                        : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
-                    }`}
-                  >
-                    Faculty
-                  </Link>
-                )}
-                {!accessLoading && !isFaculty && (
-                  <Link
-                    href="/faculty/request"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive("/faculty/request")
-                        ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                        : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:bg-[var(--color-canvas)]"
-                    }`}
-                  >
-                    Request access
-                  </Link>
-                )}
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-4">
-            {session ? (
-              <div className="flex items-center gap-3">
-                <img
-                  src={session.user?.image || ""}
-                  alt=""
-                  className="w-8 h-8 rounded-full"
-                />
-                <span className="text-sm text-[var(--color-ink-muted)] hidden sm:block">
-                  {session.user?.name}
+        <div className="flex items-center gap-3">
+          {session ? (
+            <>
+              {!accessLoading && team && !isFaculty && (
+                <span className="hidden rounded-full bg-canvas px-3 py-1 text-xs font-medium text-ink-muted md:block">
+                  {team}
                 </span>
+              )}
+              <div className="relative" ref={menuRef}>
                 <button
-                  onClick={() => signOut()}
-                  className="text-sm text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] px-3 py-1 rounded-md hover:bg-[var(--color-canvas)]"
+                  type="button"
+                  onClick={() => setMenuOpen((open) => !open)}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  aria-label="Account menu"
+                  className="flex items-center rounded-full focus-visible:outline-2 focus-visible:outline-accent"
                 >
-                  Sign out
+                  <Avatar name={displayName} size="sm" image={image} />
                 </button>
+
+                {menuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-border bg-surface p-2 shadow-lg"
+                  >
+                    <div className="px-3 py-2">
+                      <p className="truncate text-sm font-medium">{displayName}</p>
+                      {team && (
+                        <p className="truncate text-xs text-ink-subtle">{team}</p>
+                      )}
+                    </div>
+                    <div className="my-1 h-px bg-border" />
+                    {isFaculty && (
+                      <Link
+                        href="/faculty"
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                        className="block rounded-lg px-3 py-2 text-sm text-ink-muted hover:bg-canvas hover:text-ink"
+                      >
+                        Faculty dashboard
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        void signOut()
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-ink-muted hover:bg-canvas hover:text-ink"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <Link
-                href="/signin"
-                className="bg-[var(--color-accent)] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors"
-              >
-                Sign in with GitHub
-              </Link>
-            )}
-          </div>
+            </>
+          ) : (
+            <Link
+              href="/signin"
+              className="bg-accent text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-accent-hover transition-colors"
+            >
+              Sign in with GitHub
+            </Link>
+          )}
         </div>
       </div>
     </nav>

@@ -45,7 +45,7 @@ const navItems: NavItem[] = [
   },
   {
     href: "/faculty/review",
-    label: "Reviews",
+    label: "Review",
     icon: (
       <Icon>
         <path d="M4.75 12.75 9.5 17.5 19.25 6.5" />
@@ -53,14 +53,14 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    href: "/faculty/assignments",
-    label: "Assignments",
+    href: "/faculty/roster",
+    label: "Roster",
     icon: (
       <Icon>
-        <path d="M14 3.5H8a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7.5l-4-4Z" />
-        <path d="M13.75 3.5v4h4.25" />
-        <path d="M9 12.5h6" />
-        <path d="M9 16h4" />
+        <circle cx="9" cy="8" r="3.25" />
+        <path d="M2.75 19.75v-1a4.25 4.25 0 0 1 4.25-4.25h4a4.25 4.25 0 0 1 4.25 4.25v1" />
+        <path d="M16 5.2a3.25 3.25 0 0 1 0 5.9" />
+        <path d="M17.5 14.7a4.25 4.25 0 0 1 3.75 4.25v.8" />
       </Icon>
     ),
   },
@@ -74,18 +74,6 @@ const navItems: NavItem[] = [
         <path d="M3 20v-1a4.5 4.5 0 0 1 4.5-4.5h4A4.5 4.5 0 0 1 16 19v1" />
         <path d="M18.5 8.5v6" />
         <path d="M21.5 11.5h-6" />
-      </Icon>
-    ),
-  },
-  {
-    href: "/faculty/roster",
-    label: "Roster",
-    icon: (
-      <Icon>
-        <circle cx="9" cy="8" r="3.25" />
-        <path d="M2.75 19.75v-1a4.25 4.25 0 0 1 4.25-4.25h4a4.25 4.25 0 0 1 4.25 4.25v1" />
-        <path d="M16 5.2a3.25 3.25 0 0 1 0 5.9" />
-        <path d="M17.5 14.7a4.25 4.25 0 0 1 3.75 4.25v.8" />
       </Icon>
     ),
   },
@@ -121,11 +109,13 @@ function SidebarNav({
   capabilities,
   onNavigate,
   onClose,
+  pendingRequests = 0,
 }: {
   pathname: string
   capabilities: readonly string[]
   onNavigate: () => void
   onClose?: () => void
+  pendingRequests?: number
 }) {
   const visibleItems = navItems.filter(
     (item) => !item.capability || capabilities.includes(item.capability)
@@ -174,6 +164,11 @@ function SidebarNav({
               >
                 <span className="shrink-0">{item.icon}</span>
                 {item.label}
+                {item.href === "/faculty/requests" && pendingRequests > 0 && (
+                  <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-white">
+                    {pendingRequests}
+                  </span>
+                )}
               </Link>
             </li>
           )
@@ -191,7 +186,7 @@ function SidebarNav({
               <path d="M14.5 19 8 12.5 14.5 6" />
             </Icon>
           </span>
-          Student view
+          Switch to student view
         </Link>
       </div>
     </nav>
@@ -202,6 +197,17 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const { user, username, role, capabilities } = useSessionUser()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [pendingRequests, setPendingRequests] = useState(0)
+
+  useEffect(() => {
+    if (!capabilities.includes("teacher.approve")) return
+    fetch("/api/requests")
+      .then((r) => (r.ok ? r.json() : { requests: [] }))
+      .then((data) => {
+        if (Array.isArray(data.requests)) setPendingRequests(data.requests.length)
+      })
+      .catch(() => {})
+  }, [capabilities])
 
   useEffect(() => {
     if (!drawerOpen) return
@@ -223,6 +229,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
           pathname={pathname}
           capabilities={capabilities}
           onNavigate={closeDrawer}
+          pendingRequests={pendingRequests}
         />
       </aside>
 
@@ -245,6 +252,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
               capabilities={capabilities}
               onNavigate={closeDrawer}
               onClose={closeDrawer}
+              pendingRequests={pendingRequests}
             />
           </div>
         </div>

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import FacultyPageHeader from "./FacultyPageHeader"
+import Breadcrumbs from "@/frontend/components/Breadcrumbs"
 
 function ListInput({
   label,
@@ -175,10 +176,18 @@ export default function NewAssignment() {
 
   return (
     <div className="max-w-3xl">
-      <FacultyPageHeader
-        title="Create Assignment"
-        subtitle="Set up a 4-sprint PBL assignment for one or more class teams"
+      <Breadcrumbs
+        items={[
+          { label: "Dashboard", href: "/faculty" },
+          { label: "New assignment" },
+        ]}
       />
+      <div className="mt-4">
+        <FacultyPageHeader
+          title="Create Assignment"
+          subtitle="Set up a 4-sprint PBL assignment for one or more class teams"
+        />
+      </div>
 
       {result && (
         <div
@@ -192,10 +201,10 @@ export default function NewAssignment() {
           {result.type === "success" && (
             <div className="mt-3">
               <Link
-                href="/faculty/assignments"
+                href="/faculty"
                 className="text-[var(--color-success)] font-medium underline"
               >
-                Back to assignments
+                Back to dashboard
               </Link>
             </div>
           )}
@@ -330,7 +339,7 @@ export default function NewAssignment() {
 
           <div className="flex justify-between">
             <Link
-              href="/faculty/assignments"
+              href="/faculty"
               className="text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] font-medium"
             >
               Cancel

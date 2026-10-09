@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 async function sanitizeCallbackUrl(
   value: string | string[] | undefined
 ): Promise<string> {
-  if (typeof value !== "string") return "/assignments"
+  if (typeof value !== "string") return "/dashboard"
   if (value.startsWith("/") && !value.startsWith("//")) return value
 
   try {
@@ -28,7 +28,7 @@ async function sanitizeCallbackUrl(
   } catch {
     // Not a parseable absolute URL — fall through.
   }
-  return "/assignments"
+  return "/dashboard"
 }
 
 export default async function SignInPage({

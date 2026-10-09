@@ -2,95 +2,272 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { useEffect } from "react"
+import type { ReactNode } from "react"
+import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import Button from "./Button"
+import {
+  ArrowRightIcon,
+  CheckCircleIcon,
+  CheckIcon,
+  ClipboardIcon,
+  GitHubIcon,
+  UsersIcon,
+} from "./Icons"
+
+const STEPS: [string, string][] = [
+  ["Create your repo", "Start a new repository in your GitHub account."],
+  ["Submit Sprint 0", "Paste its URL and link your abstract."],
+  ["Build each sprint", "We snapshot your latest commit as you progress."],
+  ["Get reviewed", "Receive notes and diff metrics at every sprint."],
+]
+
+const FEATURES: [string, string][] = [
+  [
+    "Student-owned repos",
+    "Your code lives in your GitHub account. Keep it after graduation and show it in interviews.",
+  ],
+  [
+    "Sprint 0 to Sprint 3",
+    "Four checkpoints: abstract, build, iterate and ship. Pivot on feedback like a real product team.",
+  ],
+  [
+    "Reviewed at every sprint",
+    "Faculty leave notes on commits and diff metrics while the feedback still counts.",
+  ],
+]
+
+const AUDIENCE: [string, string, ReactNode][] = [
+  [
+    "Student",
+    "Track every sprint, get reviewed early, graduate with a pinned portfolio.",
+    <ClipboardIcon key="student" className="size-5" />,
+  ],
+  [
+    "Faculty",
+    "Teach multiple classes in one place — class cards, per-assignment views, per-student sprint cards.",
+    <UsersIcon key="faculty" className="size-5" />,
+  ],
+  [
+    "Admin",
+    "Onboard rosters by CSV, approve teacher access, watch org-wide progress.",
+    <CheckCircleIcon key="admin" className="size-5" />,
+  ],
+]
+
+const SPRINT_MOCK: [string, string][] = [
+  ["Abstract", "Reviewed"],
+  ["Build", "Reviewed"],
+  ["Iterate", "In review"],
+  ["Ship", "Not started"],
+]
 
 export default function Home() {
   const { data: session, status } = useSession()
+  const { isFaculty, loading: accessLoading } = useSessionUser()
   const router = useRouter()
+  const appLoading = status === "loading" || accessLoading
 
+  // Signed-in visitors came back to the marketing page by accident — their
+  // post-login landing is their dashboard.
   useEffect(() => {
-    if (session) {
-      router.push("/assignments")
+    if (session && !accessLoading) {
+      router.replace(isFaculty ? "/faculty" : "/dashboard")
     }
-  }, [session, router])
+  }, [session, accessLoading, isFaculty, router])
+
+  const openApp = () => {
+    if (appLoading) return
+    router.push(session ? (isFaculty ? "/faculty" : "/dashboard") : "/signin")
+  }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-4">
-      <div className="max-w-3xl text-center">
-        <div className="w-20 h-20 bg-[var(--color-accent)] rounded-2xl flex items-center justify-center mx-auto mb-8">
-          <span className="text-white font-semibold text-3xl tracking-tight">K</span>
-        </div>
-
-        <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-[var(--color-ink)] mb-6">
-          KJIT Classroom
-        </h1>
-
-        <p className="text-lg text-[var(--color-ink-muted)] mb-4">
-          GitHub-native project submission &amp; portfolio management platform
-        </p>
-
-        <p className="text-sm text-[var(--color-ink-faint)] mb-10 max-w-2xl mx-auto leading-relaxed">
-          Work through 4-sprint PBL assignments with your own GitHub repos.
-          Faculty review your commits and documentation at each sprint.
-          Build a portfolio that follows you beyond graduation.
-        </p>
-
-        {status === "loading" ? (
-          <div className="animate-pulse">
-            <div className="h-12 bg-[var(--color-border)] rounded-lg w-64 mx-auto" />
-          </div>
-        ) : !session ? (
-          <Link
-            href="/signin"
-            className="inline-flex items-center gap-3 bg-[var(--color-ink)] text-white px-8 py-4 rounded-xl text-lg font-medium hover:bg-[var(--color-ink)] transition-colors shadow-lg"
+    <div className="bg-canvas">
+      <nav className="sticky top-0 z-30 border-b border-border bg-surface/95">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex items-center gap-2"
           >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-            </svg>
-            Sign in with GitHub
-          </Link>
-        ) : (
-          <Link
-            href="/assignments"
-            className="inline-flex items-center gap-2 bg-[var(--color-accent)] text-white px-8 py-4 rounded-xl text-lg font-medium hover:bg-[var(--color-accent-hover)] transition-colors shadow-lg"
-          >
-            View Assignments
-          </Link>
-        )}
-
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-          <div className="bg-white p-7 rounded-lg border border-[var(--color-border)]">
-            <div className="w-10 h-10 bg-[var(--color-accent-soft)] rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-5 h-5 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-[var(--color-ink)] mb-2">Student-Owned Repos</h3>
-            <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">Projects live in your GitHub account. Pin them to your profile. Show them to employers.</p>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent font-semibold text-white">
+              K
+            </span>
+            <strong>KJIT Classroom</strong>
+          </button>
+          <div className="hidden items-center gap-6 text-sm text-ink-muted sm:flex">
+            <a href="#how-it-works" className="hover:text-ink">
+              How it works
+            </a>
+            <a href="#features" className="hover:text-ink">
+              Features
+            </a>
           </div>
-
-          <div className="bg-white p-7 rounded-lg border border-[var(--color-border)]">
-            <div className="w-10 h-10 bg-[var(--color-border)] rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-5 h-5 text-[var(--color-ink-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-[var(--color-ink)] mb-2">Sprint-Driven Learning</h3>
-            <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">Sprint 0 to Sprint 3. Commit, document, and pivot on feedback. Learn the workflow of professional development teams.</p>
-          </div>
-
-          <div className="bg-white p-7 rounded-lg border border-[var(--color-border)]">
-            <div className="w-10 h-10 bg-[var(--color-border)] rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-5 h-5 text-[var(--color-ink-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-[var(--color-ink)] mb-2">Continuous Faculty Review</h3>
-            <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">Faculty review code, documentation, and diff metrics at every sprint — not just at the end.</p>
-          </div>
+          <Button variant="ink" onClick={openApp} loading={appLoading}>
+            {session ? "Open dashboard" : "Sign in with GitHub"}
+          </Button>
         </div>
-      </div>
+      </nav>
+
+      <main>
+        <section className="mx-auto grid max-w-7xl items-center gap-16 px-5 py-20 lg:grid-cols-2 lg:py-28">
+          <div>
+            <span className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-accent">
+              Project-based learning, on GitHub
+            </span>
+            <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
+              Your repo. Four sprints. A portfolio that outlives the course.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-ink-muted">
+              KJIT Classroom runs project-based learning the way real teams work.
+              Build in your own GitHub repository, submit at every sprint, and get
+              feedback while you can still act on it.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button large variant="ink" onClick={openApp} loading={appLoading}>
+                <GitHubIcon className="size-5" />
+                {session ? "Open dashboard" : "Sign in with GitHub"}
+              </Button>
+              <Button
+                large
+                variant="ghost"
+                onClick={() => document.querySelector("#how-it-works")?.scrollIntoView()}
+              >
+                See how it works <ArrowRightIcon className="size-4" />
+              </Button>
+            </div>
+            <p className="mt-6 text-xs leading-5 text-ink-subtle">
+              Built for Kristu Jayanti Institute of Technology · Sprint 0 to Sprint 3 ·
+              Your code stays in your GitHub account
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface p-6 shadow-lg transition-transform hover:-translate-y-px">
+            <div className="flex items-start justify-between">
+              <div>
+                <strong className="text-lg">Portfolio Website</strong>
+                <p className="text-sm text-ink-subtle">Web Development</p>
+              </div>
+              <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs text-accent">
+                In review
+              </span>
+            </div>
+            <div className="mt-8 space-y-5">
+              {SPRINT_MOCK.map(([name, state], index) => (
+                <div key={name} className="flex items-center gap-4">
+                  <span
+                    className={`flex size-8 items-center justify-center rounded-full ${
+                      index < 2
+                        ? "bg-success text-white"
+                        : index === 2
+                          ? "bg-caution text-white"
+                          : "border border-border text-ink-subtle"
+                    }`}
+                  >
+                    {index < 2 ? <CheckIcon className="size-4" /> : index}
+                  </span>
+                  <span className="flex-1">
+                    <strong className="block text-sm">Sprint {index} · {name}</strong>
+                    <span className="text-xs text-ink-subtle">{state}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-8 border-t border-border pt-4 font-mono text-xs text-ink-subtle">
+              commit a1b2c3d · +412 -87 · 12 files
+            </p>
+          </div>
+        </section>
+
+        <section id="how-it-works" className="border-y border-border bg-surface py-20">
+          <div className="mx-auto max-w-7xl px-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-accent">
+              How it works
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+              From idea to reviewed project
+            </h2>
+            <div className="mt-10 grid gap-8 md:grid-cols-4">
+              {STEPS.map(([title, body], index) => (
+                <div key={title}>
+                  <span className="font-mono text-sm text-accent">0{index + 1}</span>
+                  <h3 className="mt-3 font-semibold">{title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-ink-muted">{body}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-12 rounded-xl border-l-4 border-accent bg-accent-soft p-5 text-sm leading-6 text-ink-muted">
+              <strong className="text-ink">No forks, no pull requests.</strong> You
+              create your own GitHub repository, paste the URL, and KJIT Classroom
+              snapshots your latest commit for faculty review. Your code stays in
+              your account.
+            </div>
+          </div>
+        </section>
+
+        <section id="features" className="mx-auto max-w-7xl px-5 py-20">
+          <p className="text-xs font-medium uppercase tracking-wide text-accent">
+            Built for learning by doing
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {FEATURES.map(([title, body]) => (
+              <article
+                key={title}
+                className="rounded-2xl border border-border bg-surface p-6"
+              >
+                <h3 className="text-lg font-semibold">{title}</h3>
+                <p className="mt-3 text-sm leading-6 text-ink-muted">{body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section id="audience" className="border-t border-border bg-surface py-20">
+          <div className="mx-auto max-w-7xl px-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-accent">
+              Who it&apos;s for
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+              Three seats, one workflow
+            </h2>
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
+              {AUDIENCE.map(([title, body, icon]) => (
+                <article
+                  key={title}
+                  className="rounded-2xl border border-border bg-canvas p-6"
+                >
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                    {icon}
+                  </span>
+                  <h3 className="mt-4 text-lg font-semibold">{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-ink-muted">{body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-border bg-accent-soft">
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-5 py-16 text-center">
+            <h2 className="text-3xl font-semibold tracking-tight text-ink">
+              Ready to submit your first sprint?
+            </h2>
+            <Button large variant="ink" onClick={openApp} loading={appLoading}>
+              <GitHubIcon className="size-5" />
+              {session ? "Open dashboard" : "Sign in with GitHub"}
+            </Button>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border bg-surface">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-8 text-xs text-ink-subtle">
+          <strong className="text-ink">KJIT Classroom</strong>
+          <span>
+            © 2026 Kristu Jayanti Institute of Technology · Not affiliated with
+            GitHub, Inc.
+          </span>
+        </div>
+      </footer>
     </div>
   )
 }

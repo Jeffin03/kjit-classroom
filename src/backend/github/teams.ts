@@ -158,3 +158,21 @@ export async function isTeamMember(
   )
   return res.ok
 }
+
+/**
+ * Removes a student from a class team. 404 (never on the team) counts as
+ * success so callers can converge instead of failing on already-removed users.
+ */
+export async function removeTeamMember(
+  token: string,
+  org: string,
+  teamSlug: string,
+  username: string
+): Promise<boolean> {
+  const res = await githubFetch(
+    `/orgs/${org}/teams/${teamSlug}/memberships/${username}`,
+    token,
+    { method: "DELETE" }
+  )
+  return res.status === 204 || res.status === 404
+}

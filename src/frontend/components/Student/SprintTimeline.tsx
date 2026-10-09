@@ -26,8 +26,9 @@ export default function SprintTimeline({
   const latestSprint = sprints.length > 0 ? sprints[sprints.length - 1] : null
 
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-white px-5 sm:px-6">
-      {entries.map((entry, idx) => {
+    <div>
+      <div className="rounded-2xl border border-[var(--color-border)] bg-white px-5 sm:px-6">
+        {entries.map((entry, idx) => {
         const label = idx === 0 ? "Abstract" : ""
 
         if (!entry) {
@@ -83,6 +84,10 @@ export default function SprintTimeline({
           />
         )
       })}
+      </div>
+      <p className="mt-3 text-xs text-ink-subtle">
+        Submissions, not pull requests — review happens here, on your snapshot.
+      </p>
     </div>
   )
 }

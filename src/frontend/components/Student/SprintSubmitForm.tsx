@@ -123,6 +123,20 @@ export default function SprintSubmitForm({
         </p>
       </div>
 
+      {isSprint0 ? (
+        <div className="mb-6 rounded-xl border-l-4 border-accent bg-accent-soft p-5 text-sm leading-6 text-ink-muted">
+          <strong className="text-ink">How this works</strong> — Create a{" "}
+          <em>new repository in your own GitHub account</em>, paste its URL
+          below, and attach your abstract doc. No fork, no pull request:
+          faculty review a snapshot of your commit.
+        </div>
+      ) : (
+        <div className="mb-6 rounded-xl border-l-4 border-accent bg-accent-soft p-5 text-sm leading-6 text-ink-muted">
+          Submitting Sprint {sprintNumber}. We&apos;ll snapshot your
+          repo&apos;s latest commit — you don&apos;t copy any hash by hand.
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="rounded-2xl border border-[var(--color-border)] bg-white p-6 space-y-6">
           <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-4">
@@ -131,12 +145,12 @@ export default function SprintSubmitForm({
 
           <div>
             <label className={labelClass}>
-              GitHub Repository URL{isSprint0 && " *"}
+              Your repository URL{isSprint0 && " *"}
             </label>
             <input
               type="url"
               className={inputClass}
-              placeholder="https://github.com/username/repo-name"
+              placeholder="https://github.com/your-username/your-project"
               value={isSprint0 ? repoUrl : submission?.repoUrl ?? ""}
               onChange={(e) => isSprint0 && setRepoUrl(e.target.value)}
               readOnly={!isSprint0}
@@ -144,14 +158,14 @@ export default function SprintSubmitForm({
             />
             <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
               {isSprint0
-                ? "Create a new repository on GitHub and paste the URL here"
+                ? "Must be a repo you own — not a fork, not an org template."
                 : "Your project repository — tick pivot below to switch"}
             </p>
           </div>
 
           {isSprint0 ? (
             <div>
-              <label className={labelClass}>Abstract / Project Synopsis *</label>
+              <label className={labelClass}>Abstract / synopsis link *</label>
               <input
                 type="url"
                 className={inputClass}
@@ -174,7 +188,7 @@ export default function SprintSubmitForm({
                   onChange={(e) => setIsPivot(e.target.checked)}
                 />
                 <span className="text-sm text-[var(--color-ink-muted)]">
-                  I&apos;m starting fresh with a new repository / approach
+                  I&apos;m starting over in a new repository
                 </span>
               </label>
             </div>
@@ -192,9 +206,9 @@ export default function SprintSubmitForm({
                   onChange={(e) => setPivotRepoUrl(e.target.value)}
                   required
                 />
-                <p className="mt-1 text-xs text-[var(--color-danger-text)]">
-                  This will reset your baseline. Previous sprints will be marked
-                  as superseded.
+                <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
+                  Your previous repo link stays attached to earlier sprints for
+                  the record.
                 </p>
               </div>
             </div>

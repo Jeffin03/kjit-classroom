@@ -15,11 +15,10 @@ import {
 
 /**
  * The one `/faculty` route that must stay open to signed-in users who do not
- * yet hold a faculty role: it is the application form for requesting one.
- * Every other faculty route requires `assignment.readStats`.
+ * yet hold a faculty role: none anymore — the teacher self-request surface was
+ * removed (owners onboard teachers directly). Every faculty route requires
+ * `assignment.readStats`.
  */
-const FACULTY_PUBLIC_ROUTES = new Set(["/faculty/request"])
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const identity = await readSessionIdentity(request.headers)
@@ -30,10 +29,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (
-    pathname.startsWith("/faculty") &&
-    !FACULTY_PUBLIC_ROUTES.has(pathname)
-  ) {
+  if (pathname.startsWith("/faculty")) {
     const access = await resolveAccess(identity.login)
     if (!can(access, "assignment.readStats")) {
       return NextResponse.redirect(new URL("/dashboard", request.url))
@@ -43,11 +39,15 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next()
 }
 
+/**
+ * `/announcements` is deliberately not matched: the page only client-redirects
+ * to `/dashboard#announcements`, so gating it here would bounce signed-out
+ * visitors to /signin just to send them back through this gate.
+ */
 export const config = {
   matcher: [
     "/dashboard/:path*",
     "/faculty/:path*",
     "/assignments/:path*",
-    "/announcements/:path*",
   ],
 }

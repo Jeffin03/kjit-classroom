@@ -182,7 +182,8 @@ export default function FacultyRequests() {
               No pending requests
             </h2>
             <p className="text-sm text-[var(--color-ink-muted)]">
-              All teacher requests have been reviewed
+              Teachers are onboarded by org owners directly; this queue only
+              shows role-change requests.
             </p>
           </div>
         ) : (
@@ -190,7 +191,7 @@ export default function FacultyRequests() {
             {requests.map((request) => (
               <div
                 key={request.githubUsername}
-                className="rounded-lg border border-[var(--color-border)] bg-white p-6"
+                className="rounded-2xl border border-border bg-surface p-6"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
@@ -269,7 +270,7 @@ export default function FacultyRequests() {
                     {request.classes.map((className) => (
                       <span
                         key={className}
-                        className="inline-flex items-center rounded-md bg-[var(--color-accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent)]"
+                        className="inline-flex items-center rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent"
                       >
                         {className}
                       </span>

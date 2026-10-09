@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
-import StatusPill from "./StatusPill"
+import Badge, { SubjectBadge, type BadgeStatus } from "./Badge"
+import { CalendarIcon } from "./Icons"
 
 interface AssignmentCardProps {
   subject: string
@@ -12,6 +13,10 @@ interface AssignmentCardProps {
   isPastDeadline?: boolean
   href: string
   primaryAction?: ReactNode
+  /** Latest sprint state, shown as a status badge. */
+  status?: BadgeStatus
+  /** Completed sprints out of 4 — drives the progress bar. */
+  progress?: number
 }
 
 export function AssignmentCard({
@@ -24,65 +29,63 @@ export function AssignmentCard({
   isPastDeadline,
   href,
   primaryAction,
+  status,
+  progress,
 }: AssignmentCardProps) {
   const showCounts =
     submittedCount !== undefined &&
     totalStudents !== undefined &&
     totalStudents > 0
 
+  const complete = progress ?? 0
+  const percent = showCounts
+    ? Math.round(((submittedCount ?? 0) / (totalStudents || 1)) * 100)
+    : complete * 25
+
   return (
     <Link
       href={href}
-      className="card-interactive group block rounded-2xl border border-[var(--color-border)] bg-white p-6"
+      className="card-interactive block rounded-2xl border border-border bg-surface p-5"
     >
-      <div className="flex items-start justify-between gap-6">
-        <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <StatusPill tone="accent">{subject}</StatusPill>
-            {isPastDeadline && (
-              <StatusPill tone="danger">Deadline passed</StatusPill>
-            )}
-          </div>
-
-          <h3 className="text-xl font-semibold tracking-tight text-[var(--color-ink)] mb-1.5">
-            {title}
-          </h3>
-
-          <p className="text-sm leading-relaxed text-[var(--color-ink-muted)] mb-5 max-w-prose">
-            {description}
-          </p>
-        </div>
-
-        <span
-          aria-hidden
-          className="mt-1 shrink-0 text-[var(--color-ink-faint)] transition-transform group-hover:translate-x-0.5"
-        >
-          →
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <SubjectBadge subject={subject} />
+        {isPastDeadline ? (
+          <Badge status="overdue" className="ml-auto" />
+        ) : status ? (
+          <Badge status={status} className="ml-auto" />
+        ) : null}
       </div>
 
-        <div className="flex items-center justify-between gap-6 border-t border-[var(--color-border)] pt-4">
-          <div className="flex items-center gap-5 text-[13px] text-[var(--color-ink-muted)]">
-            <span>Due {deadlineDate}</span>
-            {showCounts && (
-              <>
-                <span className="w-1 h-1 rounded-full bg-[var(--color-border)]" />
-                <span>
-                  <span className="text-[var(--color-ink-muted)] font-medium">
-                    {submittedCount}
-                  </span>
-                  /{totalStudents} submitted
-                </span>
-              </>
-            )}
-          </div>
+      <h3 className="mt-4 text-lg font-semibold text-ink">{title}</h3>
+      <p className="mt-1 line-clamp-2 text-sm leading-6 text-ink-muted">
+        {description}
+      </p>
 
-          {primaryAction ? (
-            <span className="text-sm font-medium text-[var(--color-accent)]">
-              {primaryAction}
-            </span>
-          ) : null}
-        </div>
+      <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-ink-subtle">
+        <span className="flex items-center gap-1.5">
+          <CalendarIcon className="size-4" />
+          Due {deadlineDate}
+        </span>
+        <span>Sprint 0 to 3</span>
+      </div>
+
+      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-border">
+        <div
+          className="h-full rounded-full bg-accent transition-[width] duration-500"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-ink-subtle">
+        <span>
+          {showCounts
+            ? `${submittedCount} of ${totalStudents} submitted`
+            : `${complete} of 4 sprints`}
+        </span>
+        <span className="inline-flex items-center font-medium text-accent">
+          {primaryAction}
+        </span>
+      </div>
     </Link>
   )
 }

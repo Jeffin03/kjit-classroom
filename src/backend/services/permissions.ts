@@ -28,7 +28,6 @@ export type Capability =
   | "submission.review"
   | "submission.accept"
   | "submission.commitOverride"
-  | "teacher.request"
   | "teacher.approve"
   | "team.read"
   | "repo.read"
@@ -45,7 +44,6 @@ const OWNER: readonly Capability[] = [
   "submission.review",
   "submission.accept",
   "submission.commitOverride",
-  "teacher.request",
   "teacher.approve",
   "team.read",
   "repo.read",
@@ -66,7 +64,6 @@ const SUBJECT_TEACHER: readonly Capability[] = [
   "submission.review",
   "submission.accept",
   "submission.commitOverride",
-  "teacher.request",
   "team.read",
   "repo.read",
 ]
@@ -79,7 +76,6 @@ const ELECTIVE_TEACHER: readonly Capability[] = [
   "submission.readAll",
   "submission.review",
   "submission.accept",
-  "teacher.request",
   "team.read",
   "repo.read",
 ]
@@ -88,12 +84,11 @@ const STUDENT: readonly Capability[] = [
   "assignment.read",
   "submission.readOwn",
   "submission.create",
-  "teacher.request",
   "team.read",
   "repo.read",
 ]
 
-const UNROSTERED: readonly Capability[] = ["teacher.request", "team.read"]
+const UNROSTERED: readonly Capability[] = ["team.read"]
 
 export const ROLE_CAPABILITIES: Readonly<Record<Role, readonly Capability[]>> =
   {

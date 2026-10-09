@@ -1,5 +1,6 @@
-import FacultyAssignments from "@/frontend/components/Faculty/FacultyAssignments"
+import { redirect } from "next/navigation"
 
+/** Reached only via stale links — assignments are drilled into from class cards. */
 export default function FacultyAssignmentsPage() {
-  return <FacultyAssignments />
+  redirect("/faculty")
 }

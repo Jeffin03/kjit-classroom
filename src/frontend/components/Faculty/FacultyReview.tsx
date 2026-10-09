@@ -1,9 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
-import type { Assignment, SubmissionWithSprints } from "@/backend/types"
+import type { Assignment, RosterEntry, SubmissionWithSprints } from "@/backend/types"
+import KpiCard from "@/frontend/components/KpiCard"
+import ConfirmModal from "@/frontend/components/ConfirmModal"
 import FacultyPageHeader from "./FacultyPageHeader"
 
 interface ReviewDraft {
@@ -16,34 +18,50 @@ function commitUrl(repoUrl: string, sha: string): string {
   return `${/^https?:\/\//i.test(base) ? base : `https://${base}`}/commit/${sha}`
 }
 
+/** Values the status <select> understands, so a `?status=` link can't inject junk. */
+const STATUS_FILTERS = ["all", "active", "completed", "accepted"]
+
 export default function FacultyReview({
   assignmentParam,
+  classParam,
+  statusParam,
 }: {
   assignmentParam?: string
+  classParam?: string
+  statusParam?: string
 }) {
   const router = useRouter()
   const { user, isFaculty, loading: userLoading } = useSessionUser()
   const [submissions, setSubmissions] = useState<SubmissionWithSprints[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [roster, setRoster] = useState<RosterEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterStatus, setFilterStatus] = useState<string>("active")
+  const [filterClass, setFilterClass] = useState<string>(classParam || "all")
+  const [filterStatus, setFilterStatus] = useState<string>(
+    statusParam && STATUS_FILTERS.includes(statusParam) ? statusParam : "active"
+  )
   const [filterAssignment, setFilterAssignment] = useState<string>(
     assignmentParam || "all"
   )
   const [drafts, setDrafts] = useState<ReviewDraft>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [acceptAllOpen, setAcceptAllOpen] = useState(false)
+  const [acceptingAll, setAcceptingAll] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const load = async () => {
     try {
-      const [subsRes, assignsRes] = await Promise.all([
+      const [subsRes, assignsRes, rosterRes] = await Promise.all([
         fetch("/api/submissions"),
         fetch("/api/assignments"),
+        fetch("/api/roster"),
       ])
       const subs = subsRes.ok ? await subsRes.json() : []
       const assigns = assignsRes.ok ? await assignsRes.json() : []
+      const rosterData = rosterRes.ok ? await rosterRes.json() : {}
       setSubmissions(Array.isArray(subs) ? subs : [])
       setAssignments(Array.isArray(assigns) ? assigns : [])
+      setRoster(Array.isArray(rosterData?.roster) ? rosterData.roster : [])
     } finally {
       setLoading(false)
     }
@@ -68,12 +86,78 @@ export default function FacultyReview({
 
   const getAssignment = (id: string) => assignments.find((a) => a.id === id)
 
+  /** student login → class team, from the class-scoped roster. */
+  const classByStudent = useMemo(() => {
+    const map = new Map<string, string>()
+    roster.forEach((entry) => {
+      if (entry.githubUsername) {
+        map.set(entry.githubUsername.toLowerCase(), entry.classTeam)
+      }
+    })
+    return map
+  }, [roster])
+
+  const classOf = (s: SubmissionWithSprints): string | null => {
+    const fromRoster = classByStudent.get(s.studentUsername.toLowerCase())
+    if (fromRoster) return fromRoster
+    // Not rostered: fall back to the assignment only when it names one class.
+    const teams = getAssignment(s.assignmentId)?.assignedTeams || []
+    return teams.length === 1 ? teams[0] : null
+  }
+
+  const classNames = useMemo(() => {
+    const set = new Set<string>()
+    roster.forEach((entry) => set.add(entry.classTeam))
+    assignments.forEach((a) => a.assignedTeams.forEach((team) => set.add(team)))
+    return [...set].sort()
+  }, [roster, assignments])
+
+  /** A `?class=` deep link can name a class with no roster or assignment rows. */
+  const classOptions =
+    filterClass !== "all" && !classNames.includes(filterClass)
+      ? [...classNames, filterClass].sort()
+      : classNames
+
+  /** Cascading: class narrows the assignment picker, then status. */
+  const classAssignments =
+    filterClass === "all"
+      ? assignments
+      : assignments.filter((a) => a.assignedTeams.includes(filterClass))
+
   const filtered = submissions.filter((s) => {
     const matchesStatus = filterStatus === "all" || s.status === filterStatus
     const matchesAssignment =
       filterAssignment === "all" || s.assignmentId === filterAssignment
-    return matchesStatus && matchesAssignment
+    const matchesClass = filterClass === "all" || classOf(s) === filterClass
+    return matchesStatus && matchesAssignment && matchesClass
   })
+
+  const handleClassChange = (value: string) => {
+    setFilterClass(value)
+    setFilterAssignment((current) => {
+      if (current === "all") return current
+      const assignment = getAssignment(current)
+      if (!assignment) return "all"
+      return value === "all" || assignment.assignedTeams.includes(value)
+        ? current
+        : "all"
+    })
+  }
+
+  const resetFilters = () => {
+    setFilterClass("all")
+    setFilterStatus("all")
+    setFilterAssignment("all")
+  }
+
+  /** Plain-language description of the current filter stack, for the modal. */
+  const filterScope = [
+    filterClass !== "all" ? filterClass : null,
+    filterAssignment !== "all" ? getAssignment(filterAssignment)?.title : null,
+    filterStatus !== "all" ? filterStatus : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 
   const handleReview = async (submissionId: string) => {
     setSavingId(submissionId)
@@ -128,6 +212,40 @@ export default function FacultyReview({
     }
   }
 
+  /** Everything currently on screen that is not signed off yet. */
+  const acceptAllTargets = filtered.filter((s) => s.status !== "accepted")
+
+  const handleAcceptAll = async () => {
+    setAcceptingAll(true)
+    setActionError(null)
+    let failed: string | null = null
+    for (const submission of acceptAllTargets) {
+      try {
+        const res = await fetch(`/api/submissions/${submission.id}/review`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accept: true }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(
+            data.error || `Failed to accept @${submission.studentUsername}`
+          )
+        }
+      } catch (err) {
+        failed =
+          err instanceof Error
+            ? err.message
+            : `Failed to accept @${submission.studentUsername}`
+        break
+      }
+    }
+    setAcceptAllOpen(false)
+    if (failed) setActionError(`${failed}. Remaining submissions were kept.`)
+    await load()
+    setAcceptingAll(false)
+  }
+
   const stats = {
     total: submissions.length,
     reviewed: submissions.filter((s) =>
@@ -169,48 +287,64 @@ export default function FacultyReview({
         />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
-            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
-              {stats.total}
-            </div>
-            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
-              <span className="status-dot status-dot--review" />
-              Total Submissions
-            </div>
-          </div>
-          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
-            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
-              {stats.pending}
-            </div>
-            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
-              <span className="status-dot status-dot--active" />
-              Awaiting Review
-            </div>
-          </div>
-          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
-            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
-              {stats.reviewed}
-            </div>
-            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
-              <span className="status-dot status-dot--review" />
-              Partially Reviewed
-            </div>
-          </div>
-          <div className="rounded-lg border border-[var(--color-border)] bg-white p-5">
-            <div className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
-              {stats.accepted}
-            </div>
-            <div className="flex items-center text-sm text-[var(--color-ink-muted)] mt-1">
-              <span className="status-dot status-dot--done" />
-              Accepted
-            </div>
-          </div>
+          <KpiCard
+            label="Total submissions"
+            value={stats.total}
+            hint="in your classes"
+            onClick={resetFilters}
+          />
+          <KpiCard
+            label="Awaiting review"
+            value={stats.pending}
+            hint="have unreviewed sprints"
+            tone="caution"
+          />
+          <KpiCard
+            label="Partially reviewed"
+            value={stats.reviewed}
+            hint="some sprints reviewed"
+            tone="accent"
+          />
+          <KpiCard
+            label="Accepted"
+            value={stats.accepted}
+            hint="signed off"
+            tone="success"
+            onClick={() => setFilterStatus("accepted")}
+          />
         </div>
 
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+          <select
+            value={filterClass}
+            onChange={(e) => handleClassChange(e.target.value)}
+            aria-label="Filter by class"
+            className="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+          >
+            <option value="all">All Classes</option>
+            {classOptions.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterAssignment}
+            onChange={(e) => setFilterAssignment(e.target.value)}
+            aria-label="Filter by assignment"
+            className="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+          >
+            <option value="all">All Assignments</option>
+            {classAssignments.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.title}
+              </option>
+            ))}
+          </select>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
+            aria-label="Filter by status"
             className="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
           >
             <option value="all">All Status</option>
@@ -218,18 +352,15 @@ export default function FacultyReview({
             <option value="completed">Completed</option>
             <option value="accepted">Accepted</option>
           </select>
-          <select
-            value={filterAssignment}
-            onChange={(e) => setFilterAssignment(e.target.value)}
-            className="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+
+          <button
+            type="button"
+            onClick={() => setAcceptAllOpen(true)}
+            disabled={acceptAllTargets.length === 0 || savingId !== null}
+            className="ml-auto px-4 py-2 rounded-md text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <option value="all">All Assignments</option>
-            {assignments.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.title}
-              </option>
-            ))}
-          </select>
+            Accept all ({acceptAllTargets.length})
+          </button>
         </div>
 
         <div className="space-y-3">
@@ -426,6 +557,20 @@ export default function FacultyReview({
             })
           )}
         </div>
+
+        <ConfirmModal
+          open={acceptAllOpen}
+          title={`Accept all ${acceptAllTargets.length} submissions?`}
+          body={`This signs off every submission currently shown${
+            filterScope ? ` (${filterScope})` : ""
+          }, marks their unreviewed sprints as reviewed, and removes them from the review queue.`}
+          confirmLabel="Accept all"
+          busy={acceptingAll}
+          onConfirm={handleAcceptAll}
+          onCancel={() => {
+            if (!acceptingAll) setAcceptAllOpen(false)
+          }}
+        />
       </div>
     </>
   )

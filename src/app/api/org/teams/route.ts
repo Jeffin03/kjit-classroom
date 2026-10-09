@@ -30,7 +30,13 @@ export async function GET() {
     }
 
     return NextResponse.json({ teams })
-  } catch {
-    return NextResponse.json({ teams: [] })
+  } catch (err) {
+    // Surface the real reason (missing org token, bad credentials, ...) —
+    // swallowing it here leaves the onboarding wizard with a dead-end
+    // "the org request failed" box and no way to diagnose.
+    return NextResponse.json({
+      teams: [],
+      error: err instanceof Error ? err.message : "Failed to load classes",
+    })
   }
 }

@@ -332,7 +332,7 @@ Eyebrow (pill, accent-soft/accent, text-xs, uppercase):
   GITHUB-NATIVE PBL
 
 H1 (text-5xl/6xl font-semibold tracking-tight, ink):
-  Your repo. Four sprints.
+  Your repo. Real work.
   A portfolio that outlives the course.
 
 Sub (text-lg ink-muted, max-w-xl):

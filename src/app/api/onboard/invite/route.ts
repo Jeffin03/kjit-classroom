@@ -79,9 +79,17 @@ export async function POST(request: Request) {
         if (!isMember) {
           // Invite with the team attached. A pending invitee is not a valid
           // membership target yet, so calling addTeamMember here would fail.
-          await inviteToOrg(token, org, student.githubUsername, "direct_member", [
-            team.id,
-          ])
+          await inviteToOrg(
+            token,
+            org,
+            {
+              login: student.githubUsername,
+              githubId: student.githubId,
+              email: student.collegeEmail,
+            },
+            "direct_member",
+            [team.id]
+          )
           invited++
         } else {
           alreadyMember++

@@ -1,4 +1,5 @@
 import { githubFetch } from "./client"
+import { githubErrorCodes, githubErrorMessage } from "./errors"
 
 export interface Team {
   id: number
@@ -20,7 +21,10 @@ export async function listTeams(token: string, org: string): Promise<Team[]> {
       `/orgs/${org}/teams?per_page=${perPage}&page=${page}`,
       token
     )
-    if (!res.ok) throw new Error("Failed to list teams")
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(githubErrorMessage(err, "Failed to list teams", res.status))
+    }
     const batch = await res.json()
     if (!Array.isArray(batch)) throw new Error("Failed to list teams")
     teams.push(...batch)
@@ -76,7 +80,7 @@ export async function createTeam(
   if (res.status === 201) return res.json()
 
   const err = await res.json().catch(() => ({}))
-  if (res.status === 422 && err.errors?.[0]?.code === "already_exists") {
+  if (res.status === 422 && githubErrorCodes(err).includes("already_exists")) {
     const teams = await listTeams(token, org)
     const existing = teams.find(
       (t) => t.name.toLowerCase() === name.toLowerCase()
@@ -84,7 +88,7 @@ export async function createTeam(
     if (existing) return existing
   }
 
-  throw new Error(err.message || `Failed to create team ${name}`)
+  throw new Error(githubErrorMessage(err, `Failed to create team ${name}`, res.status))
 }
 
 export type MembershipResult = "added" | "already-member"
@@ -120,11 +124,16 @@ async function putMembership(
     )
   }
 
-  // 422 here means a real refusal (SSO enforcement, seat not available, ...),
-  // not a no-op, so it must surface to the caller.
+  // 422 here means a real refusal (SSO enforcement, seat not available,
+  // user is not an org member, ...), not a no-op, so it must surface to the
+  // caller — including GitHub's errors[] detail, since the bare message is
+  // often just "Validation Failed".
   throw new Error(
-    err.message ||
-      `Failed to add ${username} to team ${teamSlug} as ${role} (HTTP ${res.status})`
+    githubErrorMessage(
+      err,
+      `Failed to add ${username} to team ${teamSlug} as ${role}`,
+      res.status
+    )
   )
 }
 

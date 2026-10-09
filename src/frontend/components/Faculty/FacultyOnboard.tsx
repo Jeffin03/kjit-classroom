@@ -77,7 +77,7 @@ export default function FacultyOnboard() {
   const [unmatched, setUnmatched] = useState<UnmatchedStudent[]>([])
   const [loading, setLoading] = useState(false)
   const [teamsLoaded, setTeamsLoaded] = useState(false)
-  const [teamsError, setTeamsError] = useState(false)
+  const [teamsError, setTeamsError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{
     team?: { name: string; slug: string }
@@ -111,11 +111,18 @@ export default function FacultyOnboard() {
       .then((teamsData) => {
         if (Array.isArray(teamsData.teams)) {
           setTeams(teamsData.teams)
+          if (teamsData.teams.length === 0 && teamsData.error) {
+            setTeamsError(teamsData.error)
+          } else {
+            setTeamsError(null)
+          }
+        } else {
+          setTeamsError("Unexpected response while loading classes")
         }
         setTeamsLoaded(true)
       })
       .catch(() => {
-        setTeamsError(true)
+        setTeamsError("Network error while loading classes")
         setTeamsLoaded(true)
       })
   }, [session, capabilities, accessLoading, router])
@@ -419,9 +426,11 @@ export default function FacultyOnboard() {
                   <h3 className="text-sm font-medium text-[var(--color-danger)] mb-2">
                     Couldn&apos;t load class teams
                   </h3>
-                  <p className="text-sm text-[var(--color-danger)]">
-                    The GitHub org request failed. Refresh the page to try
-                    again.
+                  <p className="break-words text-sm text-[var(--color-danger)]">
+                    {teamsError}
+                  </p>
+                  <p className="mt-2 text-sm text-[var(--color-danger)]">
+                    Refresh the page to try again.
                   </p>
                 </div>
               ) : teams.length === 0 ? (

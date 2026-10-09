@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import type { ReactNode } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Button from "./Button"
@@ -67,6 +67,7 @@ export default function Home() {
   const { isFaculty, loading: accessLoading } = useSessionUser()
   const router = useRouter()
   const appLoading = status === "loading" || accessLoading
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   // Signed-in visitors came back to the marketing page by accident — their
   // post-login landing is their dashboard.
@@ -82,12 +83,19 @@ export default function Home() {
   }
 
   return (
-    <div className="bg-canvas">
+    // The landing page is its own scroll container so sections snap into
+    // place on scroll; `scroll-mt-16` on each section offsets the sticky nav.
+    <div
+      ref={scrollRef}
+      className="h-dvh snap-y snap-mandatory overflow-y-auto scroll-smooth bg-canvas"
+    >
       <nav className="sticky top-0 z-30 border-b border-border bg-surface/95">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
           <button
             type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            onClick={() =>
+              scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+            }
             className="flex items-center gap-2"
           >
             <span className="flex size-8 items-center justify-center rounded-lg bg-accent font-semibold text-white">
@@ -110,13 +118,13 @@ export default function Home() {
       </nav>
 
       <main>
-        <section className="mx-auto grid max-w-7xl items-center gap-16 px-5 py-20 lg:grid-cols-2 lg:py-28">
+        <section className="mx-auto grid max-w-7xl snap-start scroll-mt-16 items-center gap-16 px-5 py-20 lg:grid-cols-2 lg:py-28">
           <div>
             <span className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-accent">
               Project-based learning, on GitHub
             </span>
             <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
-              Your repo. Four sprints. A portfolio that outlives the course.
+              Your repo. Real work. A portfolio that outlives the course.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-ink-muted">
               KJIT Classroom runs project-based learning the way real teams work.
@@ -179,7 +187,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="how-it-works" className="border-y border-border bg-surface py-20">
+        <section
+          id="how-it-works"
+          className="snap-start scroll-mt-16 border-y border-border bg-surface py-20"
+        >
           <div className="mx-auto max-w-7xl px-5">
             <p className="text-xs font-medium uppercase tracking-wide text-accent">
               How it works
@@ -205,7 +216,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="features" className="mx-auto max-w-7xl px-5 py-20">
+        <section
+          id="features"
+          className="mx-auto max-w-7xl snap-start scroll-mt-16 px-5 py-20"
+        >
           <p className="text-xs font-medium uppercase tracking-wide text-accent">
             Built for learning by doing
           </p>
@@ -221,7 +235,10 @@ export default function Home() {
             ))}
           </div>
         </section>
-        <section id="audience" className="border-t border-border bg-surface py-20">
+        <section
+          id="audience"
+          className="snap-start scroll-mt-16 border-t border-border bg-surface py-20"
+        >
           <div className="mx-auto max-w-7xl px-5">
             <p className="text-xs font-medium uppercase tracking-wide text-accent">
               Who it&apos;s for
@@ -246,7 +263,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-t border-border bg-accent-soft">
+        <section className="snap-start scroll-mt-16 border-t border-border bg-accent-soft">
           <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-5 py-16 text-center">
             <h2 className="text-3xl font-semibold tracking-tight text-ink">
               Ready to submit your first sprint?

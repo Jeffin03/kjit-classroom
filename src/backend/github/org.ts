@@ -1,4 +1,5 @@
 import { githubFetch } from "./client"
+import { githubErrorCodes, githubErrorMessage } from "./errors"
 
 export interface GitHubUser {
   login: string
@@ -57,28 +58,61 @@ export async function getOrgOwners(
   return owners
 }
 
+// GitHub reports 422s as { message: "Validation Failed", errors: [...] },
+// which is useless on its own — the shared helpers below flatten them.
 export async function inviteToOrg(
   token: string,
   org: string,
-  username: string,
+  identity: { login: string; githubId?: number; email?: string },
   role: string = "direct_member",
   teamIds: number[] = []
 ): Promise<OrgInvitation> {
+  // GitHub's Create-organization-invitation endpoint takes invitee_id (the
+  // numeric user ID) OR email — there is no `username`/`login` field. Sending
+  // an unknown field means no invitee at all, which GitHub answers with
+  // 422 "Validation Failed".
+  const invitee: Record<string, unknown> = identity.githubId
+    ? { invitee_id: identity.githubId }
+    : identity.email
+      ? { email: identity.email }
+      : {}
+
+  if (!("invitee_id" in invitee) && !("email" in invitee)) {
+    throw new Error(
+      `Cannot invite "${identity.login}": no GitHub user ID or college email available.`
+    )
+  }
+
   const res = await githubFetch(`/orgs/${org}/invitations`, token, {
     method: "POST",
     // `team_ids` is the only way to get an invited (not yet accepted) user onto
     // a team — the membership endpoint rejects them until they accept.
-    body: JSON.stringify({ username, role, ...(teamIds.length ? { team_ids: teamIds } : {}) }),
+    body: JSON.stringify({ ...invitee, role, ...(teamIds.length ? { team_ids: teamIds } : {}) }),
   })
 
   if (res.status === 201) return res.json()
 
   const err = await res.json().catch(() => ({}))
-  if (res.status === 422 && err.errors?.[0]?.code === "already_exists") {
-    return { id: 0, login: username, role, state: "already_member" }
+  const codes = githubErrorCodes(err)
+
+  // Already a member, or an invitation is already pending.
+  if (res.status === 422 && codes.includes("already_exists")) {
+    return { id: 0, login: identity.login, role, state: "already_member" }
   }
 
-  throw new Error(err.message || `Failed to invite ${username} to org`)
+  if (codes.includes("not_found")) {
+    throw new Error(
+      `GitHub user "${identity.login}" could not be resolved — check the username in the CSV.`
+    )
+  }
+
+  throw new Error(
+    githubErrorMessage(
+      err,
+      `Failed to invite ${identity.login} to org`,
+      res.status
+    )
+  )
 }
 
 export async function checkOrgMember(
@@ -87,5 +121,14 @@ export async function checkOrgMember(
   username: string
 ): Promise<boolean> {
   const res = await githubFetch(`/orgs/${org}/members/${username}`, token)
-  return res.ok
+  if (res.ok) return true
+  // 404 is the documented "not a member" answer. Anything else (bad
+  // credentials, no permission, rate limit) must surface instead of being
+  // misread as "not a member" and followed by a doomed invite attempt.
+  if (res.status === 404) return false
+  const err = await res.json().catch(() => ({}))
+  throw new Error(
+    (err.message || `Failed to check org membership of ${username}`) +
+      ` (HTTP ${res.status})`
+  )
 }

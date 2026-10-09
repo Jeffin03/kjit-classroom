@@ -16,6 +16,7 @@ interface Team {
 interface CsvRow {
   rollNo: string
   collegeEmail: string
+  githubUsername?: string
 }
 
 interface MatchedStudent {
@@ -24,7 +25,14 @@ interface MatchedStudent {
   githubUsername: string
   githubAvatar: string
   githubId: number
+  matchedVia?: "email" | "username"
   selected?: boolean
+}
+
+interface CsvParseResult {
+  rows: CsvRow[]
+  skipped: { line: number; reason: string }[]
+  headerDetected: boolean
 }
 
 interface UnmatchedStudent {
@@ -33,6 +41,14 @@ interface UnmatchedStudent {
 }
 
 type Step = 1 | 2 | 3 | 4 | 5
+
+const EMAIL_RE = /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/
+// GitHub login rules: alphanumeric or single hyphens, max 39 chars, cannot
+// start or end with a hyphen (simplified to the regex below).
+const GITHUB_USERNAME_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/
+const ROLL_HEADER_RE = /^(roll[\s_-]?(no|num|number)?|reg(ister)?[\s_-]?no)$/i
+const EMAIL_HEADER_RE = /^(e-?mail|college[\s_-]?email)$/i
+const GITHUB_HEADER_RE = /^(github([\s_-]?(user)?name)?|username|gh)$/i
 
 const STEPS = [
   "Select Class",
@@ -52,7 +68,8 @@ export default function FacultyOnboard() {
   const [teams, setTeams] = useState<Team[]>([])
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [csvRows, setCsvRows] = useState<CsvRow[]>([])
-  const [, setCsvPreview] = useState<string>("")
+  const [csvSkipped, setCsvSkipped] = useState<{ line: number; reason: string }[]>([])
+  const [headerDetected, setHeaderDetected] = useState(false)
   const [matched, setMatched] = useState<MatchedStudent[]>([])
   const [unmatched, setUnmatched] = useState<UnmatchedStudent[]>([])
   const [loading, setLoading] = useState(false)
@@ -100,33 +117,108 @@ export default function FacultyOnboard() {
       })
   }, [session, capabilities, accessLoading, router])
 
-  const parseCsv = (content: string) => {
-    const lines = content.trim().split("\n")
-    if (lines.length < 2) return []
-
+  const parseCsv = (content: string): CsvParseResult => {
+    const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/)
+    const skipped: { line: number; reason: string }[] = []
     const rows: CsvRow[] = []
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(",").map((c) => c.trim())
-      if (cols.length >= 2) {
-        const [rollNo, collegeEmail] = cols
-        if (rollNo && collegeEmail) {
-          rows.push({ rollNo, collegeEmail })
-        }
+    const seenRolls = new Set<string>()
+
+    const splitCells = (line: string) =>
+      line
+        .split(",")
+        .map((c) => c.trim().replace(/^"(.*)"$/, "$1").trim())
+
+    // The first line is only skipped when it actually looks like a header —
+    // otherwise a single-row file would silently parse to zero rows.
+    let rollIdx = 0
+    let emailIdx = 1
+    let githubIdx = 2
+    let headerDetected = false
+    let start = 0
+
+    if (lines.length > 0) {
+      const first = splitCells(lines[0])
+      const rollHeader = first.findIndex((c) => ROLL_HEADER_RE.test(c))
+      const emailHeader = first.findIndex((c) => EMAIL_HEADER_RE.test(c))
+      if (rollHeader >= 0 && emailHeader >= 0) {
+        headerDetected = true
+        rollIdx = rollHeader
+        emailIdx = emailHeader
+        githubIdx = first.findIndex((c) => GITHUB_HEADER_RE.test(c))
+        start = 1
       }
     }
-    return rows
+
+    for (let i = start; i < lines.length; i++) {
+      const lineNo = i + 1
+      const line = lines[i].trim()
+      if (!line) continue
+
+      const cells = splitCells(line)
+      if (cells.length < 2) {
+        skipped.push({ line: lineNo, reason: "expected at least 2 columns" })
+        continue
+      }
+
+      const rollNo = cells[rollIdx]?.trim() ?? ""
+      const collegeEmail = cells[emailIdx]?.trim() ?? ""
+
+      if (!rollNo) {
+        skipped.push({ line: lineNo, reason: "missing roll number" })
+        continue
+      }
+      if (!EMAIL_RE.test(collegeEmail)) {
+        skipped.push({
+          line: lineNo,
+          reason: `invalid email "${collegeEmail || "(empty)"}"`,
+        })
+        continue
+      }
+
+      const rawGithub = githubIdx >= 0 ? (cells[githubIdx] ?? "").trim().replace(/^@/, "") : ""
+      let githubUsername: string | undefined
+      if (rawGithub) {
+        if (!GITHUB_USERNAME_RE.test(rawGithub)) {
+          skipped.push({
+            line: lineNo,
+            reason: `invalid GitHub username "${rawGithub}"`,
+          })
+          continue
+        }
+        githubUsername = rawGithub
+      }
+
+      const key = rollNo.toLowerCase()
+      if (seenRolls.has(key)) {
+        skipped.push({ line: lineNo, reason: `duplicate roll number "${rollNo}"` })
+        continue
+      }
+      seenRolls.add(key)
+
+      rows.push(githubUsername ? { rollNo, collegeEmail, githubUsername } : { rollNo, collegeEmail })
+    }
+
+    return { rows, skipped, headerDetected }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    // Reset so picking the same file again re-fires onChange.
+    e.target.value = ""
 
     const reader = new FileReader()
     reader.onload = (event) => {
       const content = event.target?.result as string
-      setCsvPreview(content)
-      const rows = parseCsv(content)
+      const { rows, skipped, headerDetected } = parseCsv(content)
       setCsvRows(rows)
+      setCsvSkipped(skipped)
+      setHeaderDetected(headerDetected)
+      setError(
+        rows.length === 0
+          ? "No valid rows found — expected roll_no, college_email (header row optional) plus at least one data row."
+          : null
+      )
     }
     reader.readAsText(file)
   }
@@ -374,11 +466,16 @@ export default function FacultyOnboard() {
               <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)] mb-2">
                 Upload Student CSV
               </h2>
-              <p className="text-sm text-[var(--color-ink-muted)] mb-4">
-                Format: <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>roll_no, college_email</code>
+              <p className="text-sm text-[var(--color-ink-muted)] mb-1">
+                Format: <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>roll_no, college_email, github_username</code>
+              </p>
+              <p className="text-xs text-[var(--color-ink-faint)] mb-1">
+                Example: <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>25MCA024, 25mca024@kristujayanti.com, octocat</code>
               </p>
               <p className="text-xs text-[var(--color-ink-faint)] mb-4">
-                Example: <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>25MCA024, 25mca024@kristujayanti.com</code>
+                Header row optional — it&apos;s skipped only if the first line looks like one. The{" "}
+                <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>github_username</code>{" "}
+                column is optional but recommended: students&apos; emails are often private on GitHub, in which case email matching reports them as missing.
               </p>
 
               <input
@@ -412,6 +509,40 @@ export default function FacultyOnboard() {
                 </p>
               </button>
 
+              {(csvRows.length > 0 || csvSkipped.length > 0) && (
+                <p className="mt-2 text-xs text-[var(--color-ink-faint)]">
+                  {headerDetected
+                    ? "Header row detected and skipped. "
+                    : "No header row detected — the first line was treated as data. "}
+                  {csvRows.length} valid row{csvRows.length === 1 ? "" : "s"}
+                  {csvSkipped.length > 0 &&
+                    ` · ${csvSkipped.length} skipped`}
+                </p>
+              )}
+
+              {csvSkipped.length > 0 && (
+                <div className="mt-3 rounded-md border border-[var(--color-warning, #d97706)] bg-[var(--color-warning-soft, #fef3c7)] px-4 py-3">
+                  <p className="mb-1 text-sm font-medium text-[var(--color-warning, #b45309)]">
+                    {csvSkipped.length} line{csvSkipped.length === 1 ? "" : "s"} not loaded
+                  </p>
+                  <ul className="space-y-0.5">
+                    {csvSkipped.slice(0, 8).map((s) => (
+                      <li
+                        key={`${s.line}-${s.reason}`}
+                        className="text-xs text-[var(--color-ink-muted)]"
+                      >
+                        Line {s.line}: {s.reason}
+                      </li>
+                    ))}
+                    {csvSkipped.length > 8 && (
+                      <li className="text-xs text-[var(--color-ink-muted)]">
+                        …and {csvSkipped.length - 8} more
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
               {csvRows.length > 0 && (
                 <div className="mt-4 bg-[var(--color-canvas)] rounded-lg p-4 border border-[var(--color-border)]">
                   <p className="text-sm text-[var(--color-ink-muted)] mb-2">
@@ -422,7 +553,8 @@ export default function FacultyOnboard() {
                       <thead>
                         <tr className="text-[var(--color-ink-faint)]">
                           <th className="text-left pr-4 pb-1">Roll No</th>
-                          <th className="text-left pb-1">College Email</th>
+                          <th className="text-left pr-4 pb-1">College Email</th>
+                          <th className="text-left pb-1">GitHub</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -431,8 +563,11 @@ export default function FacultyOnboard() {
                             <td className="pr-4 pb-1 text-[var(--color-ink)]">
                               {row.rollNo}
                             </td>
-                            <td className="pb-1 text-[var(--color-ink)]">
+                            <td className="pr-4 pb-1 text-[var(--color-ink)]">
                               {row.collegeEmail}
+                            </td>
+                            <td className="pb-1 text-[var(--color-ink)]">
+                              {row.githubUsername ? `@${row.githubUsername}` : "—"}
                             </td>
                           </tr>
                         ))}
@@ -510,6 +645,11 @@ export default function FacultyOnboard() {
                           </div>
                           <div className="text-xs text-[var(--color-ink-muted)]">
                             {student.collegeEmail}
+                            {student.matchedVia === "email" && (
+                              <span className="text-[var(--color-warning, #b45309)]">
+                                {" "}· matched by email — verify the handle
+                              </span>
+                            )}
                           </div>
                         </div>
                       </label>
@@ -521,12 +661,25 @@ export default function FacultyOnboard() {
               {unmatched.length > 0 && (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-medium text-[var(--color-ink-muted)]">
-                      Not on GitHub
-                    </h3>
+                    <div>
+                      <h3 className="text-sm font-medium text-[var(--color-ink-muted)]">
+                        Not on GitHub ({unmatched.length})
+                      </h3>
+                      <p className="text-xs text-[var(--color-ink-faint)]">
+                        Email matches only find GitHub profiles with a public
+                        email. If a student does have an account, add a{" "}
+                        <code
+                          className="bg-[var(--color-border)] px-1 rounded font-mono"
+                          style={{ fontFamily: "var(--font-mono)" }}
+                        >
+                          github_username
+                        </code>{" "}
+                        column and upload again.
+                      </p>
+                    </div>
                     <button
                       onClick={downloadNoAccountCsv}
-                      className="text-sm text-[var(--color-accent)] hover:underline font-medium"
+                      className="shrink-0 text-sm text-[var(--color-accent)] hover:underline font-medium"
                     >
                       Download List CSV
                     </button>
@@ -554,6 +707,16 @@ export default function FacultyOnboard() {
                 </div>
               )}
 
+              {matched.filter((s) => s.selected).length === 0 &&
+                unmatched.length > 0 && (
+                  <p className="mb-4 text-xs text-[var(--color-ink-muted)]">
+                    No matches selected — continuing will record all{" "}
+                    {unmatched.length} student
+                    {unmatched.length === 1 ? "" : "s"} as having no GitHub
+                    account.
+                  </p>
+                )}
+
               <div className="flex justify-between">
                 <button
                   onClick={() => setStep(2)}
@@ -563,7 +726,10 @@ export default function FacultyOnboard() {
                 </button>
                 <button
                   onClick={() => setStep(4)}
-                  disabled={matched.filter((s) => s.selected).length === 0}
+                  disabled={
+                    matched.filter((s) => s.selected).length === 0 &&
+                    unmatched.length === 0
+                  }
                   className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Continue
@@ -733,11 +899,14 @@ export default function FacultyOnboard() {
                     setStep(1)
                     setSelectedTeam(null)
                     setCsvRows([])
-                    setCsvPreview("")
+                    setCsvSkipped([])
+                    setHeaderDetected(false)
                     setMatched([])
                     setUnmatched([])
                     setResult(null)
                     setError(null)
+                    // Allow the same file to be selected again next time.
+                    if (fileInputRef.current) fileInputRef.current.value = ""
                   }}
                   className="text-[var(--color-accent)] hover:underline font-medium"
                 >

@@ -29,12 +29,13 @@ export interface OnboardingSession {
   id: string
   teacherId: string
   classTeam: string
-  csvRows: { rollNo: string; collegeEmail: string }[]
+  csvRows: { rollNo: string; collegeEmail: string; githubUsername?: string }[]
   matched: {
     rollNo: string
     collegeEmail: string
     githubUsername: string
     githubAvatar: string
+    matchedVia?: "email" | "username"
   }[]
   unmatched: { rollNo: string; collegeEmail: string }[]
   status: "uploading" | "matching" | "confirming" | "completed"

@@ -3,6 +3,12 @@ import GitHub from "next-auth/providers/github"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...(process.env.AUTH_URL ? { url: process.env.AUTH_URL } : {}),
+  // Auth.js's built-in sign-in page is unstyled; the app ships its own at
+  // /signin. Every sign-in entry point (including /api/auth/signin and OAuth
+  // error returns) is redirected there, with callbackUrl/error appended.
+  pages: {
+    signIn: "/signin",
+  },
   providers: [
     GitHub({
       clientId: process.env.AUTH_GITHUB_ID,

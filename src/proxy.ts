@@ -25,7 +25,7 @@ export async function proxy(request: NextRequest) {
   const identity = await readSessionIdentity(request.headers)
 
   if (!identity) {
-    const url = new URL("/api/auth/signin", request.url)
+    const url = new URL("/signin", request.url)
     url.searchParams.set("callbackUrl", pathname)
     return NextResponse.redirect(url)
   }

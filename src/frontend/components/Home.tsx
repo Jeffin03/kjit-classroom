@@ -42,7 +42,7 @@ export default function Home() {
           </div>
         ) : !session ? (
           <Link
-            href="/api/auth/signin"
+            href="/signin"
             className="inline-flex items-center gap-3 bg-[var(--color-ink)] text-white px-8 py-4 rounded-xl text-lg font-medium hover:bg-[var(--color-ink)] transition-colors shadow-lg"
           >
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">

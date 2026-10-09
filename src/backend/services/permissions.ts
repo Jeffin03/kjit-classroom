@@ -254,7 +254,7 @@ export type AccessResult =
 export interface SessionIdentity {
   /** GitHub login — the value all authorization keys off. */
   login: string
-  /** Per-user OAuth token with the `repo` scope. Never leaves the server. */
+  /** Per-user GitHub App token (Contents: read-only). Never leaves the server. */
   accessToken: string
 }
 

@@ -146,12 +146,8 @@ export default function SignIn({
           )}
 
           <p className="mt-6 text-xs text-[var(--color-ink-faint)] leading-relaxed">
-            We request <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>repo</code>,{" "}
-            <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>read:org</code>,{" "}
-            <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>read:user</code>{" "}
-            and <code className="bg-[var(--color-border)] px-1 rounded font-mono" style={{ fontFamily: "var(--font-mono)" }}>user:email</code> so
-            faculty can review your work. Your access token stays on our
-            servers.
+            Read-only access to your repositories so faculty can review your
+            work. Your access token stays on our servers.
           </p>
 
           <Link

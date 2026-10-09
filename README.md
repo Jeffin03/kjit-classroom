@@ -10,6 +10,7 @@ Students build projects in their own GitHub repos and submit progressively acros
 npm install
 # create .env.local with AUTH_SECRET, AUTH_GITHUB_ID, AUTH_GITHUB_SECRET,
 # GITHUB_ORG, and either GITHUB_ORG_TOKEN or the GITHUB_APP_* trio
+# (AUTH_GITHUB_ID/SECRET come from the GitHub App's OAuth credentials page)
 npm run dev
 ```
 
@@ -20,14 +21,14 @@ Open http://localhost:3000.
 - Next.js 16 (App Router)
 - React 19 + Tailwind CSS 4
 - TypeScript
-- NextAuth v5 (GitHub OAuth)
+- NextAuth v5 (GitHub App sign-in)
 - GitHub REST API (commits, diffs, org invites, teams)
 
 ## Features
 
 ### Students
 
-- GitHub OAuth sign-in
+- GitHub App sign-in
 - Browse assignments filtered by class team
 - Submit Sprint 0 (abstract + repo URL) and Sprints 1–3 (docs link + structured summary)
 - Commit SHA captured server-side at each submission; diff metrics (commits, files changed, +/- lines) fetched from GitHub

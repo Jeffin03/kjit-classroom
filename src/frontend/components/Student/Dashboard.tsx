@@ -11,7 +11,7 @@ import SubmissionCard from "./SubmissionCard"
 
 export default function Dashboard() {
   const router = useRouter()
-  const { user, loading: userLoading } = useSessionUser()
+  const { user, username, role, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading } = useSubmissions()
 
@@ -49,6 +49,54 @@ export default function Dashboard() {
     (s) => s.status === "completed" || s.status === "accepted"
   ).length
   const inProgress = submissions.filter((s) => s.status === "active").length
+
+  if (role === "unrostered") {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)]">
+            My Dashboard
+          </h1>
+        </div>
+
+        <div className="rounded-2xl border border-[var(--color-border)] bg-white p-10 sm:p-12 text-center">
+          <svg
+            className="mx-auto mb-4 h-12 w-12 text-[var(--color-ink-faint)]"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zM7 7a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)]">
+            You&apos;re not on the class roster yet
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-ink-muted)]">
+            Your class teacher needs to add you to the class before
+            assignments and submissions show up here. You&apos;ll get access
+            automatically once you&apos;re added — check back after they
+            onboard you.
+          </p>
+          {username && (
+            <p className="mt-3 text-xs text-[var(--color-ink-faint)]">
+              Signed in as {username}
+            </p>
+          )}
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex min-h-10 items-center rounded-lg border border-[var(--color-border)] px-4 text-sm font-medium text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-canvas)]"
+          >
+            Check again
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">

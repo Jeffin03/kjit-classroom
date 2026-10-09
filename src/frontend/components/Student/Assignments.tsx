@@ -9,7 +9,7 @@ import { AssignmentCard } from "../AssignmentCard"
 
 export default function Assignments() {
   const router = useRouter()
-  const { user, loading: userLoading } = useSessionUser()
+  const { user, role, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading } = useSubmissions()
 
@@ -99,7 +99,9 @@ export default function Assignments() {
               />
             </svg>
             <p className="text-sm text-[var(--color-ink-muted)]">
-              No assignments available yet
+              {role === "unrostered"
+                ? "Assignments will appear once your class teacher adds you to the roster"
+                : "No assignments available yet"}
             </p>
           </div>
         )}

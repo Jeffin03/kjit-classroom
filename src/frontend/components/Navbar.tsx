@@ -8,7 +8,7 @@ import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 export default function Navbar() {
   const { data: session } = useSession()
   const pathname = usePathname()
-  const { isFaculty, role, team, loading: accessLoading } = useSessionUser()
+  const { isFaculty, team, loading: accessLoading } = useSessionUser()
 
   const isActive = (path: string) => pathname === path
 
@@ -30,11 +30,6 @@ export default function Navbar() {
 
             {session && (
               <div className="hidden md:flex items-center gap-4">
-                {!accessLoading && role === "unrostered" && (
-                  <span className="px-3 py-1 rounded-md text-xs font-medium bg-[var(--color-caution-soft)] text-[var(--color-caution-text)]">
-                    Not on roster
-                  </span>
-                )}
                 {!accessLoading && team && !isFaculty && (
                   <span className="px-3 py-1 rounded-md text-xs font-medium bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
                     {team}

@@ -1,7 +1,16 @@
 import type { Assignment, CreateAssignmentInput } from "../types"
 import { KEYS, mutated, registerCollection } from "./persistence"
 
-const assignments: Assignment[] = [
+const SEED_DUMMY_DATA =
+  process.env.SEED_DUMMY_DATA !== "false" && process.env.SEED_DUMMY_DATA !== "0"
+
+/**
+ * Demo content for a fresh local install. Set `SEED_DUMMY_DATA=false` in
+ * production so a new deployment starts empty. Rows already written to
+ * DynamoDB by an earlier seed stay there — delete them on the table if the
+ * pilot has begun.
+ */
+const assignments: Assignment[] = SEED_DUMMY_DATA ? [
   {
     id: "pbl-01",
     title: "Portfolio Website",
@@ -101,7 +110,7 @@ const assignments: Assignment[] = [
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   },
-]
+] : []
 
 export function getAssignments(): Assignment[] {
   return assignments
@@ -114,7 +123,6 @@ registerCollection({
     assignments.splice(0, assignments.length, ...(items as Assignment[]))
   },
   entityId: (item) => (item as Assignment).id,
-  seeds: [...assignments],
 })
 
 export function getAssignment(id: string): Assignment | undefined {

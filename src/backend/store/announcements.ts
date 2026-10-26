@@ -6,9 +6,13 @@ import { KEYS, mutated, registerCollection } from "./persistence"
  * the backend this store is in-memory: it resets on server restart.
  *
  * Order is insertion order — the composer prepends, so the newest announcement
- * is always first.
+ * is always first. The three entries below are demo content; set
+ * `SEED_DUMMY_DATA=false` in production so a new deployment starts empty.
  */
-const announcements: Announcement[] = [
+const SEED_DUMMY_DATA =
+  process.env.SEED_DUMMY_DATA !== "false" && process.env.SEED_DUMMY_DATA !== "0"
+
+const announcements: Announcement[] = SEED_DUMMY_DATA ? [
   {
     id: "ann-welcome",
     title: "Welcome to KJIT Classroom",
@@ -33,7 +37,7 @@ const announcements: Announcement[] = [
     createdAt: "2026-09-01T16:00:00.000Z",
     unread: false,
   },
-]
+] : []
 
 let sequence = 0
 
@@ -48,7 +52,6 @@ registerCollection({
     announcements.splice(0, announcements.length, ...(items as Announcement[]))
   },
   entityId: (item) => (item as Announcement).id,
-  seeds: [...announcements],
 })
 
 export function getAnnouncement(id: string): Announcement | undefined {

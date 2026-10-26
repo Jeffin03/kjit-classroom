@@ -66,8 +66,6 @@ interface Collection {
   getAll: () => unknown[]
   replace: (items: unknown[]) => void
   entityId: (item: unknown) => string
-  /** Pristine seed entities re-inserted when the remote lacks them. */
-  seeds?: unknown[]
 }
 
 interface DirtyEntry {
@@ -124,15 +122,10 @@ function applyRemote(key: string, items: unknown[]): void {
   const collection = collections.get(key)
   if (!collection) return
 
-  // Seeds exist in code; a remote table written by an older deploy may
-  // not contain a seed that was added since — re-insert it.
-  if (collection.seeds?.length) {
-    const present = new Set(items.map(collection.entityId))
-    for (const seed of collection.seeds) {
-      if (!present.has(collection.entityId(seed))) items.push(seed)
-    }
-  }
-
+  // No seed re-insertion: seeds belong to the first flush (complete local
+  // snapshot) only. Re-adding a seed that the remote lacks would resurrect
+  // rows an owner deleted, and only the delete would be visible in the UI
+  // while the row silently came back on the next sync.
   collection.replace(items)
   reapplyDirty(key, collection)
 }

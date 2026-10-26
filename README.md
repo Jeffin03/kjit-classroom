@@ -24,6 +24,7 @@ Open http://localhost:3000.
 | Org management (pick one) | `GITHUB_ORG_TOKEN` **or** `GITHUB_APP_ID` + `GITHUB_APP_INSTALLATION_ID` + `GITHUB_APP_PRIVATE_KEY_PATH` |
 | Optional persistence | `DYNAMODB_TABLE`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (DynamoDB; `DYNAMODB_ENDPOINT` optional for tests/Local) |
 | Optional faculty team | `GITHUB_FACULTY_TEAM` — slug of the GitHub org team that grants faculty access (defaults to probing `faculty`, `teachers`, `staff`) |
+| Optional demo data | `SEED_DUMMY_DATA=false` — start with an empty assignments/announcements store instead of the demo rows (they are on by default for local development) |
 
 ### Granting faculty access
 
@@ -39,6 +40,17 @@ Per-class scoping is an in-app override: an org owner can open
 what that teacher sees even if they are also in the GitHub faculty team.
 Removing a teacher there deletes the scoped record only — remove them from the
 GitHub team to actually revoke institute-wide faculty access.
+
+### Student repositories must be public
+
+Faculty review commit diffs on github.com with their own account, so Sprint 0
+rejects a private repository (GitHub answers 404 for a repo the reviewer cannot
+see). Set the repo to public before submitting; the form says so.
+
+If GitHub is unreachable or rate-limited at the moment of submission, Sprint 0
+is still recorded, just without a commit SHA. Later sprints then record their
+own SHA and the diff for that sprint is skipped rather than failing the
+submission. The review queue labels such a sprint "No commit captured".
 
 Without the DynamoDB vars the app runs purely in-memory (fine locally; on
 serverless deployments every instance loses state on restart). With them, all
@@ -68,6 +80,8 @@ Pair it with an IAM user whose policy allows `GetItem`, `BatchGetItem`,
 - TypeScript
 - NextAuth v5 (GitHub App sign-in)
 - GitHub REST API (commits, diffs, org invites, teams)
+- DynamoDB (optional persistence)
+- Vitest (unit tests, `npm test`)
 
 ## Features
 

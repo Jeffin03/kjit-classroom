@@ -1,17 +1,28 @@
 import type { Metadata } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
+import localFont from "next/font/local"
 import "@/frontend/globals.css"
 import { SessionProvider } from "next-auth/react"
 import Navbar from "@/frontend/components/Navbar"
 
-const inter = Inter({
+// Self-hosted so `next build` never needs egress to fonts.googleapis.com —
+// builds run on locked-down CI agents and offline machines. Files are the
+// variable (latin subset) builds; see src/frontend/fonts/README.md.
+const inter = localFont({
+  src: "../frontend/fonts/Inter-Variable.woff2",
   variable: "--font-inter",
-  subsets: ["latin"],
+  weight: "100 900",
+  style: "normal",
+  display: "swap",
+  fallback: ["system-ui", "sans-serif"],
 })
 
-const jetbrainsMono = JetBrains_Mono({
+const jetbrainsMono = localFont({
+  src: "../frontend/fonts/JetBrainsMono-Variable.woff2",
   variable: "--font-jetbrains",
-  subsets: ["latin"],
+  weight: "100 800",
+  style: "normal",
+  display: "swap",
+  fallback: ["ui-monospace", "monospace"],
 })
 
 export const metadata: Metadata = {

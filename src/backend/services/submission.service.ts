@@ -24,15 +24,33 @@ import {
 import { getAssignment } from "../store/assignments"
 import { parseRepoUrl, getLatestCommit, getDiffMetrics } from "../github/repos"
 
-export function createSubmission(
-  input: CreateSubmissionInput
-): Submission {
+export async function createSubmission(
+  input: CreateSubmissionInput,
+  studentToken?: string
+): Promise<SubmissionWithSprints> {
   const existing = getSubmissionByStudentAndAssignment(
     input.studentUsername,
     input.assignmentId
   )
   if (existing) {
     throw new Error("Submission already exists for this assignment")
+  }
+
+  const { owner, repo } = parseRepoUrl(input.repoUrl)
+  let initialSha = "initial"
+  if (studentToken) {
+    try {
+      const latest = await getLatestCommit(studentToken, owner, repo)
+      initialSha = latest.sha
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.toLowerCase().includes("no commit")) {
+        throw new Error(
+          "Repository has no commits yet. Please push an initial commit (e.g. README.md) before submitting Sprint 0."
+        )
+      }
+      throw err
+    }
   }
 
   const submission: Submission = {
@@ -45,7 +63,24 @@ export function createSubmission(
     createdAt: new Date().toISOString(),
   }
   addSubmission(submission)
-  return submission
+
+  const sprint0: SprintSubmission = {
+    id: `sprint-${Date.now()}-0`,
+    submissionId: submission.id,
+    sprintNumber: 0,
+    commitSha: initialSha,
+    isPivot: false,
+    documentationUrl: input.abstractDocUrl,
+    summary: {
+      completed: ["Sprint 0: Project abstract and repository initialized"],
+      changed: "Initial commit snapshot",
+      blockers: "",
+    },
+    submittedAt: submission.createdAt,
+  }
+  addSprintSubmission(sprint0)
+
+  return withSprints(submission)
 }
 
 export function getSubmissionsForStudent(
@@ -93,9 +128,29 @@ export function getSubmissionForStudentAndAssignment(
 }
 
 function withSprints(sub: Submission): SubmissionWithSprints {
+  let sprints = getSprintSubmissions(sub.id)
+  // Ensure legacy or existing submissions created without Sprint 0 get backfilled
+  if (!sprints.some((s) => s.sprintNumber === 0) && sub.repoUrl) {
+    const syntheticSprint0: SprintSubmission = {
+      id: `sprint-${sub.id}-0`,
+      submissionId: sub.id,
+      sprintNumber: 0,
+      commitSha: "initial",
+      isPivot: false,
+      documentationUrl: sub.abstractDocUrl,
+      summary: {
+        completed: ["Sprint 0: Project abstract and repository initialized"],
+        changed: "Initial commit snapshot",
+        blockers: "",
+      },
+      submittedAt: sub.createdAt,
+    }
+    addSprintSubmission(syntheticSprint0)
+    sprints = getSprintSubmissions(sub.id)
+  }
   return {
     ...sub,
-    sprints: getSprintSubmissions(sub.id),
+    sprints,
   }
 }
 

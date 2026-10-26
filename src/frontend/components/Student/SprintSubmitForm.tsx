@@ -126,7 +126,7 @@ export default function SprintSubmitForm({
       {isSprint0 ? (
         <div className="mb-6 rounded-xl border-l-4 border-accent bg-accent-soft p-5 text-sm leading-6 text-ink-muted">
           <strong className="text-ink">How this works</strong> — Create a{" "}
-          <em>new repository in your own GitHub account</em>, paste its URL
+          <em>new public repository in your own GitHub account</em> (with an initial commit such as a README), paste its URL
           below, and attach your abstract doc. No fork, no pull request:
           faculty review a snapshot of your commit.
         </div>
@@ -158,7 +158,7 @@ export default function SprintSubmitForm({
             />
             <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
               {isSprint0
-                ? "Must be a repo you own — not a fork, not an org template."
+                ? "Must be a public repo you own with an initial commit (not a fork, not an org template)."
                 : "Your project repository — tick pivot below to switch"}
             </p>
           </div>

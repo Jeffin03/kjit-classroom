@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   const auth = await authorize("submission.create")
   if (!auth.ok) return auth.response
 
-  const { access } = auth.session
+  const { access, accessToken } = auth.session
 
   const body = await request.json()
   const { assignmentId, repoUrl, abstractDocUrl } = body
@@ -104,12 +104,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const submission = createSubmission({
-      studentUsername: access.username,
-      assignmentId,
-      repoUrl,
-      abstractDocUrl,
-    })
+    const submission = await createSubmission(
+      {
+        studentUsername: access.username,
+        assignmentId,
+        repoUrl,
+        abstractDocUrl,
+      },
+      accessToken
+    )
     return NextResponse.json(submission, { status: 201 })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create submission"

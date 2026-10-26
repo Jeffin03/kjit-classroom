@@ -1,7 +1,35 @@
 import type { Submission, SprintSubmission } from "../types"
+import { KEYS, mutated, registerCollection } from "./persistence"
 
 const submissions: Submission[] = []
 const sprintSubmissions: SprintSubmission[] = []
+
+registerCollection({
+  key: KEYS.submissions,
+  getAll: () => submissions,
+  replace: (items) => {
+    submissions.splice(0, submissions.length, ...(items as Submission[]))
+  },
+  entityId: (item) => (item as Submission).id,
+})
+
+registerCollection({
+  key: KEYS.sprints,
+  getAll: () => sprintSubmissions,
+  replace: (items) => {
+    sprintSubmissions.splice(
+      0,
+      sprintSubmissions.length,
+      ...(items as SprintSubmission[])
+    )
+  },
+  // The store dedupes by submission + sprint, so that composite — not the
+  // random id — is the stable identity for sync.
+  entityId: (item) => {
+    const sprint = item as SprintSubmission
+    return `${sprint.submissionId}::${sprint.sprintNumber}`
+  },
+})
 
 export function getSubmissionById(id: string): Submission | undefined {
   return submissions.find((s) => s.id === id)
@@ -39,6 +67,8 @@ export function addSubmission(submission: Submission): void {
   } else {
     submissions.push(submission)
   }
+  const stored = submissions.find((s) => s.id === submission.id)
+  mutated(KEYS.submissions, submission.id, stored ?? submission)
 }
 
 export function updateSubmission(
@@ -48,6 +78,7 @@ export function updateSubmission(
   const submission = submissions.find((s) => s.id === id)
   if (submission) {
     Object.assign(submission, updates)
+    mutated(KEYS.submissions, id, submission)
   }
 }
 
@@ -83,6 +114,11 @@ export function addSprintSubmission(sprint: SprintSubmission): void {
   } else {
     sprintSubmissions.push(sprint)
   }
+  const key = `${sprint.submissionId}::${sprint.sprintNumber}`
+  const stored = sprintSubmissions.find(
+    (s) => `${s.submissionId}::${s.sprintNumber}` === key
+  )
+  mutated(KEYS.sprints, key, stored ?? sprint)
 }
 
 export function updateSprintSubmission(
@@ -95,6 +131,7 @@ export function updateSprintSubmission(
   )
   if (sprint) {
     Object.assign(sprint, updates)
+    mutated(KEYS.sprints, `${submissionId}::${sprintNumber}`, sprint)
   }
 }
 

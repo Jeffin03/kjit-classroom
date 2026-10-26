@@ -1,4 +1,5 @@
 import type { Announcement, CreateAnnouncementInput } from "../types"
+import { KEYS, mutated, registerCollection } from "./persistence"
 
 /**
  * Announcements are a dashboard module for every role (§0.3). Like the rest of
@@ -40,6 +41,16 @@ export function getAnnouncements(): Announcement[] {
   return announcements
 }
 
+registerCollection({
+  key: KEYS.announcements,
+  getAll: () => announcements,
+  replace: (items) => {
+    announcements.splice(0, announcements.length, ...(items as Announcement[]))
+  },
+  entityId: (item) => (item as Announcement).id,
+  seeds: [...announcements],
+})
+
 export function getAnnouncement(id: string): Announcement | undefined {
   return announcements.find((a) => a.id === id)
 }
@@ -58,5 +69,6 @@ export function createAnnouncement(
     unread: true,
   }
   announcements.unshift(announcement)
+  mutated(KEYS.announcements, announcement.id, announcement)
   return announcement
 }

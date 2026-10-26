@@ -1,4 +1,5 @@
 import type { Assignment, CreateAssignmentInput } from "../types"
+import { KEYS, mutated, registerCollection } from "./persistence"
 
 const assignments: Assignment[] = [
   {
@@ -106,6 +107,16 @@ export function getAssignments(): Assignment[] {
   return assignments
 }
 
+registerCollection({
+  key: KEYS.assignments,
+  getAll: () => assignments,
+  replace: (items) => {
+    assignments.splice(0, assignments.length, ...(items as Assignment[]))
+  },
+  entityId: (item) => (item as Assignment).id,
+  seeds: [...assignments],
+})
+
 export function getAssignment(id: string): Assignment | undefined {
   return assignments.find((a) => a.id === id)
 }
@@ -117,6 +128,8 @@ export function addAssignment(assignment: Assignment): void {
   } else {
     assignments.push(assignment)
   }
+  const stored = assignments.find((a) => a.id === assignment.id)
+  mutated(KEYS.assignments, assignment.id, stored ?? assignment)
 }
 
 export function updateAssignment(
@@ -126,6 +139,7 @@ export function updateAssignment(
   const assignment = assignments.find((a) => a.id === id)
   if (assignment) {
     Object.assign(assignment, updates, { updatedAt: new Date().toISOString() })
+    mutated(KEYS.assignments, id, assignment)
   }
 }
 
@@ -133,6 +147,7 @@ export function deleteAssignment(id: string): void {
   const idx = assignments.findIndex((a) => a.id === id)
   if (idx >= 0) {
     assignments.splice(idx, 1)
+    mutated(KEYS.assignments, id, null)
   }
 }
 

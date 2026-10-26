@@ -1,7 +1,32 @@
 import type { RosterEntry, OnboardingSession } from "../types"
+import { KEYS, mutated, registerCollection } from "./persistence"
 
 const roster: RosterEntry[] = []
 const onboardingSessions: OnboardingSession[] = []
+
+const rosterId = (entry: RosterEntry) => `${entry.rollNo}::${entry.classTeam}`
+
+registerCollection({
+  key: KEYS.roster,
+  getAll: () => roster,
+  replace: (items) => {
+    roster.splice(0, roster.length, ...(items as RosterEntry[]))
+  },
+  entityId: (item) => rosterId(item as RosterEntry),
+})
+
+registerCollection({
+  key: KEYS.onboardingSessions,
+  getAll: () => onboardingSessions,
+  replace: (items) => {
+    onboardingSessions.splice(
+      0,
+      onboardingSessions.length,
+      ...(items as OnboardingSession[])
+    )
+  },
+  entityId: (item) => (item as OnboardingSession).id,
+})
 
 export function getRoster(): RosterEntry[] {
   return roster
@@ -29,6 +54,10 @@ export function addRosterEntries(entries: RosterEntry[]): void {
     } else {
       roster.push(entry)
     }
+    const stored = roster.find(
+      (r) => r.rollNo === entry.rollNo && r.classTeam === entry.classTeam
+    )
+    mutated(KEYS.roster, rosterId(entry), stored ?? entry)
   }
 }
 
@@ -42,6 +71,7 @@ export function updateRosterEntry(
   )
   if (entry) {
     Object.assign(entry, updates)
+    mutated(KEYS.roster, `${rollNo}::${classTeam}`, entry)
   }
 }
 
@@ -55,6 +85,7 @@ export function removeRosterEntry(
   )
   if (index < 0) return undefined
   const [removed] = roster.splice(index, 1)
+  mutated(KEYS.roster, `${rollNo}::${classTeam}`, null)
   return removed
 }
 
@@ -73,6 +104,7 @@ export function createOnboardingSession(
   session: OnboardingSession
 ): OnboardingSession {
   onboardingSessions.push(session)
+  mutated(KEYS.onboardingSessions, session.id, session)
   return session
 }
 
@@ -89,5 +121,6 @@ export function updateOnboardingSession(
   const session = onboardingSessions.find((s) => s.id === id)
   if (session) {
     Object.assign(session, updates)
+    mutated(KEYS.onboardingSessions, id, session)
   }
 }

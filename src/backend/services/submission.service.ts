@@ -22,7 +22,7 @@ import {
   hasCommitHash,
 } from "../store/submissions"
 import { getAssignment } from "../store/assignments"
-import { parseRepoUrl, getLatestCommit, getDiffMetrics } from "../github/repos"
+import { parseRepoUrl, getRepoInfo, getLatestCommit, getDiffMetrics } from "../github/repos"
 
 export async function createSubmission(
   input: CreateSubmissionInput,
@@ -37,20 +37,46 @@ export async function createSubmission(
   }
 
   const { owner, repo } = parseRepoUrl(input.repoUrl)
-  let initialSha = "initial"
-  if (studentToken) {
-    try {
-      const latest = await getLatestCommit(studentToken, owner, repo)
-      initialSha = latest.sha
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.toLowerCase().includes("no commit")) {
-        throw new Error(
-          "Repository has no commits yet. Please push an initial commit (e.g. README.md) before submitting Sprint 0."
-        )
-      }
-      throw err
+
+  if (!studentToken) {
+    throw new Error(
+      "Your GitHub session has no access token, so the repository could not be read. Sign out and back in, then submit again."
+    )
+  }
+
+  // Faculty review commit diffs on github.com with their own account: a
+  // private repository answers 404 for them and the sprint can never be
+  // reviewed. Catch it now, while the student can still flip visibility.
+  let repoInfo
+  try {
+    repoInfo = await getRepoInfo(studentToken, owner, repo)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    throw new Error(
+      `GitHub could not read ${owner}/${repo}: ${msg}. Check the URL and that the repository exists.`
+    )
+  }
+  if (repoInfo.private) {
+    throw new Error(
+      "This repository is private. Faculty review commit diffs on GitHub, so set the repository to public (Settings → Danger Zone → Change visibility) and submit again."
+    )
+  }
+
+  // A transient GitHub failure must not cost the student their submission:
+  // record Sprint 0 without a SHA, and let later sprints diff from their own
+  // base instead. The timeline shows "commit not captured" for it.
+  let initialSha = ""
+  try {
+    const latest = await getLatestCommit(studentToken, owner, repo)
+    initialSha = latest.sha
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.toLowerCase().includes("no commit")) {
+      throw new Error(
+        "Repository has no commits yet. Please push an initial commit (e.g. README.md) before submitting Sprint 0."
+      )
     }
+    console.error("[submission] could not snapshot the Sprint 0 commit:", msg)
   }
 
   const submission: Submission = {
@@ -135,7 +161,7 @@ function withSprints(sub: Submission): SubmissionWithSprints {
       id: `sprint-${sub.id}-0`,
       submissionId: sub.id,
       sprintNumber: 0,
-      commitSha: "initial",
+      commitSha: "",
       isPivot: false,
       documentationUrl: sub.abstractDocUrl,
       summary: {
@@ -219,14 +245,24 @@ export async function submitSprint(
   let diffMetrics: DiffMetrics | undefined
   if (input.sprintNumber > 0 && sameRepoAsPrevious) {
     const base = getSprintSubmission(submissionId, input.sprintNumber - 1)
-    if (base) {
-      diffMetrics = await getDiffMetrics(
-        studentToken,
-        owner,
-        repo,
-        base.commitSha,
-        headSha
-      )
+    if (base?.commitSha) {
+      try {
+        diffMetrics = await getDiffMetrics(
+          studentToken,
+          owner,
+          repo,
+          base.commitSha,
+          headSha
+        )
+      } catch (err) {
+        // Metrics are informational. A rewritten history (force push), a base
+        // commit GitHub can no longer compare, or a rate limit must not throw
+        // away a submission the student has already made.
+        console.error(
+          "[submission] could not compute the sprint diff:",
+          err instanceof Error ? err.message : err
+        )
+      }
     }
   }
 
@@ -275,11 +311,15 @@ export function updateSprintCommitHash(
     throw new Error("This commit hash is already used by another sprint")
   }
 
+  // Deliberately not touching reviewedBy/reviewedAt: correcting a missing or
+  // wrong SHA (e.g. a Sprint 0 snapshot that failed) is bookkeeping, and the
+  // timeline renders any reviewedAt as "reviewed".
   updateSprintSubmission(submissionId, sprintNumber, {
     commitSha: newCommitSha,
-    reviewedBy: requestedBy,
-    reviewedAt: new Date().toISOString(),
   })
+  console.info(
+    `[submission] ${requestedBy} corrected sprint ${sprintNumber} of ${submissionId} to ${newCommitSha}`
+  )
 }
 
 export function reviewSprint(

@@ -96,16 +96,24 @@ export function SprintRow({
                 </a>
               </div>
             )}
-            {commitSha && submittedDate && (
+            {submittedDate && (
               <div>
-                Commit:{" "}
-                <span
-                  className="font-mono text-[13px]"
-                  style={{ fontFamily: "var(--font-mono)" }}
-                >
-                  {commitSha.slice(0, 7)}
-                </span>{" "}
-                · {submittedDate}
+                {commitSha ? (
+                  <>
+                    Commit:{" "}
+                    <span
+                      className="font-mono text-[13px]"
+                      style={{ fontFamily: "var(--font-mono)" }}
+                    >
+                      {commitSha.slice(0, 7)}
+                    </span>{" "}
+                    · {submittedDate}
+                  </>
+                ) : (
+                  <>
+                    Commit not captured · {submittedDate}
+                  </>
+                )}
               </div>
             )}
             {documentationUrl && (

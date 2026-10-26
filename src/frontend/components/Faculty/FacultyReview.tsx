@@ -366,7 +366,9 @@ export default function FacultyReview({
         <div className="space-y-3">
           {filtered.length === 0 ? (
             <div className="rounded-lg border border-[var(--color-border)] bg-white p-8 text-center text-sm text-[var(--color-ink-muted)]">
-              No submissions found
+              {submissions.length === 0
+                ? "No submissions yet. Students show up here as soon as they submit Sprint 0."
+                : "No submissions match these filters. Try clearing the class, assignment, or status filter."}
             </div>
           ) : (
             filtered.map((submission) => {
@@ -478,18 +480,24 @@ export default function FacultyReview({
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                <a
-                                  href={commitUrl(
-                                    submission.repoUrl,
-                                    sprint.commitSha
-                                  )}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-[var(--color-accent)] hover:underline font-mono"
-                                  style={{ fontFamily: "var(--font-mono)" }}
-                                >
-                                  {sprint.commitSha.slice(0, 7)}
-                                </a>
+                                {sprint.commitSha ? (
+                                  <a
+                                    href={commitUrl(
+                                      submission.repoUrl,
+                                      sprint.commitSha
+                                    )}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-[var(--color-accent)] hover:underline font-mono"
+                                    style={{ fontFamily: "var(--font-mono)" }}
+                                  >
+                                    {sprint.commitSha.slice(0, 7)}
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-[var(--color-ink-faint)]">
+                                    No commit captured
+                                  </span>
+                                )}
                                 {diff ? (
                                   <span className="text-xs text-[var(--color-ink-muted)]">
                                     +{diff.additions} -{diff.deletions} ·{" "}

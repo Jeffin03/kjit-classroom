@@ -9,6 +9,7 @@ export interface GitHubRepo {
   clone_url: string
   description: string | null
   fork: boolean
+  private: boolean
   default_branch: string
 }
 

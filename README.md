@@ -16,6 +16,51 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Environment variables
+
+| Purpose | Variables |
+| --- | --- |
+| Required | `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `GITHUB_ORG` |
+| Org management (pick one) | `GITHUB_ORG_TOKEN` **or** `GITHUB_APP_ID` + `GITHUB_APP_INSTALLATION_ID` + `GITHUB_APP_PRIVATE_KEY_PATH` |
+| Optional persistence | `DYNAMODB_TABLE`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (DynamoDB; `DYNAMODB_ENDPOINT` optional for tests/Local) |
+| Optional faculty team | `GITHUB_FACULTY_TEAM` — slug of the GitHub org team that grants faculty access (defaults to probing `faculty`, `teachers`, `staff`) |
+
+### Granting faculty access
+
+The recommended path is GitHub itself: add the teacher's account to the org's
+**faculty team**. Membership is resolved on every request through
+`resolveAccess()`, so a new member can open `/faculty` as soon as the membership
+cache expires (≈60s on a cold miss, capped at 5 minutes once the team has
+members). Team members default to the unrestricted **animator** role.
+
+Per-class scoping is an in-app override: an org owner can open
+`/faculty/requests` and add the teacher with a role (`subject-teacher`,
+`elective-teacher`) plus the class teams they own. A class-scoped record narrows
+what that teacher sees even if they are also in the GitHub faculty team.
+Removing a teacher there deletes the scoped record only — remove them from the
+GitHub team to actually revoke institute-wide faculty access.
+
+Without the DynamoDB vars the app runs purely in-memory (fine locally; on
+serverless deployments every instance loses state on restart). With them, all
+store data (assignments, submissions, sprints, roster, teachers,
+announcements, onboarding sessions) is mirrored to a single DynamoDB table
+and shared across instances.
+
+### Creating the DynamoDB table (once)
+
+```bash
+aws dynamodb create-table \
+  --table-name kjit-classroom \
+  --attribute-definitions AttributeName=PK,AttributeType=S AttributeName=SK,AttributeType=S \
+  --key-schema AttributeName=PK,KeyType=HASH AttributeName=SK,KeyType=RANGE \
+  --billing-mode PAY_PER_REQUEST \
+  --region <your-region>
+```
+
+Pair it with an IAM user whose policy allows `GetItem`, `BatchGetItem`,
+`Query`, `PutItem`, `BatchWriteItem`, `DeleteItem` on that table's ARN (and
+`DescribeTable`), then put its access key / secret into the Vercel env.
+
 ## Tech
 
 - Next.js 16 (App Router)

@@ -168,6 +168,17 @@ export async function isTeamMember(
   return res.ok
 }
 
+/**
+ * Team slugs that grant institute-wide faculty access. `GITHUB_FACULTY_TEAM`
+ * wins when set; otherwise the conventional names are probed in order. Shared
+ * by authorization and by the faculty-removal path so both agree on which
+ * teams count as "faculty".
+ */
+export function facultyTeamSlugs(): string[] {
+  const configured = process.env.GITHUB_FACULTY_TEAM?.trim()
+  return configured ? [configured] : ["faculty", "teachers", "staff"]
+}
+
 export async function getTeamMembers(
   token: string,
   org: string,

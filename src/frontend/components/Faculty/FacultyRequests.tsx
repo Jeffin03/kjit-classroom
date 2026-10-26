@@ -169,7 +169,19 @@ export default function FacultyRequests() {
         setMessage({ tone: "error", text: data.error || "Failed to remove teacher" })
         return
       }
-      setMessage({ tone: "success", text: `@${githubUsername} removed from faculty.` })
+      const warningText = data.warnings?.length
+        ? ` ${data.warnings.join("; ")}`
+        : ""
+      const removedFromClassTeams: string[] = data.removedFromClassTeams ?? []
+      setMessage({
+        tone: data.stillInFacultyTeam ? "error" : "success",
+        text:
+          (data.message || `@${githubUsername} removed from faculty.`) +
+          warningText +
+          (removedFromClassTeams.length > 0
+            ? ` Removed from class teams: ${removedFromClassTeams.join(", ")}.`
+            : ""),
+      })
       refetch()
     } catch {
       setMessage({ tone: "error", text: "Network error" })
@@ -201,10 +213,18 @@ export default function FacultyRequests() {
         return
       }
 
-      setMessage({
-        tone: "success",
-        text: `@${newUsername} added as ${ROLE_LABELS[newRole]}.`,
-      })
+      const warnings: string[] = data.warnings ?? []
+      setMessage(
+        warnings.length > 0
+          ? {
+              tone: "error",
+              text: `@${newUsername} added as ${ROLE_LABELS[newRole]}, but: ${warnings.join("; ")}`,
+            }
+          : {
+              tone: "success",
+              text: `@${newUsername} added as ${ROLE_LABELS[newRole]}.`,
+            }
+      )
       setAddModalOpen(false)
       setNewUsername("")
       setNewEmail("")

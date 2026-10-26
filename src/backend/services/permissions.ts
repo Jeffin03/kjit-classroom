@@ -3,7 +3,7 @@ import { headers } from "next/headers"
 import { getToken } from "next-auth/jwt"
 import { getOrgToken } from "../github/client"
 import { getOrgOwners } from "../github/org"
-import { getTeamMembers } from "../github/teams"
+import { getTeamMembers, facultyTeamSlugs } from "../github/teams"
 import { getTeacherByGithubUsername } from "../store/teachers"
 import { getRosterByGithubUsername } from "../store/roster"
 import { getAssignment } from "../store/assignments"
@@ -146,10 +146,7 @@ async function cachedFacultyTeamMembers(org: string): Promise<string[]> {
   }
   try {
     const token = await getOrgToken()
-    const configuredSlug = process.env.GITHUB_FACULTY_TEAM?.trim()
-    const candidateSlugs = configuredSlug
-      ? [configuredSlug]
-      : ["faculty", "teachers", "staff"]
+    const candidateSlugs = facultyTeamSlugs()
 
     // Probe in parallel — sequential probes would multiply the latency every
     // student pays on a cache miss.

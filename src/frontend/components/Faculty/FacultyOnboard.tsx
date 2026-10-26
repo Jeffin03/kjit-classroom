@@ -9,6 +9,7 @@ import { useEffect, useState, useRef } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Breadcrumbs from "@/frontend/components/Breadcrumbs"
 import KpiCard from "@/frontend/components/KpiCard"
+import { splitCsvLine } from "@/frontend/lib/csv"
 
 interface Team {
   name: string
@@ -133,10 +134,7 @@ export default function FacultyOnboard() {
     const rows: CsvRow[] = []
     const seenRolls = new Set<string>()
 
-    const splitCells = (line: string) =>
-      line
-        .split(",")
-        .map((c) => c.trim().replace(/^"(.*)"$/, "$1").trim())
+    const splitCells = splitCsvLine
 
     // The first line is only skipped when it actually looks like a header —
     // otherwise a single-row file would silently parse to zero rows.

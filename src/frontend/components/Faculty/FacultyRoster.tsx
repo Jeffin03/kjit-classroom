@@ -287,9 +287,21 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
                 loadError ? "text-danger-text" : "text-ink-muted"
               }`}
             >
-              {loadError
-                ? "Couldn't load the roster. Refresh the page to try again."
-                : "No students found"}
+              {loadError ? (
+                "Couldn't load the roster. Refresh the page to try again."
+              ) : roster.length === 0 ? (
+                <>
+                  No students onboarded yet.{" "}
+                  <Link
+                    href="/faculty/onboard"
+                    className="font-medium text-accent hover:underline"
+                  >
+                    Upload a class roster →
+                  </Link>
+                </>
+              ) : (
+                "No students match this filter."
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">

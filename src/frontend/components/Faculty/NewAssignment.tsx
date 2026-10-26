@@ -96,13 +96,25 @@ export default function NewAssignment() {
   }, [user, canCreate, userLoading, router])
 
   useEffect(() => {
-    fetch("/api/roster")
-      .then((r) => {
-        if (!r.ok) throw new Error("roster request failed")
-        return r.json()
-      })
+    fetch("/api/org/teams")
+      .then((r) => (r.ok ? r.json() : fetch("/api/roster").then((res) => res.json())))
       .then((data) => {
-        if (Array.isArray(data.teams)) setTeams(data.teams)
+        if (Array.isArray(data.teams)) {
+          const names = data.teams
+            .map((t: unknown) =>
+              typeof t === "string" ? t : (t as { name: string })?.name
+            )
+            .filter(Boolean)
+          if (names.length > 0) {
+            setTeams(names)
+            return
+          }
+        }
+        return fetch("/api/roster")
+          .then((r) => r.json())
+          .then((rosterData) => {
+            if (Array.isArray(rosterData.teams)) setTeams(rosterData.teams)
+          })
       })
       .catch(() => setTeamsError(true))
   }, [])
@@ -282,7 +294,7 @@ export default function NewAssignment() {
                   )}
                   {!teamsError && teams.length === 0 && (
                     <p className="text-sm text-[var(--color-ink-faint)]">
-                      No class teams onboarded yet
+                      No class teams found in organization
                     </p>
                   )}
                 </div>

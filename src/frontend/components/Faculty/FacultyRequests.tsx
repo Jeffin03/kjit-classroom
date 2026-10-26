@@ -4,6 +4,9 @@ import FacultyPageHeader from "./FacultyPageHeader"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import Button from "@/frontend/components/Button"
+import Avatar from "@/frontend/components/Avatar"
+import type { TeacherProfile } from "@/backend/types"
 
 interface TeacherRequest {
   id: string
@@ -24,15 +27,27 @@ const ROLE_LABELS: Record<GrantableRole, string> = {
 const GRANTABLE_ROLES = Object.keys(ROLE_LABELS) as GrantableRole[]
 
 export default function FacultyRequests() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
 
   const [requests, setRequests] = useState<TeacherRequest[]>([])
+  const [teachers, setTeachers] = useState<TeacherProfile[]>([])
+  const [availableTeams, setAvailableTeams] = useState<string[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<Record<string, GrantableRole>>({})
   const [message, setMessage] = useState<{ tone: "error" | "success"; text: string } | null>(null)
+
+  // Add Faculty Modal state
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [newUsername, setNewUsername] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [newRole, setNewRole] = useState<GrantableRole>("subject-teacher")
+  const [newClasses, setNewClasses] = useState<string[]>([])
+  const [addingFaculty, setAddingFaculty] = useState(false)
+
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -41,21 +56,35 @@ export default function FacultyRequests() {
   }, [status, router])
 
   useEffect(() => {
-    if (!session) return
-
     let cancelled = false
-    const load = async () => {
+
+    async function loadData() {
       try {
-        const res = await fetch("/api/requests")
-        const data = await res.json().catch(() => ({}))
+        const [reqRes, teamsRes] = await Promise.all([
+          fetch("/api/requests"),
+          fetch("/api/org/teams"),
+        ])
+        const data = await reqRes.json().catch(() => ({}))
+        const teamsData = await teamsRes.json().catch(() => ({}))
+
         if (cancelled) return
-        if (res.ok) {
+
+        if (reqRes.ok) {
           setRequests(data.requests || [])
+          setTeachers(data.teachers || [])
         } else {
           setLoadError(
-            res.status === 403
-              ? "Only org owners can review teacher requests."
+            reqRes.status === 403
+              ? "Only org owners can manage faculty access."
               : data.error || "Failed to load requests."
+          )
+        }
+
+        if (teamsRes.ok && Array.isArray(teamsData.teams)) {
+          setAvailableTeams(
+            teamsData.teams
+              .map((t: { name?: string }) => t.name || "")
+              .filter(Boolean)
           )
         }
       } catch {
@@ -64,9 +93,14 @@ export default function FacultyRequests() {
         if (!cancelled) setLoading(false)
       }
     }
-    load()
-    return () => { cancelled = true }
-  }, [session])
+
+    loadData()
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey])
+
+  const refetch = () => setRefreshKey((k) => k + 1)
 
   const handleAction = async (
     githubUsername: string,
@@ -112,11 +146,81 @@ export default function FacultyRequests() {
           text: `Denied @${githubUsername}.`,
         })
       }
+      refetch()
     } catch {
       setMessage({ tone: "error", text: "Network error" })
     } finally {
       setProcessing(null)
     }
+  }
+
+  const handleRemoveTeacher = async (githubUsername: string) => {
+    if (!confirm(`Are you sure you want to remove @${githubUsername} from faculty?`)) {
+      return
+    }
+    setProcessing(githubUsername)
+    setMessage(null)
+    try {
+      const res = await fetch(`/api/requests?username=${encodeURIComponent(githubUsername)}`, {
+        method: "DELETE",
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMessage({ tone: "error", text: data.error || "Failed to remove teacher" })
+        return
+      }
+      setMessage({ tone: "success", text: `@${githubUsername} removed from faculty.` })
+      refetch()
+    } catch {
+      setMessage({ tone: "error", text: "Network error" })
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const handleAddFaculty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newUsername.trim()) return
+
+    setAddingFaculty(true)
+    setMessage(null)
+    try {
+      const res = await fetch("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          githubUsername: newUsername.trim(),
+          email: newEmail.trim(),
+          role: newRole,
+          classes: newClasses,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMessage({ tone: "error", text: data.error || "Failed to add faculty member" })
+        return
+      }
+
+      setMessage({
+        tone: "success",
+        text: `@${newUsername} added as ${ROLE_LABELS[newRole]}.`,
+      })
+      setAddModalOpen(false)
+      setNewUsername("")
+      setNewEmail("")
+      setNewClasses([])
+      refetch()
+    } catch {
+      setMessage({ tone: "error", text: "Network error" })
+    } finally {
+      setAddingFaculty(false)
+    }
+  }
+
+  const toggleClass = (cls: string) => {
+    setNewClasses((prev) =>
+      prev.includes(cls) ? prev.filter((c) => c !== cls) : [...prev, cls]
+    )
   }
 
   if (status === "loading" || loading) {
@@ -136,15 +240,20 @@ export default function FacultyRequests() {
 
   return (
     <>
-      <div className="max-w-4xl">
+      <div className="max-w-4xl space-y-8">
         <FacultyPageHeader
-          title="Faculty Requests"
-          subtitle="Review and approve requests for teaching roles"
+          title="Faculty & Access"
+          subtitle="Manage faculty members and approve teaching roles"
+          action={
+            <Button onClick={() => setAddModalOpen(true)}>
+              + Add Faculty Member
+            </Button>
+          }
         />
 
         {message && (
           <div
-            className={`mb-6 rounded-md border px-4 py-3 ${
+            className={`rounded-md border px-4 py-3 ${
               message.tone === "error"
                 ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)] text-[var(--color-danger)]"
                 : "border-[var(--color-success)] bg-[var(--color-success-soft)] text-[var(--color-success)]"
@@ -157,131 +266,284 @@ export default function FacultyRequests() {
         {loadError ? (
           <div className="rounded-lg border border-[var(--color-border)] bg-white p-8 text-center">
             <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">
-              Requests unavailable
+              Access management unavailable
             </h2>
             <p className="text-sm text-[var(--color-ink-muted)]">{loadError}</p>
           </div>
-        ) : requests.length === 0 ? (
-          <div className="rounded-lg border border-[var(--color-border)] bg-white p-8 text-center">
-            <div className="w-16 h-16 bg-[var(--color-border)] rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-[var(--color-ink-faint)]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <h2 className="text-lg font-medium text-[var(--color-ink)] mb-1">
-              No pending requests
-            </h2>
-            <p className="text-sm text-[var(--color-ink-muted)]">
-              Teachers are onboarded by org owners directly; this queue only
-              shows role-change requests.
-            </p>
-          </div>
         ) : (
-          <div className="space-y-4">
-            {requests.map((request) => (
-              <div
-                key={request.githubUsername}
-                className="rounded-2xl border border-border bg-surface p-6"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[var(--color-border)] rounded-full flex items-center justify-center text-[var(--color-ink-muted)] font-medium text-lg">
-                      {request.githubUsername[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="font-medium text-[var(--color-ink)]">
-                        <span
-                          className="font-mono text-sm"
-                          style={{ fontFamily: "var(--font-mono)" }}
-                        >
-                          @{request.githubUsername}
-                        </span>
-                      </div>
-                      <div className="text-sm text-[var(--color-ink-muted)]">
-                        {request.email}
-                      </div>
-                      <div className="text-xs text-[var(--color-ink-faint)] mt-1">
-                        Requested {new Date(request.requestedAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
+          <>
+            {/* Section 1: Pending Requests */}
+            <div>
+              <h2 className="text-lg font-semibold text-ink mb-3">
+                Pending Requests ({requests.length})
+              </h2>
 
-                  <div className="flex flex-col items-end gap-2">
-                    <label className="text-xs text-[var(--color-ink-muted)]">
-                      Grant role
-                      <select
-                        value={selectedRoles[request.githubUsername] ?? "animator"}
-                        onChange={(e) =>
-                          setSelectedRoles((prev) => ({
-                            ...prev,
-                            [request.githubUsername]: e.target.value as GrantableRole,
-                          }))
-                        }
-                        disabled={processing === request.githubUsername}
-                        className="mt-1 block rounded-md border border-[var(--color-border)] bg-white px-2 py-1.5 text-sm text-[var(--color-ink)] disabled:opacity-50"
-                      >
-                        {GRANTABLE_ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {ROLE_LABELS[r]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() =>
-                          handleAction(request.githubUsername, "approve")
-                        }
-                        disabled={processing === request.githubUsername}
-                        className="bg-[var(--color-accent)] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50"
-                      >
-                        {processing === request.githubUsername
-                          ? "..."
-                          : "Approve"}
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleAction(request.githubUsername, "deny")
-                        }
-                        disabled={processing === request.githubUsername}
-                        className="bg-white border border-[var(--color-border)] text-[var(--color-ink-muted)] px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-canvas)] transition-colors disabled:opacity-50"
-                      >
-                        Deny
-                      </button>
-                    </div>
-                  </div>
+              {requests.length === 0 ? (
+                <div className="rounded-2xl border border-border bg-surface p-6 text-center text-sm text-ink-muted">
+                  No pending access requests.
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  {requests.map((request) => (
+                    <div
+                      key={request.githubUsername}
+                      className="rounded-2xl border border-border bg-surface p-6"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar name={request.githubUsername} size="md" />
+                          <div>
+                            <div className="font-medium text-[var(--color-ink)]">
+                              <span
+                                className="font-mono text-sm"
+                                style={{ fontFamily: "var(--font-mono)" }}
+                              >
+                                @{request.githubUsername}
+                              </span>
+                            </div>
+                            <div className="text-sm text-[var(--color-ink-muted)]">
+                              {request.email}
+                            </div>
+                            <div className="text-xs text-[var(--color-ink-faint)] mt-1">
+                              Requested {new Date(request.requestedAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
 
-                <div className="mt-4">
-                  <div className="text-sm text-[var(--color-ink-muted)] mb-2">
-                    Requested classes:
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {request.classes.map((className) => (
-                      <span
-                        key={className}
-                        className="inline-flex items-center rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent"
-                      >
-                        {className}
-                      </span>
-                    ))}
-                  </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <label className="text-xs text-[var(--color-ink-muted)]">
+                            Grant role
+                            <select
+                              value={selectedRoles[request.githubUsername] ?? "animator"}
+                              onChange={(e) =>
+                                setSelectedRoles((prev) => ({
+                                  ...prev,
+                                  [request.githubUsername]: e.target.value as GrantableRole,
+                                }))
+                              }
+                              disabled={processing === request.githubUsername}
+                              className="mt-1 block rounded-md border border-[var(--color-border)] bg-white px-2 py-1.5 text-sm text-[var(--color-ink)] disabled:opacity-50"
+                            >
+                              {GRANTABLE_ROLES.map((r) => (
+                                <option key={r} value={r}>
+                                  {ROLE_LABELS[r]}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                handleAction(request.githubUsername, "approve")
+                              }
+                              disabled={processing === request.githubUsername}
+                              className="bg-[var(--color-accent)] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50"
+                            >
+                              {processing === request.githubUsername
+                                ? "..."
+                                : "Approve"}
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleAction(request.githubUsername, "deny")
+                              }
+                              disabled={processing === request.githubUsername}
+                              className="bg-white border border-[var(--color-border)] text-[var(--color-ink-muted)] px-4 py-2 rounded-md text-sm font-medium hover:bg-[var(--color-canvas)] transition-colors disabled:opacity-50"
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="text-sm text-[var(--color-ink-muted)] mb-2">
+                          Requested classes:
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {request.classes.map((className) => (
+                            <span
+                              key={className}
+                              className="inline-flex items-center rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent"
+                            >
+                              {className}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+
+            {/* Section 2: Active Faculty Members */}
+            <div>
+              <h2 className="text-lg font-semibold text-ink mb-3">
+                Active Faculty Members ({teachers.length})
+              </h2>
+
+              {teachers.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center text-sm text-ink-muted">
+                  No faculty members added yet. Click &quot;Add Faculty Member&quot; above to enroll teachers.
+                </div>
+              ) : (
+                <div className="divide-y divide-border rounded-2xl border border-border bg-surface overflow-hidden">
+                  {teachers.map((teacher) => (
+                    <div
+                      key={teacher.githubUsername}
+                      className="p-5 flex items-center justify-between gap-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar name={teacher.githubUsername} size="sm" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-medium text-ink">
+                              @{teacher.githubUsername}
+                            </span>
+                            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+                              {ROLE_LABELS[teacher.role as GrantableRole] || teacher.role}
+                            </span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {teacher.classes?.length ? (
+                              teacher.classes.map((c) => (
+                                <span
+                                  key={c}
+                                  className="rounded bg-canvas px-2 py-0.5 text-xs text-ink-muted"
+                                >
+                                  {c}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-ink-faint">
+                                {teacher.role === "animator"
+                                  ? "All classes (unrestricted)"
+                                  : "No classes assigned — cannot see any class yet"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleRemoveTeacher(teacher.githubUsername)}
+                        disabled={processing === teacher.githubUsername}
+                        className="text-xs text-danger hover:bg-danger-soft"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
+
+      {/* Add Faculty Modal */}
+      {addModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40">
+          <div className="w-full max-w-lg rounded-2xl bg-surface p-6 shadow-xl border border-border">
+            <h3 className="text-lg font-semibold text-ink">Add Faculty Member</h3>
+            <p className="mt-1 text-sm text-ink-muted">
+              Grant a teacher dashboard access and assign class teams.
+            </p>
+
+            <form onSubmit={handleAddFaculty} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-ink-muted mb-1">
+                  GitHub Username *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. octocat"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink-muted mb-1">
+                  Email (optional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="teacher@kristujayanti.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink-muted mb-1">
+                  Teaching Role *
+                </label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as GrantableRole)}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-accent"
+                >
+                  {GRANTABLE_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]} {r === "animator" ? "(All classes)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {newRole !== "animator" && (
+                <div>
+                  <label className="block text-xs font-medium text-ink-muted mb-1">
+                    Assigned Classes
+                  </label>
+                  {availableTeams.length === 0 ? (
+                    <p className="text-xs text-ink-faint">
+                      No teams found in organization.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border border-border rounded-lg">
+                      {availableTeams.map((team) => (
+                        <button
+                          key={team}
+                          type="button"
+                          onClick={() => toggleClass(team)}
+                          className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                            newClasses.includes(team)
+                              ? "bg-accent text-white"
+                              : "bg-canvas text-ink-muted hover:bg-border"
+                          }`}
+                        >
+                          {team}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => setAddModalOpen(false)}
+                  disabled={addingFaculty}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" loading={addingFaculty}>
+                  Save Faculty Member
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   )
 }

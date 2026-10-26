@@ -3,9 +3,11 @@ import { headers } from "next/headers"
 import { getToken } from "next-auth/jwt"
 import { getOrgToken } from "../github/client"
 import { getOrgOwners } from "../github/org"
+import { getTeamMembers } from "../github/teams"
 import { getTeacherByGithubUsername } from "../store/teachers"
 import { getRosterByGithubUsername } from "../store/roster"
 import { getAssignment } from "../store/assignments"
+import { ensureFresh } from "../store/persistence"
 import type { Assignment } from "../types"
 
 export type Role =
@@ -117,6 +119,74 @@ async function cachedOrgOwners(org: string): Promise<string[] | null> {
   }
 }
 
+const FACULTY_TEAM_CACHE_TTL_MS = 5 * 60 * 1000
+/**
+ * Short TTL for the "nobody is in a faculty team" result. Without it every
+ * request from every non-faculty user (i.e. every student) would re-probe
+ * GitHub on each `resolveAccess` call — three round-trips per API request and
+ * per page navigation. Kept short so adding the first faculty member takes
+ * effect within a minute, before the longer positive TTL can expire.
+ */
+const FACULTY_TEAM_MISS_TTL_MS = 60 * 1000
+let facultyTeamCache: {
+  org: string
+  members: string[]
+  at: number
+  ttl: number
+} | null = null
+
+async function cachedFacultyTeamMembers(org: string): Promise<string[]> {
+  const now = Date.now()
+  if (
+    facultyTeamCache &&
+    facultyTeamCache.org === org &&
+    now - facultyTeamCache.at < facultyTeamCache.ttl
+  ) {
+    return facultyTeamCache.members
+  }
+  try {
+    const token = await getOrgToken()
+    const configuredSlug = process.env.GITHUB_FACULTY_TEAM?.trim()
+    const candidateSlugs = configuredSlug
+      ? [configuredSlug]
+      : ["faculty", "teachers", "staff"]
+
+    // Probe in parallel — sequential probes would multiply the latency every
+    // student pays on a cache miss.
+    const settled = await Promise.allSettled(
+      candidateSlugs.map(async (slug) => ({
+        members: await getTeamMembers(token, org, slug),
+      }))
+    )
+
+    // First candidate slug with members wins, matching the old precedence.
+    for (const result of settled) {
+      if (result.status !== "fulfilled") continue
+      if (result.value.members.length > 0) {
+        facultyTeamCache = {
+          org,
+          members: result.value.members,
+          at: now,
+          ttl: FACULTY_TEAM_CACHE_TTL_MS,
+        }
+        return result.value.members
+      }
+    }
+
+    // Cache the miss as well: an empty result must not mean three GitHub
+    // calls on the next request.
+    facultyTeamCache = {
+      org,
+      members: [],
+      at: now,
+      ttl: FACULTY_TEAM_MISS_TTL_MS,
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
 export interface AccessContext {
   username: string
   role: Role
@@ -136,13 +206,23 @@ export interface AccessContext {
 }
 
 export async function resolveAccess(username: string): Promise<AccessContext> {
+  // Every API route and the proxy funnel through here, so this is the single
+  // place to pull a fresh store snapshot written by another instance.
+  await ensureFresh()
+
   const org = process.env.GITHUB_ORG
   const owners = org ? await cachedOrgOwners(org) : null
   const isOrgOwner = !!owners?.includes(username)
 
+  const facultyMembers = org ? await cachedFacultyTeamMembers(org) : []
+  const isInFacultyTeam = facultyMembers.some(
+    (m) => m.toLowerCase() === username.toLowerCase()
+  )
+
   const teacher = getTeacherByGithubUsername(username)
   const teacherRole = teacher?.role
   const isApprovedTeacher =
+    isInFacultyTeam ||
     teacherRole === "animator" ||
     teacherRole === "subject-teacher" ||
     teacherRole === "elective-teacher"
@@ -153,7 +233,15 @@ export async function resolveAccess(username: string): Promise<AccessContext> {
 
   let role: Role
   if (isOrgOwner) role = "owner"
-  else if (teacherRole === "animator") role = "animator"
+  else if (isInFacultyTeam) {
+    // GitHub team membership is the source of truth. An explicit class-scoped
+    // record still narrows access, but a stale "pending" request record must
+    // not leave a faculty-team member locked out of /faculty.
+    role =
+      teacherRole === "subject-teacher" || teacherRole === "elective-teacher"
+        ? teacherRole
+        : "animator"
+  } else if (teacherRole === "animator") role = "animator"
   else if (teacherRole === "subject-teacher") role = "subject-teacher"
   else if (teacherRole === "elective-teacher") role = "elective-teacher"
   else if (team) role = "student"

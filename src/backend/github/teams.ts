@@ -168,6 +168,33 @@ export async function isTeamMember(
   return res.ok
 }
 
+export async function getTeamMembers(
+  token: string,
+  org: string,
+  teamSlug: string
+): Promise<string[]> {
+  const members: string[] = []
+  let page = 1
+
+  while (true) {
+    const res = await githubFetch(
+      `/orgs/${org}/teams/${teamSlug}/members?per_page=100&page=${page}`,
+      token
+    )
+    if (!res.ok) {
+      if (res.status === 404) return []
+      throw new Error(`Failed to fetch members for team ${teamSlug}`)
+    }
+    const data = await res.json()
+    if (!Array.isArray(data) || data.length === 0) break
+    members.push(...data.map((m: { login: string }) => m.login))
+    if (data.length < 100) break
+    page++
+  }
+
+  return members
+}
+
 /**
  * Removes a student from a class team. 404 (never on the team) counts as
  * success so callers can converge instead of failing on already-removed users.

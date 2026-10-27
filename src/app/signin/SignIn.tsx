@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useSession, signIn } from "next-auth/react"
 import Button from "@/frontend/components/Button"
 import { CheckIcon, GitHubIcon } from "@/frontend/components/Icons"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import logo from "@/frontend/assets/KJU_Logo.webp"
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied:
@@ -52,8 +54,16 @@ export default function SignIn({
     <main className="grid min-h-screen lg:grid-cols-[1.2fr_1fr]">
       <section className="flex min-h-52 flex-col justify-between bg-ink p-8 text-white lg:min-h-screen lg:p-12">
         <div>
-          <span className="flex size-10 items-center justify-center rounded-xl bg-accent font-semibold">
-            K
+          {/* The seal is navy/blue on transparent: it needs a light tile on
+              this dark panel or it reads as a smudge. */}
+          <span className="flex size-10 items-center justify-center rounded-xl bg-white p-1 shadow-sm">
+            <Image
+              src={logo}
+              alt=""
+              sizes="40px"
+              priority
+              className="size-full object-contain"
+            />
           </span>
           <h1 className="mt-5 text-3xl font-semibold">KJIT Classroom</h1>
           <p className="mt-2 text-white/60">Project-based learning, on GitHub.</p>

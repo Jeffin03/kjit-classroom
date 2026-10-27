@@ -1,11 +1,13 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useSession, signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Avatar from "./Avatar"
+import logo from "@/frontend/assets/KJU_Logo.webp"
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -57,9 +59,13 @@ export default function Navbar() {
             href={session ? "/dashboard" : "/"}
             className="flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-accent"
           >
-            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-white">
-              K
-            </span>
+            <Image
+              src={logo}
+              alt=""
+              sizes="32px"
+              priority
+              className="size-8 object-contain"
+            />
             <strong className="hidden text-sm sm:block">KJIT Classroom</strong>
           </Link>
 

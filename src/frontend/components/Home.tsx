@@ -1,11 +1,13 @@
 "use client"
 
 import { useSession } from "next-auth/react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef } from "react"
 import type { ReactNode } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Button from "./Button"
+import logo from "@/frontend/assets/KJU_Logo.webp"
 import {
   ArrowRightIcon,
   CheckCircleIcon,
@@ -98,9 +100,13 @@ export default function Home() {
             }
             className="flex items-center gap-2"
           >
-            <span className="flex size-8 items-center justify-center rounded-lg bg-accent font-semibold text-white">
-              K
-            </span>
+            <Image
+              src={logo}
+              alt=""
+              sizes="32px"
+              priority
+              className="size-8 object-contain"
+            />
             <strong>KJIT Classroom</strong>
           </button>
           <div className="hidden items-center gap-6 text-sm text-ink-muted sm:flex">

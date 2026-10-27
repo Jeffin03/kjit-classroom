@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { useSessionUser, type Role } from "@/frontend/hooks/useSessionUser"
+import logo from "@/frontend/assets/KJU_Logo.webp"
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -125,9 +127,12 @@ function SidebarNav({
     <nav aria-label="Faculty" className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[var(--color-border)] px-5">
         <span className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] text-sm font-semibold text-white">
-            K
-          </span>
+          <Image
+            src={logo}
+            alt=""
+            sizes="32px"
+            className="h-8 w-8 object-contain"
+          />
           <span className="text-sm font-semibold tracking-tight text-[var(--color-ink)]">
             Faculty
           </span>

@@ -442,3 +442,24 @@ export function toPublicAccess(access: AccessContext) {
     capabilities: [...access.capabilities],
   }
 }
+
+
+/**
+ * Default post-login landing route for a resolved access context. Faculty and
+ * owners land on the faculty shell; everyone else on the student dashboard.
+ */
+export function defaultLandingPath(access: AccessContext): string {
+  return access.isFaculty ? "/faculty" : "/dashboard"
+}
+
+export function landingPath(access: AccessContext): string {
+  return defaultLandingPath(access)
+}
+
+export function landingPathForRole(role: Role): string {
+  return role === "student" || role === "unrostered" ? "/dashboard" : "/faculty"
+}
+
+export function defaultRouteForRole(role: Role): string {
+  return landingPathForRole(role)
+}

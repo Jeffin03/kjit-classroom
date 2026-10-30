@@ -180,20 +180,6 @@ function SidebarNav({
         })}
       </ul>
 
-      <div className="shrink-0 border-t border-[var(--color-border)] p-3">
-        <Link
-          href="/dashboard"
-          onClick={onNavigate}
-          className="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
-        >
-          <span className="shrink-0">
-            <Icon>
-              <path d="M14.5 19 8 12.5 14.5 6" />
-            </Icon>
-          </span>
-          Switch to student view
-        </Link>
-      </div>
     </nav>
   )
 }

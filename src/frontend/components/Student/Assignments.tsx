@@ -26,7 +26,7 @@ function assignmentStatus(
 
 export default function Assignments() {
   const router = useRouter()
-  const { user, role, loading: userLoading } = useSessionUser()
+  const { user, role, isFaculty, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading } = useSubmissions()
   const [filter, setFilter] = useState("All")
@@ -34,8 +34,10 @@ export default function Assignments() {
   useEffect(() => {
     if (!userLoading && !user) {
       router.push("/")
+    } else if (!userLoading && user && isFaculty) {
+      router.push("/faculty")
     }
-  }, [user, userLoading, router])
+  }, [user, isFaculty, userLoading, router])
 
   const loading = userLoading || assignmentsLoading || submissionsLoading
 

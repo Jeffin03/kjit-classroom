@@ -16,15 +16,17 @@ export default function TimelinePage({
   const params = use(searchParams)
   const assignmentId = typeof params.assignmentId === "string" ? params.assignmentId : null
   const router = useRouter()
-  const { user, loading: userLoading } = useSessionUser()
+  const { user, isFaculty, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading } = useSubmissions()
 
   useEffect(() => {
     if (!userLoading && !user) {
       router.push("/")
+    } else if (!userLoading && user && isFaculty) {
+      router.push("/faculty")
     }
-  }, [user, userLoading, router])
+  }, [user, isFaculty, userLoading, router])
 
   if (userLoading || assignmentsLoading || submissionsLoading) {
     return (

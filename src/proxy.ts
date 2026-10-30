@@ -29,11 +29,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  const access = await resolveAccess(identity.login)
+
   if (pathname.startsWith("/faculty")) {
-    const access = await resolveAccess(identity.login)
     if (!can(access, "assignment.readStats")) {
       return NextResponse.redirect(new URL("/dashboard", request.url))
     }
+  }
+
+  // Faculty never see the student shell: bounce them to their own dashboard.
+  const isStudentView =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/") ||
+    pathname === "/assignments" ||
+    pathname.startsWith("/assignments/")
+  if (isStudentView && access.isFaculty) {
+    return NextResponse.redirect(new URL("/faculty", request.url))
   }
 
   return NextResponse.next()

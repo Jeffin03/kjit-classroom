@@ -48,15 +48,17 @@ function formatDue(date: Date) {
 
 export default function Dashboard() {
   const router = useRouter()
-  const { user, username, role, team, loading: userLoading } = useSessionUser()
+  const { user, username, role, team, isFaculty, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading } = useSubmissions()
 
   useEffect(() => {
     if (!userLoading && !user) {
       router.push("/")
+    } else if (!userLoading && user && isFaculty) {
+      router.push("/faculty")
     }
-  }, [user, userLoading, router])
+  }, [user, isFaculty, userLoading, router])
 
   const loading = userLoading || assignmentsLoading || submissionsLoading
 

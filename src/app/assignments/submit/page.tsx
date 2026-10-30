@@ -21,7 +21,7 @@ export default function SubmitPage({
   const sprintParam = typeof params.sprint === "string" ? params.sprint : null
   const sprintNumber = sprintParam ? parseInt(sprintParam, 10) : 0
   const router = useRouter()
-  const { user, loading: userLoading } = useSessionUser()
+  const { user, isFaculty, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading, refetch } = useSubmissions()
   const [submitting, setSubmitting] = useState(false)
@@ -30,8 +30,10 @@ export default function SubmitPage({
   useEffect(() => {
     if (!userLoading && !user) {
       router.push("/")
+    } else if (!userLoading && user && isFaculty) {
+      router.push("/faculty")
     }
-  }, [user, userLoading, router])
+  }, [user, isFaculty, userLoading, router])
 
   if (userLoading || assignmentsLoading || submissionsLoading) {
     return (

@@ -95,7 +95,8 @@ export function getClassTeamForUsername(username: string): string | null {
 }
 
 export function getRosterByGithubUsername(username: string): RosterEntry | undefined {
-  return roster.find((r) => r.githubUsername === username)
+  const needle = username.toLowerCase()
+  return roster.find((r) => r.githubUsername?.toLowerCase() === needle)
 }
 
 // Onboarding sessions

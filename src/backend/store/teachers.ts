@@ -15,7 +15,8 @@ registerCollection({
 export function getTeacherByGithubUsername(
   username: string
 ): TeacherProfile | undefined {
-  return teachers.find((t) => t.githubUsername === username)
+  const needle = username.toLowerCase()
+  return teachers.find((t) => t.githubUsername.toLowerCase() === needle)
 }
 
 export function addTeacherProfile(profile: TeacherProfile): void {

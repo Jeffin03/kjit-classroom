@@ -6,6 +6,7 @@ import {
   authorize,
   canAccessSubmission,
 } from "@/backend/services/permissions"
+import { jsonError, readJson } from "@/backend/http"
 
 export async function GET(
   _request: Request,
@@ -66,7 +67,9 @@ export async function PUT(
     )
   }
 
-  const body = await request.json()
+  const body = await readJson<{ commitSha?: string }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
   const { commitSha } = body
   if (!commitSha || typeof commitSha !== "string") {
     return NextResponse.json(

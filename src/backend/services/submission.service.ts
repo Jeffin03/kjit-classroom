@@ -23,6 +23,7 @@ import {
 } from "../store/submissions"
 import { getAssignment } from "../store/assignments"
 import { parseRepoUrl, getRepoInfo, getLatestCommit, getDiffMetrics } from "../github/repos"
+import { deadlineMessage, isDeadlinePassed } from "./assignment.service"
 
 export async function createSubmission(
   input: CreateSubmissionInput,
@@ -34,6 +35,11 @@ export async function createSubmission(
   )
   if (existing) {
     throw new Error("Submission already exists for this assignment")
+  }
+
+  const assignment = getAssignment(input.assignmentId)
+  if (assignment && isDeadlinePassed(assignment) && !assignment.allowLateSubmissions) {
+    throw new Error(deadlineMessage(assignment))
   }
 
   const { owner, repo } = parseRepoUrl(input.repoUrl)
@@ -212,6 +218,10 @@ export async function submitSprint(
   const assignment = getAssignment(submission.assignmentId)
   if (!assignment) {
     throw new Error("Assignment not found")
+  }
+
+  if (isDeadlinePassed(assignment) && !assignment.allowLateSubmissions) {
+    throw new Error(deadlineMessage(assignment))
   }
 
   if (

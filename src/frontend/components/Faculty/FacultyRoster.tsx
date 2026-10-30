@@ -34,6 +34,8 @@ const badgeFor: Record<RosterEntry["status"], BadgeStatus> = {
   "no-account": "no-account",
 }
 
+const PAGE_SIZE = 25
+
 export default function FacultyRoster({ classParam }: { classParam?: string }) {
   const { data: session, status } = useSession()
   const { capabilities } = useSessionUser()
@@ -45,6 +47,7 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
   const [loadError, setLoadError] = useState(false)
   const [filterTeam, setFilterTeam] = useState<string>(classParam || "all")
   const [search, setSearch] = useState("")
+  const [page, setPage] = useState(0)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [pendingRemove, setPendingRemove] = useState<RosterEntry | null>(null)
   const [removing, setRemoving] = useState(false)
@@ -113,6 +116,11 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
       r.githubUsername?.toLowerCase().includes(search.toLowerCase())
     return matchesTeam && matchesSearch
   })
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount - 1)
+  const pageStart = currentPage * PAGE_SIZE
+  const paged = filtered.slice(pageStart, pageStart + PAGE_SIZE)
 
   const stats = {
     total: roster.length,
@@ -260,14 +268,20 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setPage(0)
+              }}
               placeholder="Search by roll no, email, or GitHub username..."
               className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent-soft focus:outline-none"
             />
           </div>
           <select
             value={filterTeam}
-            onChange={(e) => setFilterTeam(e.target.value)}
+            onChange={(e) => {
+              setFilterTeam(e.target.value)
+              setPage(0)
+            }}
             aria-label="Filter by class"
             className="rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:ring-2 focus:ring-accent-soft focus:outline-none"
           >
@@ -304,6 +318,7 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
               )}
             </div>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-canvas">
@@ -334,7 +349,7 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map((entry) => {
+                  {paged.map((entry) => {
                     const key = `${entry.rollNo}-${entry.classTeam}`
                     const menuOpen = openMenu === key
                     return (
@@ -429,6 +444,37 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
                 </tbody>
               </table>
             </div>
+            {filtered.length > PAGE_SIZE && (
+              <div className="flex flex-col gap-2 border-t border-border px-6 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-ink-muted">
+                  Showing {pageStart + 1}–
+                  {Math.min(pageStart + PAGE_SIZE, filtered.length)} of{" "}
+                  {filtered.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className="inline-flex h-9 items-center rounded-lg border border-border px-3 font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-ink-muted">
+                    Page {currentPage + 1} of {pageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage(currentPage + 1)}
+                    disabled={currentPage >= pageCount - 1}
+                    className="inline-flex h-9 items-center rounded-lg border border-border px-3 font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>

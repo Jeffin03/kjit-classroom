@@ -14,7 +14,7 @@
     "@aws-sdk/client-dynamodb": "^3.1148.0",
     "@aws-sdk/lib-dynamodb": "^3.1148.0",
     "jsonwebtoken": "^9.0.3",
-    "next": "16.3.4",
+    "next": "^16.4.3",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -26,7 +26,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "^16.4.3",
     "markdown-pdf": "^11.0.0",
     "md-to-pdf": "^5.2.5",
     "tailwindcss": "^4",

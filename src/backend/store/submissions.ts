@@ -60,6 +60,36 @@ export function getSubmissions(): Submission[] {
   return submissions
 }
 
+/**
+ * Removes every submission for an assignment plus their sprint rows. Used when
+ * an assignment is deleted so faculty views cannot show orphaned submissions.
+ */
+export function deleteSubmissionsByAssignment(assignmentId: string): number {
+  const removed = submissions.filter((s) => s.assignmentId === assignmentId)
+  if (removed.length === 0) return 0
+
+  const ids = new Set(removed.map((s) => s.id))
+
+  for (const submission of removed) {
+    submissions.splice(submissions.indexOf(submission), 1)
+    mutated(KEYS.submissions, submission.id, null)
+  }
+
+  for (let i = sprintSubmissions.length - 1; i >= 0; i--) {
+    const sprint = sprintSubmissions[i]
+    if (ids.has(sprint.submissionId)) {
+      sprintSubmissions.splice(i, 1)
+      mutated(
+        KEYS.sprints,
+        `${sprint.submissionId}::${sprint.sprintNumber}`,
+        null
+      )
+    }
+  }
+
+  return removed.length
+}
+
 export function addSubmission(submission: Submission): void {
   const existing = submissions.findIndex((s) => s.id === submission.id)
   if (existing >= 0) {

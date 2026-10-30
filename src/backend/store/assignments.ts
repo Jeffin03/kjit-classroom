@@ -173,5 +173,6 @@ export function toCreateAssignmentData(
     requirements: input.requirements || [],
     evaluationCriteria: input.evaluationCriteria || [],
     sprintCount: 4,
+    allowLateSubmissions: input.allowLateSubmissions === true,
   }
 }

@@ -66,7 +66,12 @@ function ListInput({
   )
 }
 
-export default function NewAssignment() {
+export default function NewAssignment({
+  assignmentId,
+}: {
+  assignmentId?: string
+}) {
+  const isEdit = Boolean(assignmentId)
   const router = useRouter()
   const { user, capabilities, loading: userLoading } = useSessionUser()
   const canCreate = capabilities.includes("assignment.create")
@@ -82,6 +87,8 @@ export default function NewAssignment() {
   const [teams, setTeams] = useState<string[]>([])
   const [teamsError, setTeamsError] = useState(false)
   const [assignedTeams, setAssignedTeams] = useState<string[]>([])
+  const [allowLateSubmissions, setAllowLateSubmissions] = useState(false)
+  const [loadingAssignment, setLoadingAssignment] = useState(isEdit)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{
     type: "success" | "error"
@@ -94,6 +101,64 @@ export default function NewAssignment() {
       else if (!canCreate) router.push("/faculty")
     }
   }, [user, canCreate, userLoading, router])
+
+  useEffect(() => {
+    if (!assignmentId) return
+    let cancelled = false
+
+    fetch(`/api/assignments/${assignmentId}`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok) {
+          throw new Error(data?.error || "Couldn't load the assignment")
+        }
+        return data
+      })
+      .then((data) => {
+        if (cancelled) return
+        setTitle(data.title ?? "")
+        setDescription(data.description ?? "")
+        setSubject(data.subject ?? "")
+        setDeadline(data.deadline ?? "")
+        setProblemStatement(data.problemStatement ?? "")
+        setObjectives(
+          Array.isArray(data.objectives) && data.objectives.length > 0
+            ? data.objectives
+            : [""]
+        )
+        setRequirements(
+          Array.isArray(data.requirements) && data.requirements.length > 0
+            ? data.requirements
+            : [""]
+        )
+        setEvaluationCriteria(
+          Array.isArray(data.evaluationCriteria) &&
+            data.evaluationCriteria.length > 0
+            ? data.evaluationCriteria
+            : [""]
+        )
+        setAssignedTeams(
+          Array.isArray(data.assignedTeams) ? data.assignedTeams : []
+        )
+        setAllowLateSubmissions(data.allowLateSubmissions === true)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setResult({
+            type: "error",
+            message:
+              err instanceof Error ? err.message : "Couldn't load the assignment",
+          })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAssignment(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [assignmentId])
 
   useEffect(() => {
     fetch("/api/org/teams")
@@ -128,14 +193,19 @@ export default function NewAssignment() {
   }
 
   const handleSubmit = async () => {
-    if (
-      !title ||
-      !description ||
-      !subject ||
-      !deadline ||
-      !problemStatement ||
-      assignedTeams.length === 0
-    ) {
+    if (!title || !description || !subject || !deadline || !problemStatement) {
+      setResult({
+        type: "error",
+        message:
+          "Fill in the title, description, subject, deadline, and problem statement.",
+      })
+      return
+    }
+    if (assignedTeams.length === 0) {
+      setResult({
+        type: "error",
+        message: "Select at least one class team for this assignment.",
+      })
       return
     }
 
@@ -143,30 +213,42 @@ export default function NewAssignment() {
     setResult(null)
 
     try {
-      const res = await fetch("/api/assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          subject,
-          deadline,
-          problemStatement,
-          assignedTeams,
-          objectives: objectives.filter((o) => o.trim()),
-          requirements: requirements.filter((r) => r.trim()),
-          evaluationCriteria: evaluationCriteria.filter((c) => c.trim()),
-        }),
-      })
+      const res = await fetch(
+        isEdit ? `/api/assignments/${assignmentId}` : "/api/assignments",
+        {
+          method: isEdit ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            subject,
+            deadline,
+            problemStatement,
+            assignedTeams,
+            allowLateSubmissions,
+            objectives: objectives.filter((o) => o.trim()),
+            requirements: requirements.filter((r) => r.trim()),
+            evaluationCriteria: evaluationCriteria.filter((c) => c.trim()),
+          }),
+        }
+      )
       const data = await res.json()
 
       if (res.ok) {
+        if (isEdit) {
+          router.push(`/faculty/assignments/${assignmentId}`)
+          router.refresh()
+          return
+        }
         setResult({
           type: "success",
           message: "Assignment created",
         })
       } else {
-        setResult({ type: "error", message: data.error })
+        setResult({
+          type: "error",
+          message: data.error || "Couldn't save the assignment",
+        })
       }
     } catch {
       setResult({ type: "error", message: "Network error" })
@@ -175,7 +257,7 @@ export default function NewAssignment() {
     }
   }
 
-  if (userLoading) {
+  if (userLoading || loadingAssignment) {
     return (
       <div className="max-w-3xl">
         <div className="animate-pulse space-y-4">
@@ -191,13 +273,17 @@ export default function NewAssignment() {
       <Breadcrumbs
         items={[
           { label: "Dashboard", href: "/faculty" },
-          { label: "New assignment" },
+          { label: isEdit ? "Edit assignment" : "New assignment" },
         ]}
       />
       <div className="mt-4">
         <FacultyPageHeader
-          title="Create Assignment"
-          subtitle="Set up a 4-sprint PBL assignment for one or more class teams"
+          title={isEdit ? "Edit Assignment" : "Create Assignment"}
+          subtitle={
+            isEdit
+              ? "Update the assignment details, deadline, or class teams"
+              : "Set up a 4-sprint PBL assignment for one or more class teams"
+          }
         />
       </div>
 
@@ -309,6 +395,17 @@ export default function NewAssignment() {
                   onChange={(e) => setDeadline(e.target.value)}
                   className="w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
                 />
+                <label className="mt-3 flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowLateSubmissions}
+                    onChange={(e) => setAllowLateSubmissions(e.target.checked)}
+                    className="mt-0.5 rounded border-[var(--color-border)] accent-[var(--color-accent)] focus:ring-[var(--color-accent-soft)]"
+                  />
+                  <span className="text-sm text-[var(--color-ink-muted)]">
+                    Allow submissions after the deadline
+                  </span>
+                </label>
               </div>
             </div>
 
@@ -369,7 +466,13 @@ export default function NewAssignment() {
               }
               className="bg-[var(--color-accent)] text-white px-6 py-2 rounded-md font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? "Creating..." : "Create Assignment"}
+              {submitting
+                ? isEdit
+                  ? "Saving..."
+                  : "Creating..."
+                : isEdit
+                  ? "Save Changes"
+                  : "Create Assignment"}
             </button>
           </div>
         </div>

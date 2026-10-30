@@ -128,7 +128,10 @@ export default function Assignments() {
                       month: "short",
                       day: "numeric",
                     })}
-                    isPastDeadline={deadline < new Date()}
+                    isPastDeadline={
+                      deadline < new Date() &&
+                      !assignment.allowLateSubmissions
+                    }
                     status={status}
                     progress={progress}
                     href={

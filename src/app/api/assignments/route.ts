@@ -3,8 +3,10 @@ import {
   createAssignment,
   getAssignmentsForStudent,
   getAssignmentsForFaculty,
+  validateAssignmentInput,
 } from "@/backend/services/assignment.service"
 import { authenticate, authorize, canAccessClass } from "@/backend/services/permissions"
+import { jsonError, readJson } from "@/backend/http"
 import type { CreateAssignmentInput } from "@/backend/types"
 
 export async function GET() {
@@ -32,34 +34,16 @@ export async function POST(request: Request) {
 
   const { access } = auth.session
 
-  const body = (await request.json()) as CreateAssignmentInput
-  const {
-    title,
-    description,
-    subject,
-    deadline,
-    problemStatement,
-    assignedTeams,
-  } = body
+  const body = await readJson<Partial<CreateAssignmentInput>>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
 
-  if (!title || !description || !subject || !deadline || !problemStatement) {
-    return NextResponse.json(
-      {
-        error:
-          "title, description, subject, deadline, assignedTeams, and problemStatement are required",
-      },
-      { status: 400 }
-    )
-  }
+  const validation = validateAssignmentInput(body)
+  if (!validation.ok) return jsonError(validation.error)
 
-  if (!assignedTeams || assignedTeams.length === 0) {
-    return NextResponse.json(
-      { error: "assignedTeams must contain at least one team" },
-      { status: 400 }
-    )
-  }
-
-  const outsideScope = assignedTeams.filter((t) => !canAccessClass(access, t))
+  const input = validation.value as CreateAssignmentInput
+  const outsideScope = input.assignedTeams.filter((t) =>
+    !canAccessClass(access, t)
+  )
   if (outsideScope.length > 0) {
     return NextResponse.json(
       { error: `You cannot assign to these classes: ${outsideScope.join(", ")}` },
@@ -67,6 +51,6 @@ export async function POST(request: Request) {
     )
   }
 
-  const assignment = createAssignment(body, access.username)
+  const assignment = createAssignment(input, access.username)
   return NextResponse.json(assignment, { status: 201 })
 }

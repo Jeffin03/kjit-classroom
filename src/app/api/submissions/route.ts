@@ -14,6 +14,7 @@ import {
 } from "@/backend/services/permissions"
 import { parseRepoUrl } from "@/backend/github/repos"
 import { isStudentAssigned } from "@/backend/services/assignment.service"
+import { jsonError, readJson } from "@/backend/http"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -58,10 +59,23 @@ export async function POST(request: Request) {
 
   const { access, accessToken } = auth.session
 
-  const body = await request.json()
+  const body = await readJson<{
+    assignmentId?: string
+    repoUrl?: string
+    abstractDocUrl?: string
+  }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
   const { assignmentId, repoUrl, abstractDocUrl } = body
 
-  if (!assignmentId || !repoUrl || !abstractDocUrl) {
+  if (
+    typeof assignmentId !== "string" ||
+    typeof repoUrl !== "string" ||
+    typeof abstractDocUrl !== "string" ||
+    !assignmentId ||
+    !repoUrl ||
+    !abstractDocUrl
+  ) {
     return NextResponse.json(
       { error: "assignmentId, repoUrl, and abstractDocUrl are required" },
       { status: 400 }

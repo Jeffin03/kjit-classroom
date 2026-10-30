@@ -21,10 +21,35 @@ Open http://localhost:3000.
 | Purpose | Variables |
 | --- | --- |
 | Required | `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `GITHUB_ORG` |
-| Org management (pick one) | `GITHUB_ORG_TOKEN` **or** `GITHUB_APP_ID` + `GITHUB_APP_INSTALLATION_ID` + `GITHUB_APP_PRIVATE_KEY_PATH` |
+| Org management (pick one) | `GITHUB_ORG_TOKEN` **or** `GITHUB_APP_ID` + `GITHUB_APP_INSTALLATION_ID` + (`GITHUB_APP_PRIVATE_KEY` inline PEM **or** `GITHUB_APP_PRIVATE_KEY_PATH`) |
 | Optional persistence | `DYNAMODB_TABLE`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (DynamoDB; `DYNAMODB_ENDPOINT` optional for tests/Local) |
 | Optional faculty team | `GITHUB_FACULTY_TEAM` — slug of the GitHub org team that grants faculty access (defaults to probing `faculty`, `teachers`, `staff`) |
 | Optional demo data | `SEED_DUMMY_DATA=false` — start with an empty assignments/announcements store instead of the demo rows (they are on by default for local development) |
+
+### Deployment checks
+
+`GET /api/health` returns `200` when the required configuration is present and
+`503` listing the missing variable names otherwise. On Vercel, set the GitHub
+App key as inline `GITHUB_APP_PRIVATE_KEY` (the full PEM); a
+`GITHUB_APP_PRIVATE_KEY_PATH` points at a file that does not exist in the
+runtime image.
+
+GitHub App user tokens expire after 8 hours. The session refreshes them
+automatically while the user is active; if refresh fails, the user is sent back
+through GitHub sign-in instead of calling GitHub with a dead token.
+
+### Deploying to Vercel
+
+1. Copy the variable names from `.env.example` into **Project → Settings →
+   Environment Variables**.
+2. Add `https://<your-domain>/api/auth/callback/github` as the OAuth callback
+   on the GitHub App / OAuth app.
+3. For a GitHub App, paste the PEM contents into `GITHUB_APP_PRIVATE_KEY`.
+4. Set `SEED_DUMMY_DATA=false` if the deployment should start without the demo
+   assignments and announcements.
+5. Open `/api/health` after the first deploy; it names anything still missing.
+   Without an org token or GitHub App credentials nobody resolves as owner or
+   faculty, so every account looks unrostered.
 
 ### Granting faculty access
 

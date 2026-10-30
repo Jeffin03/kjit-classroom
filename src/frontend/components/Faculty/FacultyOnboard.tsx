@@ -353,6 +353,31 @@ export default function FacultyOnboard() {
     )
   }
 
+  const [inviteStatus, setInviteStatus] = useState<{
+    students?: Array<{ rollNo: string; collegeEmail: string; githubUsername?: string; status: string; accepted: boolean }>
+    totalInvited?: number
+    totalAccepted?: number
+  } | null>(null)
+  const [checkingInvites, setCheckingInvites] = useState(false)
+
+  const checkInvites = async () => {
+    if (!selectedTeam) return
+    setCheckingInvites(true)
+    setInviteStatus(null)
+    try {
+      const res = await fetch(
+        `/api/onboard/check?classTeam=${encodeURIComponent(selectedTeam.name)}`
+      )
+      const data = await res.json()
+      if (res.ok) setInviteStatus(data)
+      else setInviteStatus({ students: [] })
+    } catch {
+      setInviteStatus({ students: [] })
+    } finally {
+      setCheckingInvites(false)
+    }
+  }
+
   const downloadNoAccountCsv = () => {
     if (!unmatched.length || !selectedTeam) return
     const header = "roll_no,college_email,status\n"
@@ -997,6 +1022,47 @@ export default function FacultyOnboard() {
                   tone={result.noAccount ? "danger" : "neutral"}
                 />
               </div>
+
+              <div className="mb-6 flex justify-center gap-3">
+                <button
+                  onClick={checkInvites}
+                  disabled={checkingInvites || !selectedTeam}
+                  className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {checkingInvites ? "Checking..." : "Check Invites"}
+                </button>
+              </div>
+
+              {inviteStatus && (
+                <div className="mx-auto mb-6 max-w-lg rounded-lg border border-border bg-surface p-4 text-left">
+                  <h3 className="text-sm font-medium mb-2">Invite Status — {selectedTeam?.name}</h3>
+                  {inviteStatus.totalInvited !== undefined && (
+                    <p className="text-xs text-ink-muted mb-2">
+                      {inviteStatus.totalAccepted ?? 0} of {inviteStatus.totalInvited} invited students accepted
+                    </p>
+                  )}
+                  {inviteStatus.students && inviteStatus.students.length > 0 ? (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {inviteStatus.students.map((s) => (
+                        <div key={s.rollNo} className="flex items-center justify-between text-xs">
+                          <span>
+                            <span className="font-medium text-ink">{s.rollNo}</span>
+                            <span className="text-ink-muted"> — {s.collegeEmail}</span>
+                            {s.githubUsername && (
+                              <span className="text-ink-muted"> · @{s.githubUsername}</span>
+                            )}
+                          </span>
+                          <span className={`font-medium ${s.accepted ? "text-success" : "text-danger"}`}>
+                            {s.accepted ? "Accepted" : "Pending"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-ink-muted">No invited students found for this class.</p>
+                  )}
+                </div>
+              )}
 
               {(result.alreadyInTeam ?? 0) > 0 && (
                 <p className="mb-6 text-xs text-[var(--color-ink-muted)]">

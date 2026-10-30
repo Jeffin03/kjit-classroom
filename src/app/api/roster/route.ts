@@ -9,6 +9,7 @@ import {
 import { authorize, canAccessClass } from "@/backend/services/permissions"
 import { getOrgToken } from "@/backend/github/client"
 import { addTeamMember, findTeam, removeTeamMember } from "@/backend/github/teams"
+import { jsonError, readJson } from "@/backend/http"
 import type { RosterEntry } from "@/backend/types"
 
 export async function GET() {
@@ -41,10 +42,16 @@ export async function DELETE(request: Request) {
   if (!auth.ok) return auth.response
 
   const { access } = auth.session
-  const body = await request.json().catch(() => ({}))
-  const { rollNo, classTeam } = body as { rollNo?: string; classTeam?: string }
+  const body = await readJson<{ rollNo?: string; classTeam?: string }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+  const { rollNo, classTeam } = body
 
-  if (!rollNo || !classTeam) {
+  if (
+    typeof rollNo !== "string" ||
+    typeof classTeam !== "string" ||
+    !rollNo ||
+    !classTeam
+  ) {
     return NextResponse.json(
       { error: "rollNo and classTeam are required" },
       { status: 400 }
@@ -93,10 +100,18 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response
 
   const { access } = auth.session
-  const body = (await request.json().catch(() => ({}))) as Partial<RosterEntry>
+  const body = await readJson<Partial<RosterEntry>>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
   const { rollNo, classTeam, collegeEmail } = body
 
-  if (!rollNo || !classTeam || !collegeEmail) {
+  if (
+    typeof rollNo !== "string" ||
+    typeof classTeam !== "string" ||
+    typeof collegeEmail !== "string" ||
+    !rollNo ||
+    !classTeam ||
+    !collegeEmail
+  ) {
     return NextResponse.json(
       { error: "rollNo, classTeam and collegeEmail are required" },
       { status: 400 }

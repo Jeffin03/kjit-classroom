@@ -218,7 +218,10 @@ export default function Dashboard() {
                       title={assignment.title}
                       description={assignment.description}
                       deadlineDate={formatDue(deadline)}
-                      isPastDeadline={deadline < new Date()}
+                      isPastDeadline={
+                        deadline < new Date() &&
+                        !assignment.allowLateSubmissions
+                      }
                       status={status}
                       progress={progress}
                       href={

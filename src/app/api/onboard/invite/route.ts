@@ -7,6 +7,9 @@ import {
 import { addTeamMember, findTeam } from "@/backend/github/teams"
 import { addRosterEntries } from "@/backend/store/roster"
 import { authorize, canAccessClass } from "@/backend/services/permissions"
+import { jsonError, readJson } from "@/backend/http"
+
+const MAX_STUDENTS = 500
 
 interface MatchedStudent {
   rollNo: string
@@ -30,14 +33,60 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await request.json()
-  const { matched, unmatched, classTeam, classTeamSlug } = body
+  const body = await readJson<{
+    matched?: unknown
+    unmatched?: unknown
+    classTeam?: string
+    classTeamSlug?: string
+  }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
 
-  if (!matched?.length && !unmatched?.length) {
+  const { classTeam, classTeamSlug } = body
+  const matched = Array.isArray(body.matched) ? body.matched : []
+  const unmatched = Array.isArray(body.unmatched) ? body.unmatched : []
+
+  if (matched.length === 0 && unmatched.length === 0) {
     return NextResponse.json(
       { error: "No students to process" },
       { status: 400 }
     )
+  }
+
+  if (matched.length + unmatched.length > MAX_STUDENTS) {
+    return NextResponse.json(
+      {
+        error: `Too many students (${matched.length + unmatched.length}). Split the class into batches of ${MAX_STUDENTS} or fewer.`,
+      },
+      { status: 400 }
+    )
+  }
+
+  for (let i = 0; i < matched.length; i++) {
+    const student = matched[i] as Partial<MatchedStudent> | null
+    if (
+      !student ||
+      typeof student.githubUsername !== "string" ||
+      !student.githubUsername.trim() ||
+      typeof student.githubId !== "number" ||
+      typeof student.rollNo !== "string" ||
+      typeof student.collegeEmail !== "string"
+    ) {
+      return jsonError(`Matched student ${i + 1} is missing required fields`)
+    }
+  }
+
+  for (let i = 0; i < unmatched.length; i++) {
+    const student = unmatched[i] as {
+      rollNo?: unknown
+      collegeEmail?: unknown
+    } | null
+    if (
+      !student ||
+      typeof student.rollNo !== "string" ||
+      typeof student.collegeEmail !== "string"
+    ) {
+      return jsonError(`Unmatched student ${i + 1} is missing required fields`)
+    }
   }
 
   if (!classTeam || !canAccessClass(access, classTeam)) {

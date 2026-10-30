@@ -10,6 +10,8 @@ export interface Assignment {
   requirements: string[]
   evaluationCriteria: string[]
   sprintCount: number
+  /** When true, students may still submit after the deadline. */
+  allowLateSubmissions?: boolean
   createdBy: string
   createdAt: string
   updatedAt: string
@@ -25,6 +27,7 @@ export interface CreateAssignmentInput {
   objectives?: string[]
   requirements?: string[]
   evaluationCriteria?: string[]
+  allowLateSubmissions?: boolean
 }
 
 export interface SprintCompletion {

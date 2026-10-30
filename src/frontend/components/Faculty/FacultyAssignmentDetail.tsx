@@ -58,7 +58,8 @@ export default function FacultyAssignmentDetail({
   assignmentId: string
 }) {
   const router = useRouter()
-  const { user, isFaculty, loading: userLoading } = useSessionUser()
+  const { user, isFaculty, capabilities, loading: userLoading } = useSessionUser()
+  const canManage = capabilities.includes("assignment.create")
   const [assignment, setAssignment] = useState<AssignmentWithStats | null>(null)
   const [submissions, setSubmissions] = useState<SubmissionWithSprints[]>([])
   const [roster, setRoster] = useState<RosterEntry[]>([])
@@ -126,6 +127,30 @@ export default function FacultyAssignmentDetail({
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to accept submission"
+      )
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!assignment) return
+    if (!window.confirm(`Delete "${assignment.title}"? This cannot be undone.`)) {
+      return
+    }
+
+    setActionError(null)
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || "Couldn't delete the assignment")
+      }
+      router.push("/faculty")
+      router.refresh()
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Couldn't delete the assignment"
       )
     }
   }
@@ -299,6 +324,23 @@ export default function FacultyAssignmentDetail({
           subtitle={assignment.description}
           action={
             <>
+              {canManage && (
+                <>
+                  <Link
+                    href={`/faculty/assignments/new?edit=${assignmentId}`}
+                    className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-danger transition-colors hover:bg-danger-soft"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
               <Link
                 href="/faculty"
                 className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
@@ -328,6 +370,12 @@ export default function FacultyAssignmentDetail({
         <span>Due {new Date(assignment.deadline).toLocaleDateString()}</span>
         <span aria-hidden>·</span>
         <span>{assignment.sprintCount} sprints</span>
+        {assignment.allowLateSubmissions && (
+          <>
+            <span aria-hidden>·</span>
+            <span>Late submissions allowed</span>
+          </>
+        )}
         <span aria-hidden>·</span>
         <span>
           Created by{" "}
@@ -417,7 +465,7 @@ export default function FacultyAssignmentDetail({
         visibleCards.length === 0 ? (
           <p className="mt-8 rounded-2xl border border-border bg-surface px-5 py-10 text-center text-sm text-ink-muted">
             {rows.length === 0
-              ? "No students assigned to this assignment yet"
+              ? `No students are rostered for ${assignment.assignedTeams.join(", ")} yet. Onboard students to see their submissions here.`
               : "No students match this filter"}
           </p>
         ) : (

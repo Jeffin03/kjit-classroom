@@ -200,6 +200,48 @@ export default function FacultyDashboard() {
         }
       />
 
+      {isOrgOwner && classNames.length === 0 && assignments.length === 0 && (
+        <section className="mt-6 rounded-2xl border border-border bg-surface p-6">
+          <h2 className="text-sm font-semibold">Get your deployment ready</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Nothing is set up yet. Classes come from GitHub teams and students
+            come from the roster you upload.
+          </p>
+          <ol className="mt-4 space-y-2 text-sm text-ink-muted">
+            <li>
+              1. Create a GitHub team for each class in your organization
+              (Closed visibility). The team name is the class name.
+            </li>
+            <li>
+              2. Upload a roster CSV for that class. Students sign in with the
+              GitHub account matched during onboarding.
+            </li>
+            <li>
+              3. Create an assignment and select the class team. Rostered
+              students see it on their dashboard.
+            </li>
+          </ol>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Link
+              href="/faculty/onboard"
+              className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              Onboard students
+            </Link>
+            <Link
+              href="/faculty/assignments/new"
+              className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-canvas"
+            >
+              Create assignment
+            </Link>
+          </div>
+          <p className="mt-4 text-xs text-ink-subtle">
+            Student views require a GitHub account that is on the roster. Your
+            owner account always sees the faculty view.
+          </p>
+        </section>
+      )}
+
       {isOrgOwner && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
@@ -278,8 +320,9 @@ export default function FacultyDashboard() {
         {classNames.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-border bg-surface p-8 text-center">
             <p className="text-sm text-ink-muted">
-              You haven&apos;t been assigned a class yet. An org owner assigns
-              classes from GitHub teams.
+              {isOrgOwner
+                ? "No classes yet. Create a GitHub team for each class in your organization, then onboard students or create an assignment for it."
+                : "You haven't been assigned a class yet. An org owner assigns classes from GitHub teams."}
             </p>
           </div>
         ) : (
@@ -301,7 +344,8 @@ export default function FacultyDashboard() {
         <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface">
           {recent.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-ink-muted">
-              No submissions in the last 7 days
+              No submissions in the last 7 days. Sprints appear here once
+              rostered students submit.
             </p>
           ) : (
             <ul className="divide-y divide-border">

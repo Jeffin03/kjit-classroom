@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { githubFetch, getOrgToken } from "@/backend/github/client"
 import { authorize, canAccessClass } from "@/backend/services/permissions"
+import { jsonError, readJson } from "@/backend/http"
+
+const MAX_ROWS = 500
 
 interface CsvRow {
   rollNo: string
@@ -38,14 +41,46 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await request.json()
+  const body = await readJson<{ csvRows?: unknown; classTeam?: string }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
   const { csvRows, classTeam } = body
 
-  if (!csvRows?.length || !classTeam) {
+  if (!Array.isArray(csvRows) || csvRows.length === 0 || !classTeam) {
     return NextResponse.json(
       { error: "csvRows and classTeam are required" },
       { status: 400 }
     )
+  }
+
+  if (csvRows.length > MAX_ROWS) {
+    return NextResponse.json(
+      {
+        error: `Too many rows (${csvRows.length}). Split the file into batches of ${MAX_ROWS} or fewer.`,
+      },
+      { status: 400 }
+    )
+  }
+
+  // Validate before the loop: every row drives at least one GitHub API call,
+  // so a malformed row should fail fast rather than halfway through.
+  for (let i = 0; i < csvRows.length; i++) {
+    const row = csvRows[i] as Partial<CsvRow> | null
+    if (
+      !row ||
+      typeof row.rollNo !== "string" ||
+      !row.rollNo.trim() ||
+      typeof row.collegeEmail !== "string" ||
+      !row.collegeEmail.trim()
+    ) {
+      return jsonError(`Row ${i + 1} needs a rollNo and collegeEmail`)
+    }
+    if (
+      row.githubUsername !== undefined &&
+      typeof row.githubUsername !== "string"
+    ) {
+      return jsonError(`Row ${i + 1} has an invalid githubUsername`)
+    }
   }
 
   if (!canAccessClass(access, classTeam)) {

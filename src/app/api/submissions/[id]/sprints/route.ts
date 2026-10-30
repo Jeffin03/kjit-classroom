@@ -3,6 +3,7 @@ import { getSubmissionById } from "@/backend/store/submissions"
 import { submitSprint } from "@/backend/services/submission.service"
 import { authorize, canUseRepo } from "@/backend/services/permissions"
 import { parseRepoUrl } from "@/backend/github/repos"
+import { jsonError, readJson } from "@/backend/http"
 import type { SubmitSprintInput } from "@/backend/types"
 
 export async function POST(
@@ -24,14 +25,12 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const body = await request.json()
-  const {
-    sprintNumber,
-    repoUrl,
-    documentationUrl,
-    summary,
-    isPivot,
-  } = body as Partial<SubmitSprintInput> & { sprintNumber: number }
+  const body = await readJson<
+    Partial<SubmitSprintInput> & { sprintNumber: number }
+  >(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
+  const { sprintNumber, repoUrl, documentationUrl, summary, isPivot } = body
 
   if (typeof sprintNumber !== "number" || sprintNumber < 0) {
     return NextResponse.json(
@@ -40,8 +39,18 @@ export async function POST(
     )
   }
 
+  if (documentationUrl !== undefined && typeof documentationUrl !== "string") {
+    return jsonError("documentationUrl must be a string")
+  }
+  if (summary !== undefined && typeof summary !== "string") {
+    return jsonError("summary must be a string")
+  }
+  if (isPivot !== undefined && typeof isPivot !== "boolean") {
+    return jsonError("isPivot must be a boolean")
+  }
+
   const effectiveRepoUrl = (isPivot ? repoUrl : submission.repoUrl) as string
-  if (!effectiveRepoUrl) {
+  if (typeof effectiveRepoUrl !== "string" || !effectiveRepoUrl) {
     return NextResponse.json(
       { error: "repoUrl is required" },
       { status: 400 }
@@ -83,9 +92,12 @@ export async function POST(
     return NextResponse.json(sprint, { status: 201 })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to submit sprint"
-    const status = message.includes("already") || message.includes("is required")
-      ? 400
-      : 500
+    const status =
+      message.includes("already") ||
+      message.includes("is required") ||
+      message.includes("deadline")
+        ? 400
+        : 500
     return NextResponse.json({ error: message }, { status })
   }
 }

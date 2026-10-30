@@ -75,3 +75,26 @@ export function createAnnouncement(
   mutated(KEYS.announcements, announcement.id, announcement)
   return announcement
 }
+
+export function updateAnnouncement(
+  id: string,
+  updates: Partial<Pick<Announcement, "title" | "body">>
+): Announcement | null {
+  const announcement = announcements.find((a) => a.id === id)
+  if (!announcement) return null
+
+  if (updates.title !== undefined) announcement.title = updates.title
+  if (updates.body !== undefined) announcement.body = updates.body
+
+  mutated(KEYS.announcements, announcement.id, announcement)
+  return announcement
+}
+
+export function deleteAnnouncement(id: string): boolean {
+  const index = announcements.findIndex((a) => a.id === id)
+  if (index === -1) return false
+
+  const [removed] = announcements.splice(index, 1)
+  mutated(KEYS.announcements, removed.id, null)
+  return true
+}

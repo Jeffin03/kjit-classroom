@@ -5,13 +5,22 @@ import {
   acceptSubmission,
 } from "@/backend/services/submission.service"
 import { authorize, canAccessSubmission } from "@/backend/services/permissions"
+import { jsonError, readJson } from "@/backend/http"
+
+interface ReviewBody {
+  accept?: boolean
+  sprintSubmissionId?: string
+  notes?: string
+}
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const body = await request.json()
-  const accepting = body?.accept === true
+  const body = await readJson<ReviewBody>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
+  const accepting = body.accept === true
 
   const auth = await authorize(
     accepting ? "submission.accept" : "submission.review"
@@ -45,7 +54,11 @@ export async function PUT(
   }
 
   const { sprintSubmissionId, notes } = body
-  if (!sprintSubmissionId || typeof notes !== "string") {
+  if (
+    typeof sprintSubmissionId !== "string" ||
+    !sprintSubmissionId ||
+    typeof notes !== "string"
+  ) {
     return NextResponse.json(
       { error: "sprintSubmissionId and notes are required" },
       { status: 400 }

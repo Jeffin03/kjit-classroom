@@ -18,6 +18,7 @@ import {
   removeTeacher,
 } from "@/backend/store/teachers"
 import { authorize } from "@/backend/services/permissions"
+import { jsonError, readJson } from "@/backend/http"
 import type { ApprovedTeacherRole, TeacherProfile } from "@/backend/types"
 
 /** Roles an owner may grant when approving a request. */
@@ -57,14 +58,27 @@ export async function POST(request: Request) {
   const org = process.env.GITHUB_ORG
   if (!org) return orgNotConfigured()
 
-  const body = await request.json().catch(() => ({}))
+  const body = await readJson<{
+    githubUsername?: unknown
+    role?: unknown
+    classes?: unknown
+    email?: unknown
+  }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
   const githubUsername =
-    typeof body?.githubUsername === "string"
+    typeof body.githubUsername === "string"
       ? body.githubUsername.trim().replace(/^@/, "")
       : ""
-  const role = body?.role as ApprovedTeacherRole
-  const classes = Array.isArray(body?.classes) ? body.classes : []
-  const email = typeof body?.email === "string" ? body.email.trim() : ""
+  const role = body.role as ApprovedTeacherRole
+  const rawClasses = Array.isArray(body.classes) ? body.classes : []
+  const classes = rawClasses
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean)
+  if (classes.length !== rawClasses.length) {
+    return jsonError("classes must be a list of class team names")
+  }
+  const email = typeof body.email === "string" ? body.email.trim() : ""
 
   if (!githubUsername) {
     return NextResponse.json(
@@ -227,10 +241,21 @@ export async function PUT(request: Request) {
   const org = process.env.GITHUB_ORG
   if (!org) return orgNotConfigured()
 
-  const body = await request.json()
+  const body = await readJson<{
+    githubUsername?: string
+    action?: string
+    role?: string
+  }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
   const { githubUsername, action } = body
 
-  if (!githubUsername || !action) {
+  if (
+    typeof githubUsername !== "string" ||
+    typeof action !== "string" ||
+    !githubUsername ||
+    !action
+  ) {
     return NextResponse.json(
       { error: "githubUsername and action are required" },
       { status: 400 }

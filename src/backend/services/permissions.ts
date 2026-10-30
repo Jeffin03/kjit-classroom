@@ -362,6 +362,13 @@ export async function readSessionIdentity(
     const accessToken = jwt?.accessToken
     if (typeof accessToken !== "string" || !accessToken) continue
 
+    // A GitHub App user token that has passed its expiry is useless. The jwt
+    // callback refreshes it on the next session read; until then, treat the
+    // session as signed out rather than calling GitHub with dead credentials.
+    const expiresAt =
+      typeof jwt.expiresAt === "number" ? jwt.expiresAt : null
+    if (expiresAt && Date.now() >= expiresAt) continue
+
     // Authorization keys off the GitHub login and nothing else. Sessions
     // issued before the `login` claim existed (or by a build that did not
     // capture it) are treated as signed out: falling back to the display name

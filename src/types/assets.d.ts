@@ -1,8 +1,8 @@
-declare module "*@/frontend/assets/*.webp" {
+declare module "*.webp" {
   const src: string
   export default src
 }
-declare module "*@/frontend/assets/*.png" {
+declare module "*.png" {
   const src: string
   export default src
 }

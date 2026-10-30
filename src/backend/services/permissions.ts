@@ -245,7 +245,7 @@ export async function resolveAccess(username: string): Promise<AccessContext> {
   else role = "unrostered"
 
   const classes = isApprovedTeacher ? (teacher?.classes ?? []) : []
-  const unrestricted = role === "owner" || role === "animator"
+  const unrestricted = role === "owner" || (role === "animator" && isInFacultyTeam)
 
   return {
     username,

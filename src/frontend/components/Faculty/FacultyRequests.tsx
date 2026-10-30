@@ -507,7 +507,7 @@ export default function FacultyRequests() {
                   <option value="">Select faculty member...</option>
                   {facultyMembers.map((m) => (
                     <option key={m.login} value={m.login}>
-                      {m.login} {m.email ? `— ${m.email}` : ""}
+                      {m.login} {m.email ? `— ${m.email.length > 30 ? m.email.slice(0, 30) + "…" : m.email}` : ""}
                     </option>
                   ))}
                 </select>
@@ -540,41 +540,39 @@ export default function FacultyRequests() {
                 >
                   {GRANTABLE_ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {ROLE_LABELS[r]} {r === "animator" ? "(All classes)" : ""}
+                      {ROLE_LABELS[r]}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {newRole !== "animator" && (
-                <div>
-                  <label className="block text-xs font-medium text-ink-muted mb-1">
-                    Assigned Classes
-                  </label>
-                  {availableTeams.length === 0 ? (
-                    <p className="text-xs text-ink-faint">
-                      No teams found in organization.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border border-border rounded-lg">
-                      {availableTeams.map((team) => (
-                        <button
-                          key={team}
-                          type="button"
-                          onClick={() => toggleClass(team)}
-                          className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                            newClasses.includes(team)
-                              ? "bg-accent text-white"
-                              : "bg-canvas text-ink-muted hover:bg-border"
-                          }`}
-                        >
-                          {team}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-ink-muted mb-1">
+                  Assigned Classes
+                </label>
+                {availableTeams.length === 0 ? (
+                  <p className="text-xs text-ink-faint">
+                    No teams found in organization.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border border-border rounded-lg">
+                    {availableTeams.map((team) => (
+                      <button
+                        key={team}
+                        type="button"
+                        onClick={() => toggleClass(team)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                          newClasses.includes(team)
+                            ? "bg-accent text-white"
+                            : "bg-canvas text-ink-muted hover:bg-border"
+                        }`}
+                      >
+                        {team}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="mt-6 flex justify-end gap-3">
                 <Button

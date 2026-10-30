@@ -278,7 +278,7 @@ export default function FacultyRequests() {
     <>
       <div className="max-w-4xl space-y-8">
         <FacultyPageHeader
-          title="Faculty & Access"
+          title="Faculty Roster"
           subtitle="Manage faculty members and approve teaching roles"
           action={
             <Button onClick={() => setAddModalOpen(true)}>

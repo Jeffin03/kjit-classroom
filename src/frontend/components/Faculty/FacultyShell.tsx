@@ -56,7 +56,7 @@ const navItems: NavItem[] = [
   },
   {
     href: "/faculty/roster",
-    label: "Roster",
+    label: "Student Roster",
     icon: (
       <Icon>
         <circle cx="9" cy="8" r="3.25" />
@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
   },
   {
     href: "/faculty/requests",
-    label: "Requests",
+    label: "Faculty Roster",
     capability: "teacher.approve",
     icon: (
       <Icon>

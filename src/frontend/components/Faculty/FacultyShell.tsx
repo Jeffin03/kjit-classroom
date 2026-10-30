@@ -99,12 +99,14 @@ function SidebarNav({
   onNavigate,
   onClose,
   pendingRequests = 0,
+  title = "Faculty",
 }: {
   pathname: string
   capabilities: readonly string[]
   onNavigate: () => void
   onClose?: () => void
   pendingRequests?: number
+  title?: string
 }) {
   const visibleItems = navItems.filter(
     (item) => !item.capability || capabilities.includes(item.capability)
@@ -121,7 +123,7 @@ function SidebarNav({
             className="h-8 w-8 object-contain"
           />
           <span className="text-sm font-semibold tracking-tight text-[var(--color-ink)]">
-            Faculty
+            {title}
           </span>
         </span>
         {onClose ? (
@@ -208,6 +210,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
           capabilities={capabilities}
           onNavigate={closeDrawer}
           pendingRequests={pendingRequests}
+          title={role === "owner" ? "Admin" : "Faculty"}
         />
       </aside>
 
@@ -231,6 +234,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
               onNavigate={closeDrawer}
               onClose={closeDrawer}
               pendingRequests={pendingRequests}
+              title={role === "owner" ? "Admin" : "Faculty"}
             />
           </div>
         </div>

@@ -89,6 +89,53 @@ export default function FacultyOnboard() {
     noAccount: number
     errors?: string[]
   } | null>(null)
+  const [newStudent, setNewStudent] = useState<CsvRow>({ rollNo: "", collegeEmail: "", githubUsername: "" })
+  const [newStudentError, setNewStudentError] = useState<string | null>(null)
+
+  const handleAddStudent = () => {
+    const { rollNo, collegeEmail, githubUsername } = newStudent
+
+    if (!rollNo.trim()) {
+      setNewStudentError("Roll number is required")
+      return
+    }
+    if (!EMAIL_RE.test(collegeEmail.trim())) {
+      setNewStudentError(`Invalid email: ${collegeEmail}`)
+      return
+    }
+    if (githubUsername && !GITHUB_USERNAME_RE.test(githubUsername.trim())) {
+      setNewStudentError(`Invalid GitHub username: ${githubUsername}`)
+      return
+    }
+
+    const normalized: CsvRow = {
+      rollNo: rollNo.trim(),
+      collegeEmail: collegeEmail.trim(),
+      ...(githubUsername && { githubUsername: githubUsername.trim() }),
+    }
+
+    // Check for duplicates
+    if (csvRows.some((r) => r.rollNo.toLowerCase() === normalized.rollNo.toLowerCase())) {
+      setNewStudentError("Roll number already exists")
+      return
+    }
+    if (newStudentError) setNewStudentError(null)
+    setCsvRows((prev) => [...prev, normalized])
+    setNewStudent({ rollNo: "", collegeEmail: "", githubUsername: "" })
+  }
+
+  const clearNewStudent = () => {
+    setNewStudent({ rollNo: "", collegeEmail: "", githubUsername: "" })
+    setNewStudentError(null)
+  }
+
+  const handleNewStudentChange = (field: keyof CsvRow) => (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value
+    setNewStudent((prev) => ({ ...prev, [field]: value }))
+    if (newStudentError) setNewStudentError(null)
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -596,6 +643,83 @@ export default function FacultyOnboard() {
                 </div>
               )}
 
+              {/* Add student manually */}
+              {step === 2 && (
+                <div className="mt-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-canvas)] p-4">
+                  <p className="text-sm text-[var(--color-ink-muted)] mb-3">
+                    Add a student manually (skip CSV upload)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs text-[var(--color-ink-muted)] mb-1">
+                        Roll No
+                        <span className="text-[var(--color-danger)]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newStudent.rollNo}
+                        onChange={handleNewStudentChange("rollNo")}
+                        placeholder="e.g. 25MCA024"
+                        className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[var(--color-ink-muted)] mb-1">
+                        College Email
+                        <span className="text-[var(--color-danger)]">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={newStudent.collegeEmail}
+                        onChange={handleNewStudentChange("collegeEmail")}
+                        placeholder="e.g. 25mca024@kristujayanti.com"
+                        className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-xs text-[var(--color-ink-muted)] mb-1">
+                          GitHub Username
+                        </label>
+                        <input
+                          type="text"
+                          value={newStudent.githubUsername}
+                          onChange={handleNewStudentChange("githubUsername")}
+                          placeholder="e.g. octocat"
+                          className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                        />
+                      </div>
+                      <div className="text-sm text-[var(--color-ink-muted)]">
+                        Optional — matches by email if not provided
+                      </div>
+                    </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={clearNewStudent}
+                      className="text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] font-medium"
+                      type="button"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={handleAddStudent}
+                      disabled={newStudentError !== null}
+                      className="bg-[var(--color-accent)] text-white px-4 py-2 rounded-md font-medium hover:bg-[var(--color-accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Add Student
+                    </button>
+                  </div>
+                  {newStudentError && (
+                    <p className="mt-2 text-xs text-[var(--color-danger)]">
+                      {newStudentError}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="mt-6 flex justify-between">
                 <button
                   onClick={() => setStep(1)}
@@ -926,6 +1050,8 @@ export default function FacultyOnboard() {
                     setHeaderDetected(false)
                     setMatched([])
                     setUnmatched([])
+                    setNewStudent({ rollNo: "", collegeEmail: "", githubUsername: "" })
+                    setNewStudentError(null)
                     setResult(null)
                     setError(null)
                     // Allow the same file to be selected again next time.

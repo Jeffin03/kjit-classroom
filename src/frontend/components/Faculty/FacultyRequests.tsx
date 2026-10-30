@@ -41,6 +41,7 @@ export default function FacultyRequests() {
 
   // Add Faculty Modal state
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [facultyMembers, setFacultyMembers] = useState<Array<{ login: string; email?: string | null; avatar?: string | null }>>([])
   const [newUsername, setNewUsername] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [newRole, setNewRole] = useState<GrantableRole>("subject-teacher")
@@ -48,6 +49,21 @@ export default function FacultyRequests() {
   const [addingFaculty, setAddingFaculty] = useState(false)
 
   const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    if (!addModalOpen) return
+    let cancelled = false
+    async function loadFaculty() {
+      try {
+        const res = await fetch("/api/org/faculty-members")
+        const data = await res.json().catch(() => ({ members: [] }))
+        if (cancelled) return
+        setFacultyMembers(data.members || [])
+      } catch { /* ignore */ }
+    }
+    loadFaculty()
+    return () => { cancelled = true }
+  }, [addModalOpen])
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -475,16 +491,29 @@ export default function FacultyRequests() {
             <form onSubmit={handleAddFaculty} className="mt-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-ink-muted mb-1">
-                  GitHub Username *
+                  Faculty Member *
                 </label>
-                <input
-                  type="text"
+                <select
                   required
-                  placeholder="e.g. octocat"
                   value={newUsername}
-                  onChange={(e) => setNewUsername(e.target.value)}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-accent"
-                />
+                  onChange={(e) => {
+                    const login = e.target.value
+                    setNewUsername(login)
+                    const member = facultyMembers.find((m) => m.login === login)
+                    setNewEmail(member?.email ?? "")
+                  }}
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-accent bg-white"
+                >
+                  <option value="">Select faculty member...</option>
+                  {facultyMembers.map((m) => (
+                    <option key={m.login} value={m.login}>
+                      {m.login} {m.email ? `— ${m.email}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {facultyMembers.length === 0 && (
+                  <p className="text-xs text-ink-faint mt-1">No faculty team members found. Ensure the faculty team is configured.</p>
+                )}
               </div>
 
               <div>

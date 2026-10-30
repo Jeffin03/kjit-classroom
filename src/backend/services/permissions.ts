@@ -209,7 +209,9 @@ export async function resolveAccess(username: string): Promise<AccessContext> {
 
   const org = process.env.GITHUB_ORG
   const owners = org ? await cachedOrgOwners(org) : null
-  const isOrgOwner = !!owners?.includes(username)
+  const isOrgOwner = !!owners?.some(
+    (owner) => owner.toLowerCase() === username.toLowerCase()
+  )
 
   const facultyMembers = org ? await cachedFacultyTeamMembers(org) : []
   const isInFacultyTeam = facultyMembers.some(
@@ -303,7 +305,8 @@ export function canAccessSubmission(
   access: AccessContext,
   submission: { studentUsername: string; assignmentId: string }
 ): boolean {
-  if (submission.studentUsername === access.username) return true
+  if (submission.studentUsername.toLowerCase() === access.username.toLowerCase())
+    return true
   if (!can(access, "submission.readAll")) return false
 
   const assignment = getAssignment(submission.assignmentId)

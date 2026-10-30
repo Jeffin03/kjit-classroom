@@ -9,7 +9,8 @@ registerCollection({
   replace: (items) => {
     teachers.splice(0, teachers.length, ...(items as TeacherProfile[]))
   },
-  entityId: (item) => (item as TeacherProfile).githubUsername,
+  entityId: (item) =>
+    (item as TeacherProfile).githubUsername.toLowerCase(),
 })
 
 export function getTeacherByGithubUsername(
@@ -20,16 +21,19 @@ export function getTeacherByGithubUsername(
 }
 
 export function addTeacherProfile(profile: TeacherProfile): void {
+  const needle = profile.githubUsername.toLowerCase()
   const existing = teachers.findIndex(
-    (t) => t.githubUsername === profile.githubUsername
+    (t) => t.githubUsername.toLowerCase() === needle
   )
   if (existing >= 0) {
     teachers[existing] = { ...teachers[existing], ...profile }
   } else {
     teachers.push(profile)
   }
-  const stored = teachers.find((t) => t.githubUsername === profile.githubUsername)
-  mutated(KEYS.teachers, profile.githubUsername, stored ?? profile)
+  const stored = teachers.find(
+    (t) => t.githubUsername.toLowerCase() === needle
+  )
+  mutated(KEYS.teachers, needle, stored ?? profile)
 }
 
 export function getPendingTeacherRequests(): TeacherProfile[] {
@@ -41,20 +45,25 @@ export function approveTeacherRequest(
   approvedBy: string,
   role: ApprovedTeacherRole = "animator"
 ): void {
-  const teacher = teachers.find((t) => t.githubUsername === githubUsername)
+  const teacher = teachers.find(
+    (t) => t.githubUsername.toLowerCase() === githubUsername.toLowerCase()
+  )
   if (teacher) {
     teacher.role = role
     teacher.approvedBy = approvedBy
     teacher.approvedAt = new Date().toISOString()
-    mutated(KEYS.teachers, githubUsername, teacher)
+    mutated(KEYS.teachers, teacher.githubUsername.toLowerCase(), teacher)
   }
 }
 
 export function denyTeacherRequest(githubUsername: string): void {
-  const idx = teachers.findIndex((t) => t.githubUsername === githubUsername)
+  const idx = teachers.findIndex(
+    (t) => t.githubUsername.toLowerCase() === githubUsername.toLowerCase()
+  )
   if (idx >= 0) {
+    const removed = teachers[idx]
     teachers.splice(idx, 1)
-    mutated(KEYS.teachers, githubUsername, null)
+    mutated(KEYS.teachers, removed.githubUsername.toLowerCase(), null)
   }
 }
 

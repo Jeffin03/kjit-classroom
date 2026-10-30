@@ -41,7 +41,8 @@ export function getRosterByClassTeam(classTeam: string): RosterEntry[] {
 }
 
 export function getRosterByOnboardedBy(teacherUsername: string): RosterEntry[] {
-  return roster.filter((r) => r.onboardedBy === teacherUsername)
+  const needle = teacherUsername.toLowerCase()
+  return roster.filter((r) => r.onboardedBy.toLowerCase() === needle)
 }
 
 export function addRosterEntries(entries: RosterEntry[]): void {
@@ -90,7 +91,10 @@ export function removeRosterEntry(
 }
 
 export function getClassTeamForUsername(username: string): string | null {
-  const entry = roster.find((r) => r.githubUsername === username)
+  const needle = username.toLowerCase()
+  const entry = roster.find(
+    (r) => r.githubUsername?.toLowerCase() === needle
+  )
   return entry?.classTeam ?? null
 }
 

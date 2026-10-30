@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { authenticate, authorize, canAccessClass } from "@/backend/services/permissions"
+import { authenticate, canAccessClass } from "@/backend/services/permissions"
 import { getOrgToken } from "@/backend/github/client"
 import { findTeam, getTeamMembers } from "@/backend/github/teams"
 import { getRosterByClassTeam } from "@/backend/store/roster"

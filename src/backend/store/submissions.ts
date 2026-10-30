@@ -38,7 +38,8 @@ export function getSubmissionById(id: string): Submission | undefined {
 export function getSubmissionsByStudent(
   studentUsername: string
 ): Submission[] {
-  return submissions.filter((s) => s.studentUsername === studentUsername)
+  const needle = studentUsername.toLowerCase()
+  return submissions.filter((s) => s.studentUsername.toLowerCase() === needle)
 }
 
 export function getSubmissionsByAssignment(
@@ -51,8 +52,11 @@ export function getSubmissionByStudentAndAssignment(
   studentUsername: string,
   assignmentId: string
 ): Submission | undefined {
+  const needle = studentUsername.toLowerCase()
   return submissions.find(
-    (s) => s.studentUsername === studentUsername && s.assignmentId === assignmentId
+    (s) =>
+      s.studentUsername.toLowerCase() === needle &&
+      s.assignmentId === assignmentId
   )
 }
 

@@ -176,6 +176,12 @@ export default function AnnouncementModule() {
         )}
       </div>
 
+      {!isOrgOwner && !accessLoading && (
+        <p className="border-b border-border bg-canvas px-5 py-2 text-xs text-ink-subtle">
+          Only organization owners can post announcements.
+        </p>
+      )}
+
       {isOrgOwner && !accessLoading && (
         <div className="border-b border-border bg-canvas">
           {composerOpen ? (

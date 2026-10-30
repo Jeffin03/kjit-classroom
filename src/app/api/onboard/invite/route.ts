@@ -4,7 +4,7 @@ import {
   inviteToOrg,
   checkOrgMember,
 } from "@/backend/github/org"
-import { addTeamMember, findTeam } from "@/backend/github/teams"
+import { addTeamMember, findTeam, isTeamMember } from "@/backend/github/teams"
 import { addRosterEntries } from "@/backend/store/roster"
 import { authorize, canAccessClass } from "@/backend/services/permissions"
 import { jsonError, readJson } from "@/backend/http"
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const token = await getOrgToken()
+    const token = await getOrgToken(auth.session.accessToken)
 
     // Never derive the slug locally — look up the team GitHub actually
     // returned so onboarding cannot silently target a non-existent team.
@@ -123,12 +123,22 @@ export async function POST(request: Request) {
 
     for (const student of matched as MatchedStudent[]) {
       try {
+        // If the account is already on this class team, there is nothing to do:
+        // no invite and no team add. This covers students who are already part
+        // of the class (or were onboarded before).
+        const onTeam = await isTeamMember(token, org, team.slug, student.githubUsername)
+        if (onTeam) {
+          alreadyInTeam++
+          continue
+        }
+
         const isMember = await checkOrgMember(token, org, student.githubUsername)
 
         if (!isMember) {
-          // Invite with the team attached. A pending invitee is not a valid
-          // membership target yet, so calling addTeamMember here would fail.
-          await inviteToOrg(
+          // Not in the org yet: send an invitation (with the team attached so
+          // they land in the class once they accept). A pending invitee is not
+          // a valid membership target, so we do not call addTeamMember here.
+          const invitation = await inviteToOrg(
             token,
             org,
             {
@@ -139,8 +149,16 @@ export async function POST(request: Request) {
             "direct_member",
             [team.id]
           )
-          invited++
+          if (invitation.state === "already_member") {
+            // GitHub says the account is already a member or has a pending
+            // invite — treat it as already handled rather than sending another.
+            alreadyMember++
+          } else {
+            invited++
+          }
         } else {
+          // Already in the organisation (possibly from another class): just add
+          // them to this class team instead of sending a new invite.
           alreadyMember++
           const membership = await addTeamMember(
             token,

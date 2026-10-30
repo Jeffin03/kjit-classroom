@@ -76,7 +76,7 @@ export async function DELETE(request: Request) {
   const org = process.env.GITHUB_ORG
   if (org && removed.githubUsername) {
     try {
-      const token = await getOrgToken()
+      const token = await getOrgToken(auth.session.accessToken)
       const team = await findTeam(token, org, { name: classTeam })
       if (team) {
         await removeTeamMember(token, org, team.slug, removed.githubUsername)
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
   const org = process.env.GITHUB_ORG
   if (org && entry.githubUsername) {
     try {
-      const token = await getOrgToken()
+      const token = await getOrgToken(auth.session.accessToken)
       const team = await findTeam(token, org, { name: classTeam })
       if (team) {
         await addTeamMember(token, org, team.slug, entry.githubUsername)

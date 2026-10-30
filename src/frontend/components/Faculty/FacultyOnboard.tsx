@@ -62,7 +62,13 @@ const STEPS = [
   "Complete",
 ]
 
-export default function FacultyOnboard() {
+export default function FacultyOnboard({
+  embedded = false,
+  onDone,
+}: {
+  embedded?: boolean
+  onDone?: () => void
+} = {}) {
   const { data: session, status } = useSession()
   const { capabilities, loading: accessLoading } = useSessionUser()
   const router = useRouter()
@@ -407,20 +413,28 @@ export default function FacultyOnboard() {
   return (
     <>
       <div className="max-w-4xl">
-        <Breadcrumbs
-          items={[
-            { label: "Dashboard", href: "/faculty" },
-            { label: "Roster", href: "/faculty/roster" },
-            { label: "Onboard" },
-          ]}
-        />
-        <div className="mt-4">
-          <FacultyPageHeader
-            title="Onboard Students"
-            subtitle="Add students to your class team on GitHub"
+        {!embedded && (
+          <Breadcrumbs
+            items={[
+              { label: "Dashboard", href: "/faculty" },
+              { label: "Roster", href: "/faculty/roster" },
+              { label: "Onboard" },
+            ]}
           />
-        </div>
-
+        )}
+        {!embedded && (
+          <div className="mt-4">
+            <FacultyPageHeader
+              title="Onboard Students"
+              subtitle="Add students to your class team on GitHub"
+            />
+          </div>
+        )}
+        {embedded && (
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--color-ink)]">
+            Onboard students
+          </h2>
+        )}
         {/* Step indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -950,8 +964,9 @@ export default function FacultyOnboard() {
 
               <p className="mb-6 text-xs text-[var(--color-ink-muted)]">
                 Each student is invited to the organization and added to the
-                team in one step; students who are already members are added to
-                the team directly.
+                team in one step. Students who are already in the organization
+                (or already on this team) are added directly — no invite email
+                is sent for them.
               </p>
 
               <div className="flex justify-between">
@@ -1101,12 +1116,22 @@ export default function FacultyOnboard() {
               )}
 
               <div className="flex justify-center gap-4">
-                <Link
-                  href="/faculty/roster"
-                  className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-                >
-                  Back to roster
-                </Link>
+                {embedded && onDone ? (
+                  <button
+                    type="button"
+                    onClick={onDone}
+                    className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+                  >
+                    Back to roster
+                  </button>
+                ) : (
+                  <Link
+                    href="/faculty/roster"
+                    className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+                  >
+                    Back to roster
+                  </Link>
+                )}
                 <button
                   onClick={() => {
                     setStep(1)

@@ -5,6 +5,7 @@ import { getOrgToken } from "../github/client"
 import { getOrgOwners } from "../github/org"
 import { getTeamMembers, facultyTeamSlugs } from "../github/teams"
 import { getTeacherByGithubUsername } from "../store/teachers"
+import { getTestAccount, isDevTestAuthEnabled } from "../dev/testAccounts"
 import { getRosterByGithubUsername } from "../store/roster"
 import { getAssignment } from "../store/assignments"
 import { ensureFresh } from "../store/persistence"
@@ -105,13 +106,13 @@ export const ROLE_CAPABILITIES: Readonly<Record<Role, readonly Capability[]>> =
 const ORG_OWNER_CACHE_TTL_MS = 5 * 60 * 1000
 let orgOwnerCache: { org: string; owners: string[]; at: number } | null = null
 
-async function cachedOrgOwners(org: string): Promise<string[] | null> {
+async function cachedOrgOwners(org: string, userAccessToken?: string): Promise<string[] | null> {
   const now = Date.now()
   if (orgOwnerCache && orgOwnerCache.org === org && now - orgOwnerCache.at < ORG_OWNER_CACHE_TTL_MS) {
     return orgOwnerCache.owners
   }
   try {
-    const owners = await getOrgOwners(await getOrgToken(), org)
+    const owners = await getOrgOwners(await getOrgToken(userAccessToken), org)
     orgOwnerCache = { org, owners, at: now }
     return owners
   } catch {
@@ -135,7 +136,7 @@ let facultyTeamCache: {
   ttl: number
 } | null = null
 
-async function cachedFacultyTeamMembers(org: string): Promise<string[]> {
+async function cachedFacultyTeamMembers(org: string, userAccessToken?: string): Promise<string[]> {
   const now = Date.now()
   if (
     facultyTeamCache &&
@@ -145,7 +146,7 @@ async function cachedFacultyTeamMembers(org: string): Promise<string[]> {
     return facultyTeamCache.members
   }
   try {
-    const token = await getOrgToken()
+    const token = await getOrgToken(userAccessToken)
     const candidateSlugs = facultyTeamSlugs()
 
     // Probe in parallel — sequential probes would multiply the latency every
@@ -202,18 +203,42 @@ export interface AccessContext {
   classes: string[]
 }
 
-export async function resolveAccess(username: string): Promise<AccessContext> {
+export async function resolveAccess(
+  username: string,
+  userAccessToken?: string
+): Promise<AccessContext> {
   // Every API route and the proxy funnel through here, so this is the single
   // place to pull a fresh store snapshot written by another instance.
   await ensureFresh()
 
+  // Dev-only: synthetic test accounts bypass GitHub-backed role resolution.
+  if (isDevTestAuthEnabled()) {
+    const account = getTestAccount(username)
+    if (account) {
+      const role = account.role
+      const classes = account.classes ?? []
+      const team = account.team ?? null
+      const unrestricted = role === "owner" || role === "animator"
+      return {
+        username,
+        role,
+        capabilities: new Set(ROLE_CAPABILITIES[role]),
+        isOrgOwner: role === "owner",
+        isFaculty: role !== "student" && role !== "unrostered",
+        scopedClasses: unrestricted ? null : classes,
+        team,
+        classes,
+      }
+    }
+  }
+
   const org = process.env.GITHUB_ORG
-  const owners = org ? await cachedOrgOwners(org) : null
+  const owners = org ? await cachedOrgOwners(org, userAccessToken) : null
   const isOrgOwner = !!owners?.some(
     (owner) => owner.toLowerCase() === username.toLowerCase()
   )
 
-  const facultyMembers = org ? await cachedFacultyTeamMembers(org) : []
+  const facultyMembers = org ? await cachedFacultyTeamMembers(org, userAccessToken) : []
   const isInFacultyTeam = facultyMembers.some(
     (m) => m.toLowerCase() === username.toLowerCase()
   )
@@ -401,7 +426,7 @@ export async function authorize(
   const identity = await readSessionIdentity(await headers())
   if (!identity) return { ok: false, response: UNAUTHORIZED() }
 
-  const access = await resolveAccess(identity.login)
+  const access = await resolveAccess(identity.login, identity.accessToken)
 
   if (!can(access, capability)) {
     return {
@@ -427,7 +452,7 @@ export async function authenticate(): Promise<AccessResult> {
   return {
     ok: true,
     session: {
-      access: await resolveAccess(identity.login),
+      access: await resolveAccess(identity.login, identity.accessToken),
       accessToken: identity.accessToken,
     },
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getOrgToken } from "@/backend/github/client"
 import { listTeams } from "@/backend/github/teams"
 import { authorize } from "@/backend/services/permissions"
+import { isDevTestAuthEnabled, TEST_CLASSES } from "@/backend/dev/testAccounts"
 
 export async function GET() {
   const auth = await authorize("team.read")
@@ -14,7 +15,18 @@ export async function GET() {
 
   try {
     const { access } = auth.session
-    const allTeams = await listTeams(await getOrgToken(), org)
+    let allTeams
+    if (isDevTestAuthEnabled()) {
+      allTeams = TEST_CLASSES.map((name, i) => ({
+        id: i,
+        name,
+        slug: name.toLowerCase().replace(/\s+/g, "-"),
+        description: null,
+        members_count: 0,
+      }))
+    } else {
+      allTeams = await listTeams(await getOrgToken(auth.session.accessToken), org).catch(() => [])
+    }
     // Scoped teachers only ever pick from their own classes.
     const teams =
       access.scopedClasses === null

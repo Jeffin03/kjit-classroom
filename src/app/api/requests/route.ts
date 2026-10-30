@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const token = await getOrgToken().catch(() => null)
+  const token = await getOrgToken(auth.session.accessToken).catch(() => null)
   const warnings: string[] = []
   if (token) {
     // A typo'd or not-yet-invited username would otherwise create a faculty
@@ -180,7 +180,7 @@ export async function DELETE(request: Request) {
     )
   }
 
-  const token = await getOrgToken().catch(() => null)
+  const token = await getOrgToken(auth.session.accessToken).catch(() => null)
   const warnings: string[] = []
   const removedFromClassTeams: string[] = []
 
@@ -282,7 +282,7 @@ export async function PUT(request: Request) {
 
     // Resolve every class team first so a typo cannot grant access for a class
     // the teacher does not actually teach.
-    const token = await getOrgToken()
+    const token = await getOrgToken(auth.session.accessToken)
     const teams = []
     for (const className of teacher.classes) {
       const team = await findTeam(token, org, { name: className })

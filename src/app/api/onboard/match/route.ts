@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const token = await getOrgToken()
+    const token = await getOrgToken(auth.session.accessToken)
 
     const matched: MatchedStudent[] = []
     const unmatched: UnmatchedStudent[] = []

@@ -7,6 +7,7 @@ import { useSession, signIn } from "next-auth/react"
 import Button from "@/frontend/components/Button"
 import { CheckIcon, GitHubIcon } from "@/frontend/components/Icons"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import { TEST_ACCOUNTS, isDevTestAuthEnabled } from "@/backend/dev/testAccounts"
 import logo from "@/frontend/assets/KJU_Logo.webp"
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -104,15 +105,43 @@ export default function SignIn({
           {status === "loading" ? (
             <div className="mt-6 h-11 animate-pulse rounded-lg bg-border" />
           ) : (
-            <Button
-              large
-              variant="ink"
-              className="mt-6 w-full"
-              onClick={() => signIn("github", { callbackUrl })}
-            >
-              <GitHubIcon className="size-5" />
-              Sign in with GitHub
-            </Button>
+            <>
+              <Button
+                large
+                variant="ink"
+                className="mt-6 w-full"
+                onClick={() => signIn("github", { callbackUrl })}
+              >
+                <GitHubIcon className="size-5" />
+                Sign in with GitHub
+              </Button>
+
+              {isDevTestAuthEnabled() && (
+                <div className="mt-6 space-y-2">
+                  <p className="text-xs font-medium text-ink-subtle">
+                    Dev test accounts (password: test)
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TEST_ACCOUNTS.map((account) => (
+                      <Button
+                        key={account.username}
+                        variant="outline"
+                        className="w-full text-xs"
+                        onClick={() =>
+                          signIn("dev-test", {
+                            username: account.username,
+                            password: account.password,
+                            callbackUrl,
+                          })
+                        }
+                      >
+                        {account.username}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <p className="mt-4 text-xs leading-5 text-ink-subtle">

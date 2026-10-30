@@ -67,19 +67,6 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    href: "/faculty/onboard",
-    label: "Onboard",
-    capability: "roster.write",
-    icon: (
-      <Icon>
-        <circle cx="9.5" cy="8" r="3.5" />
-        <path d="M3 20v-1a4.5 4.5 0 0 1 4.5-4.5h4A4.5 4.5 0 0 1 16 19v1" />
-        <path d="M18.5 8.5v6" />
-        <path d="M21.5 11.5h-6" />
-      </Icon>
-    ),
-  },
-  {
     href: "/faculty/requests",
     label: "Requests",
     capability: "teacher.approve",

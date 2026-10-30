@@ -24,6 +24,7 @@ import {
 import { getAssignment } from "../store/assignments"
 import { parseRepoUrl, getRepoInfo, getLatestCommit, getDiffMetrics } from "../github/repos"
 import { deadlineMessage, isDeadlinePassed } from "./assignment.service"
+import { isDevTestAuthEnabled } from "../dev/testAccounts"
 
 export async function createSubmission(
   input: CreateSubmissionInput,
@@ -50,39 +51,45 @@ export async function createSubmission(
     )
   }
 
-  // Faculty review commit diffs on github.com with their own account: a
-  // private repository answers 404 for them and the sprint can never be
-  // reviewed. Catch it now, while the student can still flip visibility.
-  let repoInfo
-  try {
-    repoInfo = await getRepoInfo(studentToken, owner, repo)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    throw new Error(
-      `GitHub could not read ${owner}/${repo}: ${msg}. Check the URL and that the repository exists.`
-    )
-  }
-  if (repoInfo.private) {
-    throw new Error(
-      "This repository is private. Faculty review commit diffs on GitHub, so set the repository to public (Settings → Danger Zone → Change visibility) and submit again."
-    )
+  // In dev test mode, skip the GitHub repo verification so the submission
+  // flow can be exercised without real repositories.
+  if (!isDevTestAuthEnabled()) {
+    // Faculty review commit diffs on github.com with their own account: a
+    // private repository answers 404 for them and the sprint can never be
+    // reviewed. Catch it now, while the student can still flip visibility.
+    let repoInfo
+    try {
+      repoInfo = await getRepoInfo(studentToken, owner, repo)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new Error(
+        `GitHub could not read ${owner}/${repo}: ${msg}. Check the URL and that the repository exists.`
+      )
+    }
+    if (repoInfo.private) {
+      throw new Error(
+        "This repository is private. Faculty review commit diffs on GitHub, so set the repository to public (Settings → Danger Zone → Change visibility) and submit again."
+      )
+    }
   }
 
   // A transient GitHub failure must not cost the student their submission:
   // record Sprint 0 without a SHA, and let later sprints diff from their own
   // base instead. The timeline shows "commit not captured" for it.
   let initialSha = ""
-  try {
-    const latest = await getLatestCommit(studentToken, owner, repo)
-    initialSha = latest.sha
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    if (msg.toLowerCase().includes("no commit")) {
-      throw new Error(
-        "Repository has no commits yet. Please push an initial commit (e.g. README.md) before submitting Sprint 0."
-      )
+  if (!isDevTestAuthEnabled()) {
+    try {
+      const latest = await getLatestCommit(studentToken, owner, repo)
+      initialSha = latest.sha
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.toLowerCase().includes("no commit")) {
+        throw new Error(
+          "Repository has no commits yet. Please push an initial commit (e.g. README.md) before submitting Sprint 0."
+        )
+      }
+      console.error("[submission] could not snapshot the Sprint 0 commit:", msg)
     }
-    console.error("[submission] could not snapshot the Sprint 0 commit:", msg)
   }
 
   const submission: Submission = {
@@ -240,8 +247,13 @@ export async function submitSprint(
 
   const { owner, repo } = parseRepoUrl(input.repoUrl)
 
-  const latest = await getLatestCommit(studentToken, owner, repo)
-  const headSha = latest.sha
+  let headSha = ""
+  if (isDevTestAuthEnabled()) {
+    headSha = `dev-sha-${Date.now()}`
+  } else {
+    const latest = await getLatestCommit(studentToken, owner, repo)
+    headSha = latest.sha
+  }
 
   // The previous sprint always lives in the repository that was current when
   // it was recorded — `submission.repoUrl` only changes on a pivot, and this
@@ -253,7 +265,7 @@ export async function submitSprint(
     repoUrlKey(input.repoUrl) === repoUrlKey(submission.repoUrl)
 
   let diffMetrics: DiffMetrics | undefined
-  if (input.sprintNumber > 0 && sameRepoAsPrevious) {
+  if (!isDevTestAuthEnabled() && input.sprintNumber > 0 && sameRepoAsPrevious) {
     const base = getSprintSubmission(submissionId, input.sprintNumber - 1)
     if (base?.commitSha) {
       try {

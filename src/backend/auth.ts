@@ -1,5 +1,7 @@
 import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
+import Credentials from "next-auth/providers/credentials"
+import { isDevTestAuthEnabled, TEST_ACCOUNTS } from "./dev/testAccounts"
 
 /**
  * GitHub App user-to-server tokens expire after 8 hours (classic OAuth App
@@ -66,6 +68,38 @@ async function refreshAccessToken(
   }
 }
 
+const devProviders = isDevTestAuthEnabled()
+  ? [
+      Credentials({
+        id: "dev-test",
+        name: "Dev test account",
+        credentials: {
+          username: { label: "Username", type: "text" },
+          password: { label: "Password", type: "password" },
+        },
+        async authorize(credentials) {
+          const username =
+            typeof credentials?.username === "string"
+              ? credentials.username.trim()
+              : ""
+          const password =
+            typeof credentials?.password === "string" ? credentials.password : ""
+          const account = TEST_ACCOUNTS.find(
+            (a) =>
+              a.username.toLowerCase() === username.toLowerCase() &&
+              a.password === password
+          )
+          if (!account) return null
+          return {
+            id: account.username,
+            name: account.name,
+            email: `${account.username}@dev.test`,
+          }
+        },
+      }),
+    ]
+  : []
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Auth.js refuses to trust the Host header unless told to. Vercel enables
   // this automatically, but self-hosted / proxied deployments throw
@@ -82,6 +116,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.AUTH_GITHUB_ID,
       clientSecret: process.env.AUTH_GITHUB_SECRET,
     }),
+    ...devProviders,
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -91,6 +126,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Kept in the JWT only. Read server-side via getToken() in
         // services/permissions.ts. Never copy it onto `session` — Auth.js
         // serializes the session to the browser on /api/auth/session.
+        if (account.provider === "dev-test" || account.type === "credentials") {
+          claims.login = (account as { id?: string }).id || ""
+          // Reuse the org token so dev test accounts can read org data.
+          claims.accessToken =
+            process.env.GITHUB_ORG_TOKEN?.trim() ||
+            process.env.DEV_TEST_ACCESS_TOKEN?.trim() ||
+            "dev-test-token"
+          return token
+        }
         claims.accessToken = account.access_token
 
         if (typeof account.refresh_token === "string") {

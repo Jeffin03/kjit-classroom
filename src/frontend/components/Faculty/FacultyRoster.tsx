@@ -1,7 +1,7 @@
 "use client"
 
 import FacultyPageHeader from "./FacultyPageHeader"
-import Link from "next/link"
+import FacultyOnboard from "./FacultyOnboard"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
@@ -36,12 +36,18 @@ const badgeFor: Record<RosterEntry["status"], BadgeStatus> = {
 
 const PAGE_SIZE = 25
 
-export default function FacultyRoster({ classParam }: { classParam?: string }) {
+export default function FacultyRoster({
+  classParam,
+  initialView = "roster",
+}: {
+  classParam?: string
+  initialView?: "roster" | "onboard"
+}) {
   const { data: session, status } = useSession()
   const { capabilities } = useSessionUser()
   const router = useRouter()
   const canWrite = capabilities.includes("roster.write")
-
+  const [view, setView] = useState<"roster" | "onboard">(initialView)
   const [roster, setRoster] = useState<RosterEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -223,16 +229,56 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
           subtitle="View all onboarded students across your classes"
           action={
             canWrite ? (
-              <Link
-                href="/faculty/onboard"
+              <button
+                type="button"
+                onClick={() => setView("onboard")}
                 className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
               >
                 Onboard students
-              </Link>
+              </button>
             ) : undefined
           }
         />
 
+        {canWrite && (
+          <div
+            role="tablist"
+            aria-label="Roster views"
+            className="mb-6 inline-flex rounded-lg border border-border bg-canvas p-1"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "roster"}
+              onClick={() => setView("roster")}
+              className={`min-h-10 rounded-md px-4 text-sm font-medium transition-colors ${
+                view === "roster"
+                  ? "bg-surface text-ink shadow-sm"
+                  : "text-ink-muted hover:text-ink"
+              }`}
+            >
+              Students
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "onboard"}
+              onClick={() => setView("onboard")}
+              className={`min-h-10 rounded-md px-4 text-sm font-medium transition-colors ${
+                view === "onboard"
+                  ? "bg-surface text-ink shadow-sm"
+                  : "text-ink-muted hover:text-ink"
+              }`}
+            >
+              Onboard students
+            </button>
+          </div>
+        )}
+
+        {view === "onboard" && canWrite ? (
+          <FacultyOnboard embedded onDone={() => setView("roster")} />
+        ) : (
+          <>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <KpiCard
             label="Total students"
@@ -306,12 +352,13 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
               ) : roster.length === 0 ? (
                 <>
                   No students onboarded yet.{" "}
-                  <Link
-                    href="/faculty/onboard"
+                  <button
+                    type="button"
+                    onClick={() => setView("onboard")}
                     className="font-medium text-accent hover:underline"
                   >
                     Upload a class roster →
-                  </Link>
+                  </button>
                 </>
               ) : (
                 "No students match this filter."
@@ -477,6 +524,8 @@ export default function FacultyRoster({ classParam }: { classParam?: string }) {
             </>
           )}
         </div>
+          </>
+        )}
       </div>
 
       <ConfirmModal

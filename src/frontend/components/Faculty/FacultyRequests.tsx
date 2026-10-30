@@ -499,7 +499,7 @@ export default function FacultyRequests() {
                   onChange={(e) => {
                     const login = e.target.value
                     setNewUsername(login)
-                    const member = facultyMembers.find((m) => m.login === login)
+                    const member = facultyMembers.find((m) => m.login.toLowerCase() === login.toLowerCase())
                     setNewEmail(member?.email ?? "")
                   }}
                   className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:outline-accent bg-white"

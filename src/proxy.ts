@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const access = await resolveAccess(identity.login)
+  const access = await resolveAccess(identity.login, identity.accessToken)
 
   if (pathname.startsWith("/faculty")) {
     if (!can(access, "assignment.readStats")) {

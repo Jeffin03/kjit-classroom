@@ -8,5 +8,9 @@ export default async function RosterPage({
 }) {
   const params = await searchParams
   const classParam = typeof params.class === "string" ? params.class : undefined
-  return <FacultyRoster classParam={classParam} />
+  const view =
+    params.view === "onboard" || params.onboard === "1"
+      ? "onboard"
+      : "roster"
+  return <FacultyRoster classParam={classParam} initialView={view} />
 }

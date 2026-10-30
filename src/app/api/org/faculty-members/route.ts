@@ -13,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: "GITHUB_ORG not configured" }, { status: 500 })
   }
 
-  const token = await getOrgToken().catch(() => null)
+  const token = await getOrgToken(auth.session.accessToken).catch(() => null)
   if (!token) {
     return NextResponse.json({ error: "Org token unavailable" }, { status: 500 })
   }

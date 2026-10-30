@@ -1,4 +1,5 @@
 import type { RosterEntry, OnboardingSession } from "../types"
+import { getTestAccount, isDevTestAuthEnabled } from "../dev/testAccounts"
 import { KEYS, mutated, registerCollection } from "./persistence"
 
 const roster: RosterEntry[] = []
@@ -91,6 +92,10 @@ export function removeRosterEntry(
 }
 
 export function getClassTeamForUsername(username: string): string | null {
+  if (isDevTestAuthEnabled()) {
+    const account = getTestAccount(username)
+    if (account?.role === "student") return account.team ?? null
+  }
   const needle = username.toLowerCase()
   const entry = roster.find(
     (r) => r.githubUsername?.toLowerCase() === needle
@@ -99,6 +104,18 @@ export function getClassTeamForUsername(username: string): string | null {
 }
 
 export function getRosterByGithubUsername(username: string): RosterEntry | undefined {
+  if (isDevTestAuthEnabled()) {
+    const account = getTestAccount(username)
+    if (account?.role === "student") {
+      return {
+        rollNo: account.username,
+        classTeam: account.team ?? "",
+        collegeEmail: `${account.username}@dev.test`,
+        githubUsername: account.username,
+        status: "active",
+      } as RosterEntry
+    }
+  }
   const needle = username.toLowerCase()
   return roster.find((r) => r.githubUsername?.toLowerCase() === needle)
 }

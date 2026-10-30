@@ -42,8 +42,10 @@ export function checkEnv(): EnvCheck[] {
     name: "GITHUB_ORG_TOKEN or GitHub App credentials",
     ok: orgToken || appConfigured,
     hint:
-      "Used for org owners, faculty teams, invites, and team membership. " +
-      "Without it nobody resolves as owner or faculty.",
+      "Used for org mutations (invites, team membership). Read-only org " +
+      "lookups (owners, faculty teams, team lists) fall back to each user's " +
+      "own OAuth token (read:org), so role resolution and the class picker " +
+      "still work without it.",
   })
 
   if (

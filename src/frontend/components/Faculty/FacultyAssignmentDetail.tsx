@@ -190,7 +190,7 @@ export default function FacultyAssignmentDetail({
     const extras = submissions
       .filter((s) => !seen.has(s.studentUsername))
       .map<StudentRow>((s) => {
-        const entry = roster.find((r) => r.githubUsername === s.studentUsername)
+        const entry = roster.find((r) => r.githubUsername?.toLowerCase() === s.studentUsername.toLowerCase())
         return {
           studentUsername: s.studentUsername,
           rollNo: entry?.rollNo || `@${s.studentUsername}`,
@@ -485,7 +485,7 @@ export default function FacultyAssignmentDetail({
                     {row.status !== "accepted" &&
                       submissions.find(
                         (s) =>
-                          s.studentUsername === row.studentUsername
+                          s.studentUsername.toLowerCase() === row.studentUsername.toLowerCase()
                       ) && (
                         <button
                           type="button"
@@ -493,7 +493,7 @@ export default function FacultyAssignmentDetail({
                             handleAccept(
                               submissions.find(
                                 (s) =>
-                                  s.studentUsername === row.studentUsername
+                                  s.studentUsername.toLowerCase() === row.studentUsername.toLowerCase()
                               )!.id
                             )
                           }

@@ -190,6 +190,11 @@ export default function FacultyDashboard() {
                 New assignment
               </Link>
             )}
+            {!canCreate && (
+              <span className="inline-flex min-h-10 items-center rounded-lg border border-border bg-canvas px-4 text-sm text-ink-subtle">
+                Review-only access
+              </span>
+            )}
             <Link
               href="/faculty/review"
               className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-canvas"
@@ -223,7 +228,7 @@ export default function FacultyDashboard() {
           </ol>
           <div className="mt-5 flex flex-wrap gap-2">
             <Link
-              href="/faculty/onboard"
+              href="/faculty/roster?view=onboard"
               className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
             >
               Onboard students
@@ -263,7 +268,7 @@ export default function FacultyDashboard() {
             value={classNames.length}
             hint="in your org"
             icon={<UsersIcon className="size-4" />}
-            to="/faculty/onboard"
+            to="/faculty/roster?view=onboard"
           />
           <KpiCard
             label="Roster health"

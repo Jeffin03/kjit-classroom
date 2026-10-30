@@ -78,8 +78,8 @@ export default function Dashboard() {
               <div key={i} className="h-28 rounded-2xl bg-border" />
             ))}
           </div>
-          <div className="grid gap-8 lg:grid-cols-3">
-            <div className="space-y-4 lg:col-span-2">
+          <div className="grid gap-8 md:grid-cols-3">
+            <div className="space-y-4 md:col-span-2">
               {[1, 2].map((i) => (
                 <div key={i} className="h-48 rounded-2xl bg-border" />
               ))}
@@ -198,8 +198,8 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        <div className="space-y-9 lg:col-span-2">
+      <div className="mt-8 grid gap-8 md:grid-cols-3">
+        <div className="space-y-9 md:col-span-2">
           {Object.entries(grouped).map(([subject, items]) => (
             <section key={subject}>
               <div className="mb-4 flex items-center gap-3">
@@ -248,7 +248,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <aside className="order-first space-y-4 lg:order-none">
+        <aside className="order-first space-y-4 md:order-none">
           <AnnouncementModule />
           {upcoming[0] && (
             <div className="rounded-2xl border border-border bg-surface p-5">

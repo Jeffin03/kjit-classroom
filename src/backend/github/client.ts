@@ -95,17 +95,25 @@ async function getInstallationToken(): Promise<string> {
   return tokenData.token
 }
 
-export async function getOrgToken(): Promise<string> {
+export async function getOrgToken(userToken?: string): Promise<string> {
   const pat = process.env.GITHUB_ORG_TOKEN?.trim()
   if (pat) {
     return pat
   }
   try {
     return await getInstallationToken()
-  } catch (err) {
+  } catch (appErr) {
+    // Fall back to the signed-in user's own OAuth token when no org token is
+    // configured. The OAuth scope includes read:org, which is enough for the
+    // read-only org lookups (owners, faculty team members, team lists) that
+    // drive role resolution and the class picker. Mutations that need admin
+    // rights still fail gracefully in their callers.
+    if (userToken?.trim()) {
+      return userToken.trim()
+    }
     throw new Error(
       `Org token not available. Set GITHUB_ORG_TOKEN (PAT) or configure GitHub App (GITHUB_APP_ID + GITHUB_APP_INSTALLATION_ID + GITHUB_APP_PRIVATE_KEY or GITHUB_APP_PRIVATE_KEY_PATH). Original error: ${
-        err instanceof Error ? err.message : String(err)
+        appErr instanceof Error ? appErr.message : String(appErr)
       }`
     )
   }

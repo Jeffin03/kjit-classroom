@@ -240,6 +240,14 @@ export default function NewAssignment({
           router.refresh()
           return
         }
+        // Make the newly created assignment immediately visible by navigating
+        // to its detail page instead of leaving the user on the form.
+        const newId = typeof data?.id === "string" ? data.id : null
+        if (newId) {
+          router.push(`/faculty/assignments/${newId}`)
+          router.refresh()
+          return
+        }
         setResult({
           type: "success",
           message: "Assignment created",

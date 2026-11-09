@@ -118,7 +118,7 @@ export function createAssignment(
   createdBy: string
 ): Assignment {
   const assignment: Assignment = {
-    id: `assignment-${Date.now()}`,
+    id: `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     title: data.title,
     description: data.description,
     assignedTeams: data.assignedTeams,

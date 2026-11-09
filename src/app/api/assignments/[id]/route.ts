@@ -7,6 +7,7 @@ import {
   resolveAssignment,
 } from "@/backend/services/permissions"
 import { deleteAssignment, getAssignment, updateAssignment } from "@/backend/store/assignments"
+import { flushNow } from "@/backend/store/persistence"
 import { deleteSubmissionsByAssignment } from "@/backend/store/submissions"
 import { jsonError, readJson } from "@/backend/http"
 import type { CreateAssignmentInput } from "@/backend/types"
@@ -91,6 +92,7 @@ export async function PATCH(
   }
 
   updateAssignment(id, updates)
+  await flushNow()
   return NextResponse.json(getAssignment(id))
 }
 
@@ -128,5 +130,6 @@ export async function DELETE(
 
   deleteSubmissionsByAssignment(id)
   deleteAssignment(id)
+  await flushNow()
   return NextResponse.json({ deleted: id })
 }

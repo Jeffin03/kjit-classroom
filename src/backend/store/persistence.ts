@@ -287,6 +287,29 @@ export function scheduleFlush(): void {
   }
 }
 
+/**
+ * Flush any pending mutations to DynamoDB and await completion. Use this in
+ * request handlers where the just-written row must be durable (and therefore
+ * visible to other instances / subsequent reads) before the response returns,
+ * instead of relying on the post-response `after()` flush.
+ */
+export async function flushNow(): Promise<void> {
+  if (!enabled()) return
+  if (inflight) {
+    try {
+      await inflight
+    } catch {
+      // Fall through; flush() will retry.
+    }
+  }
+  if (dirty.length === 0) return
+  try {
+    await flush()
+  } catch (error) {
+    console.error("[persistence] flushNow failed:", error)
+  }
+}
+
 async function metaExists(d: DynamoDBDocumentClient, t: string, key: string) {
   const { Item } = await d.send(new GetCommand({
     TableName: t,

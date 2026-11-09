@@ -7,6 +7,7 @@ import {
 } from "@/backend/services/assignment.service"
 import { authenticate, authorize, canAccessClass } from "@/backend/services/permissions"
 import { jsonError, readJson } from "@/backend/http"
+import { flushNow } from "@/backend/store/persistence"
 import type { CreateAssignmentInput } from "@/backend/types"
 
 export async function GET() {
@@ -52,5 +53,6 @@ export async function POST(request: Request) {
   }
 
   const assignment = createAssignment(input, access.username)
+  await flushNow()
   return NextResponse.json(assignment, { status: 201 })
 }

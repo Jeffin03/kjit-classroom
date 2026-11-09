@@ -457,6 +457,21 @@ cat > ~/.docker/config.json <<'JSON'
 JSON
 ```
 
+The SSM agent runs deploys as **root**, so the helper must be configured for
+root too, otherwise `docker compose pull` fails with
+`no basic auth credentials`:
+
+```bash
+sudo mkdir -p /root/.docker
+sudo tee /root/.docker/config.json >/dev/null <<'JSON'
+{
+  "credHelpers": {
+    "<ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com": "ecr-login"
+  }
+}
+JSON
+```
+
 > Scoping the helper to the ECR host keeps Docker Hub pulls anonymous; setting a
 > global `credsStore` would make the helper answer for every registry.
 
@@ -482,7 +497,62 @@ sudo reboot   # Docker restarts the containers automatically
 
 ---
 
-## 11. Troubleshooting
+## 11. Continuous deployment (GitHub Actions)
+
+The pipeline assumes a short-lived AWS role via GitHub's OIDC provider — there
+are no AWS keys in GitHub. Bootstrap the two IAM resources once, from a
+principal with IAM write access (CloudShell is easiest):
+
+```bash
+bash deploy/github-oidc-bootstrap.sh
+```
+
+That creates the OIDC provider, the `kjit-classroom-github-deploy` role, and an
+inline policy limited to ECR push/pull plus `ssm:SendCommand` on this instance.
+The role is assumable only by this repo's `master` branch, `v*` tags, and the
+`production` environment.
+
+Then `.github/workflows/release.yml` does:
+
+| Trigger | Result |
+| --- | --- |
+| PR | `ci.yml`: typecheck, lint, tests, build. No AWS access. |
+| push to `master` | Builds `linux/arm64` on `ubuntu-24.04-arm` and pushes `:sha-<7>`. No deploy. |
+| tag `v*` | Builds and pushes `:vX.Y.Z` and `:latest`, then deploys over SSM and verifies `/api/health`. |
+| manual dispatch | Re-deploys an existing tag (rollback). |
+
+Cut a release:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Roll back to a previous image without rebuilding:
+
+```bash
+gh workflow run release.yml -f tag=v0.1.0
+```
+
+The deploy step rewrites `APP_IMAGE` in `deploy/.env` to the exact tag (not
+`:latest`), so the host is pinned to a known artifact and a later restart cannot
+silently pick up something newer.
+
+**Deploy approval gate:** create the `Production` environment with required
+reviewers and the deploy job waits for approval. Without reviewers it runs
+immediately:
+
+```bash
+gh api --method PUT repos/Jeffin03/kjit-classroom/environments/Production \
+  -f 'reviewers[][type]=User' -F 'reviewers[][id]=<your-github-user-id>'
+```
+
+The instance needs `AmazonSSMManagedInstanceCore` for RunCommand (already
+attached). No SSH key or inbound port is used by the pipeline.
+
+---
+
+## 12. Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
@@ -515,7 +585,7 @@ Approximate `ap-south-1` list prices:
 
 ---
 
-## 12. When you outgrow this
+## 13. When you outgrow this
 
 - **Custom domain**: buy ~$10/yr at Cloudflare/Namecheap, add an A record to
   the Elastic IP, then update `APP_HOST`, `AUTH_URL`, and the GitHub callback.

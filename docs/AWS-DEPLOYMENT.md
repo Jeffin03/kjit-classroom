@@ -187,6 +187,12 @@ aws iam create-instance-profile --instance-profile-name kjit-classroom-ec2
 aws iam add-role-to-instance-profile \
   --instance-profile-name kjit-classroom-ec2 \
   --role-name kjit-classroom-ec2
+
+# Push rights, used when the host builds and pushes images itself. Pull rights
+# are already covered by the inline policy above.
+aws iam attach-role-policy \
+  --role-name kjit-classroom-ec2 \
+  --policy-arn "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 ```
 
 ---
@@ -198,23 +204,40 @@ aws ecr create-repository \
   --repository-name kjit-classroom \
   --region "$AWS_REGION"
 
-aws ecr get-login-password --region "$AWS_REGION" \
-  | docker login --username AWS \
-      --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+# Keep the 10 most recent images; expire untagged build attestations.
+aws ecr put-lifecycle-policy \
+  --repository-name kjit-classroom \
+  --region "$AWS_REGION" \
+  --lifecycle-policy-text file://deploy/ecr-lifecycle.json
+
+aws ecr put-image-scanning-configuration \
+  --repository-name kjit-classroom \
+  --region "$AWS_REGION" \
+  --image-scanning-configuration scanOnPush=true
 ```
 
-From the **app root** (`kjit-classroom/`):
+Build and push **on the instance** (arm64 native — no buildx/QEMU needed). The
+instance role carries `AmazonEC2ContainerRegistryPowerUser` for the push:
 
 ```bash
-docker buildx build \
-  --platform linux/arm64 \
-  -t "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/kjit-classroom:latest" \
-  --push .
+cd /opt/kjit-classroom/src
+REG="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+SHA=$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d-%H%M)
+
+docker compose -f deploy/docker-compose.yml build app
+docker tag kjit-classroom:local "$REG/kjit-classroom:latest"
+docker tag kjit-classroom:local "$REG/kjit-classroom:$SHA"
+docker push "$REG/kjit-classroom:latest"
+docker push "$REG/kjit-classroom:$SHA"
 ```
 
-> The instance is arm64 (`t4g`), so the image must be `linux/arm64`. On Apple
-> Silicon this is native; on x86 Docker Desktop builds it via QEMU (slower).
-> If buildx is unavailable, build on the instance with 2 GB of swap instead.
+> The instance is arm64 (`t4g`), so the image must be `linux/arm64`. Building on
+> the instance avoids emulation entirely. If you build elsewhere, use
+> `docker buildx build --platform linux/arm64 --push`; on x86 hosts that runs
+> under QEMU and is noticeably slower.
+>
+> `npm ci --ignore-scripts` in the Dockerfile is deliberate: `phantomjs-prebuilt`
+> (a docs-only dev dependency) has no arm64 binary and its install hook fails.
 
 ---
 
@@ -397,12 +420,45 @@ docker compose logs -f app
 docker compose logs -f caddy
 ```
 
-**Deploy a new version** (build/push from your machine, then on the host):
+**Build and push a new image** (on the host, arm64 native):
 
 ```bash
+cd /opt/kjit-classroom/src
+REG="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+SHA=$(date +%Y%m%d-%H%M)
+
+docker compose -f deploy/docker-compose.yml build app
+docker tag kjit-classroom:local "$REG/kjit-classroom:latest"
+docker tag kjit-classroom:local "$REG/kjit-classroom:$SHA"
+docker push "$REG/kjit-classroom:latest"
+docker push "$REG/kjit-classroom:$SHA"
+```
+
+**Deploy a new version**
+
+```bash
+cd /opt/kjit-classroom/src/deploy
 docker compose pull app
 docker compose up -d --no-build app
 ```
+
+The host pulls from ECR through the ECR credential helper, so pulls keep working
+across reboots without a manual login (the helper mints credentials from the
+instance role):
+
+```bash
+sudo apt-get install -y amazon-ecr-credential-helper
+cat > ~/.docker/config.json <<'JSON'
+{
+  "credHelpers": {
+    "<ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com": "ecr-login"
+  }
+}
+JSON
+```
+
+> Scoping the helper to the ECR host keeps Docker Hub pulls anonymous; setting a
+> global `credsStore` would make the helper answer for every registry.
 
 **Restart**
 

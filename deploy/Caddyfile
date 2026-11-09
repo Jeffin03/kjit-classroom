@@ -1,0 +1,11 @@
+{
+	email {$ACME_EMAIL:admin@example.com}
+}
+
+# APP_HOST is e.g. "13-234-56-78.sslip.io" (no domain or Route 53 needed).
+# Security headers are set by Next.js (next.config.ts), so Caddy only
+# terminates TLS and proxies.
+{$APP_HOST} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

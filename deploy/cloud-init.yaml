@@ -1,0 +1,21 @@
+#cloud-config
+# EC2 user-data for Ubuntu 24.04 LTS (arm64) on a t4g instance.
+# Installs Docker, the compose plugin, AWS CLI v2 and jq, then prepares the
+# deployment directory. App files are copied in afterwards.
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - docker.io
+  - docker-compose-v2
+  - jq
+  - ca-certificates
+  - curl
+
+runcmd:
+  - systemctl enable --now docker
+  - usermod -aG docker ubuntu
+  - snap install aws-cli --classic
+  - mkdir -p /opt/kjit-classroom/src
+  - chown -R ubuntu:ubuntu /opt/kjit-classroom

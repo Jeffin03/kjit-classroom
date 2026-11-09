@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+docs
+coverage
+*.tsbuildinfo
+*.md
+
+# Never bake secrets or host-specific config into the image.
+.env
+.env.*
+*.pem
+
+deploy

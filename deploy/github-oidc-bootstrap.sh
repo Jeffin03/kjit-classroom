@@ -24,6 +24,9 @@ ECR_REPO="kjit-classroom"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
+echo "== identity =="
+aws sts get-caller-identity --query 'Arn' --output text
+
 cat > "$TMP/trust.json" <<JSON
 {
   "Version": "2012-10-17",
@@ -97,22 +100,29 @@ cat > "$TMP/permissions.json" <<JSON
 JSON
 
 echo "== OIDC provider =="
-if aws iam create-open-id-connect-provider \
+if OUT=$(aws iam create-open-id-connect-provider \
   --url https://token.actions.githubusercontent.com \
   --client-id-list sts.amazonaws.com \
-  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 2>/dev/null; then
+  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 2>&1); then
   echo "created"
+elif grep -q "EntityAlreadyExists" <<<"$OUT"; then
+  echo "already exists"
 else
-  echo "already exists (or create denied) — continuing"
+  echo "$OUT"
 fi
 
 echo "== role $ROLE =="
-if aws iam create-role \
+if ERR=$(aws iam create-role \
   --role-name "$ROLE" \
   --description "GitHub Actions: build/push image and deploy via SSM" \
-  --assume-role-policy-document "file://$TMP/trust.json" >/dev/null 2>&1; then
+  --assume-role-policy-document "file://$TMP/trust.json" 2>&1); then
   echo "created"
 else
+  if grep -q "EntityAlreadyExists" <<<"$ERR"; then
+    echo "already exists, updating trust policy"
+  else
+    echo "$ERR"
+  fi
   aws iam update-assume-role-policy \
     --role-name "$ROLE" \
     --policy-document "file://$TMP/trust.json"

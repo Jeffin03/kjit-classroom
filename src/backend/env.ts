@@ -68,14 +68,30 @@ export function checkEnv(): EnvCheck[] {
     ok: !persistence || anyPresent("AWS_REGION", "AWS_DEFAULT_REGION"),
     hint: "Required when DYNAMODB_TABLE is set",
   })
+
+  // Credentials can come from static keys, a profile, a web-identity token
+  // (EKS/Lambda), a container credential endpoint (ECS), or the EC2 instance
+  // metadata service. EC2 sets no environment marker, so the deployment opts
+  // in explicitly with AWS_INSTANCE_ROLE=true.
+  const roleCredentials =
+    anyPresent(
+      "AWS_SESSION_TOKEN",
+      "AWS_PROFILE",
+      "AWS_ROLE_ARN",
+      "AWS_WEB_IDENTITY_TOKEN_FILE",
+      "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+      "AWS_CONTAINER_CREDENTIALS_FULL_URI"
+    ) || process.env.AWS_INSTANCE_ROLE === "true"
+
   checks.push({
     name: "AWS credentials",
     ok:
       !persistence ||
       present("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY") ||
-      anyPresent("AWS_SESSION_TOKEN", "AWS_PROFILE", "AWS_ROLE_ARN"),
+      roleCredentials,
     hint:
-      "Required when DYNAMODB_TABLE is set (unless the platform supplies a role)",
+      "Required when DYNAMODB_TABLE is set: static keys, a profile, or a " +
+      "platform-supplied role (set AWS_INSTANCE_ROLE=true on EC2)",
   })
 
   return checks

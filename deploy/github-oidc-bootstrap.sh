@@ -16,6 +16,11 @@ set -euo pipefail
 
 ACCOUNT_ID="${ACCOUNT_ID:-290719180191}"
 REPO="Jeffin03/kjit-classroom"
+# New GitHub repos issue *immutable* OIDC subjects that embed the numeric owner
+# and repo IDs: repo:<owner>@<owner-id>/<repo>@<repo-id>. The legacy
+# "repo:<owner>/<repo>" form no longer appears in tokens for these repos.
+# Inspect with: gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+REPO_SUBJECT="repo:Jeffin03@114830279/kjit-classroom@1356951073"
 ROLE="kjit-classroom-github-deploy"
 REGION="${AWS_REGION:-ap-south-1}"
 INSTANCE_ID="${INSTANCE_ID:-i-04fdf15567813a6a0}"
@@ -46,7 +51,11 @@ cat > "$TMP/trust.json" <<JSON
             "repo:${REPO}:ref:refs/heads/master",
             "repo:${REPO}:ref:refs/tags/v*",
             "repo:${REPO}:environment:Production",
-            "repo:${REPO}:environment:production"
+            "repo:${REPO}:environment:production",
+            "${REPO_SUBJECT}:ref:refs/heads/master",
+            "${REPO_SUBJECT}:ref:refs/tags/v*",
+            "${REPO_SUBJECT}:environment:Production",
+            "${REPO_SUBJECT}:environment:production"
           ]
         }
       }

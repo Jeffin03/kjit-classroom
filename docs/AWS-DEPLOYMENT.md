@@ -510,7 +510,16 @@ bash deploy/github-oidc-bootstrap.sh
 That creates the OIDC provider, the `kjit-classroom-github-deploy` role, and an
 inline policy limited to ECR push/pull plus `ssm:SendCommand` on this instance.
 The role is assumable only by this repo's `master` branch, `v*` tags, and the
-`production` environment.
+`Production` environment.
+
+> Repos created after July 2025 issue **immutable** OIDC subjects that embed the
+> numeric owner/repo IDs:
+> `repo:<owner>@<owner-id>/<repo>@<repo-id>:ref:refs/heads/master`.
+> The classic `repo:<owner>/<repo>:...` form never matches for these repos, and
+> the failure surfaces as the unhelpful
+> `Not authorized to perform sts:AssumeRoleWithWebIdentity`.
+> Check the prefix with
+> `gh api repos/<owner>/<repo>/actions/oidc/customization/sub`.
 
 Then `.github/workflows/release.yml` does:
 

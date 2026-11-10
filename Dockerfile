@@ -17,6 +17,9 @@ FROM base AS builder
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# public/ is optional and may be absent from a fresh checkout; Next's standalone
+# output does not create it, but the runner stage copies it unconditionally.
+RUN mkdir -p public
 # Build without secrets: the app reads all configuration at runtime.
 RUN npm run build
 

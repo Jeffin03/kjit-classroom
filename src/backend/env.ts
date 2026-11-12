@@ -7,6 +7,8 @@
  * Collect the problems in one place and surface them loudly.
  */
 
+import { existsSync } from "node:fs"
+
 export interface EnvCheck {
   name: string
   ok: boolean
@@ -49,16 +51,17 @@ export function checkEnv(): EnvCheck[] {
   })
 
   if (
-    process.env.VERCEL &&
     process.env.GITHUB_APP_PRIVATE_KEY_PATH &&
-    !process.env.GITHUB_APP_PRIVATE_KEY
+    !process.env.GITHUB_APP_PRIVATE_KEY &&
+    !existsSync(process.env.GITHUB_APP_PRIVATE_KEY_PATH)
   ) {
     checks.push({
       name: "GITHUB_APP_PRIVATE_KEY (inline)",
       ok: false,
       hint:
-        "GITHUB_APP_PRIVATE_KEY_PATH points at a file that does not exist on " +
-        "Vercel. Set GITHUB_APP_PRIVATE_KEY to the PEM contents instead.",
+        "GITHUB_APP_PRIVATE_KEY_PATH points at a file that does not exist in " +
+        "this environment (expected inside a container). Set " +
+        "GITHUB_APP_PRIVATE_KEY to the PEM contents instead.",
     })
   }
 

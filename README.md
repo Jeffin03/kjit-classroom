@@ -29,27 +29,38 @@ Open http://localhost:3000.
 ### Deployment checks
 
 `GET /api/health` returns `200` when the required configuration is present and
-`503` listing the missing variable names otherwise. On Vercel, set the GitHub
-App key as inline `GITHUB_APP_PRIVATE_KEY` (the full PEM); a
-`GITHUB_APP_PRIVATE_KEY_PATH` points at a file that does not exist in the
-runtime image.
+`503` listing the missing variable names otherwise. In any container/CI
+environment set the GitHub App key as inline `GITHUB_APP_PRIVATE_KEY` (the full,
+one-line PEM); `GITHUB_APP_PRIVATE_KEY_PATH` points at a file that does not
+exist in the runtime image.
 
 GitHub App user tokens expire after 8 hours. The session refreshes them
 automatically while the user is active; if refresh fails, the user is sent back
 through GitHub sign-in instead of calling GitHub with a dead token.
 
-### Deploying to Vercel
+### Deploying (AWS, production)
 
-1. Copy the variable names from `.env.example` into **Project → Settings →
-   Environment Variables**.
-2. Add `https://<your-domain>/api/auth/callback/github` as the OAuth callback
-   on the GitHub App / OAuth app.
-3. For a GitHub App, paste the PEM contents into `GITHUB_APP_PRIVATE_KEY`.
-4. Set `SEED_DUMMY_DATA=false` if the deployment should start without the demo
-   assignments and announcements.
-5. Open `/api/health` after the first deploy; it names anything still missing.
-   Without an org token or GitHub App credentials nobody resolves as owner or
-   faculty, so every account looks unrostered.
+Production runs on a single EC2 instance in `ap-south-1`: two Docker Compose
+services (`app` + `caddy` for TLS), DynamoDB for state, ECR for images, SSM for
+secrets. GitHub Actions builds the `linux/arm64` image and deploys it over SSM —
+there are no AWS keys in GitHub and no inbound SSH from CI.
+
+**Full runbook: [`docs/AWS-DEPLOYMENT.md`](./docs/AWS-DEPLOYMENT.md).**
+
+Shipping a change:
+
+```bash
+git push origin master                     # CI checks + build :sha-<7> (no deploy)
+git tag v0.2.0 && git push origin v0.2.0   # build + deploy v0.2.0
+gh workflow run release.yml -f tag=v0.1.0  # roll back to an existing tag
+```
+
+Only tags deploy. The runbook covers first-time setup (table, IAM, ECR, instance,
+SSM parameters, Caddy), day-to-day operations, and rollback.
+
+> Vercel is not used. The earlier Vercel instructions have been retired in favour
+> of the runbook above; the only portable requirement is the inline
+> `GITHUB_APP_PRIVATE_KEY` noted under [Deployment checks](#deployment-checks).
 
 ### Granting faculty access
 
@@ -94,9 +105,11 @@ aws dynamodb create-table \
   --region <your-region>
 ```
 
-Pair it with an IAM user whose policy allows `GetItem`, `BatchGetItem`,
+Pair it with an IAM principal whose policy allows `GetItem`, `BatchGetItem`,
 `Query`, `PutItem`, `BatchWriteItem`, `DeleteItem` on that table's ARN (and
-`DescribeTable`), then put its access key / secret into the Vercel env.
+`DescribeTable`). Locally, put its access key / secret in the environment; on
+EC2, attach the policy to the instance role and set `AWS_INSTANCE_ROLE=true`
+(see [`docs/AWS-DEPLOYMENT.md`](./docs/AWS-DEPLOYMENT.md)).
 
 ## Tech
 
@@ -154,7 +167,7 @@ kjit-classroom/src/
 ├── backend/                      # Server-side logic
 │   ├── auth.ts                   # NextAuth config (GitHub provider, JWT)
 │   ├── types/                    # Shared interfaces (assignment, submission/sprints, roster, teacher)
-│   ├── store/                    # In-memory stores — all state lost on restart
+│   ├── store/                    # In-memory stores, mirrored to DynamoDB when DYNAMODB_TABLE is set
 │   ├── services/                 # Business logic (assignment, submission, permissions, auth, roster)
 │   └── github/                   # GitHub API helpers: client (tokens), repos (commit/diff), org, teams
 │
@@ -179,7 +192,11 @@ kjit-classroom/src/
 
 ## Docs
 
-See [`docs/10-WIREFRAMES.md`](./docs/10-WIREFRAMES.md) for the sprint-model UI spec.
+- [`docs/AWS-DEPLOYMENT.md`](./docs/AWS-DEPLOYMENT.md) — production runbook: architecture, IAM, ECR, CI/CD, operations, cost.
+- [`docs/10-WIREFRAMES.md`](./docs/10-WIREFRAMES.md) — sprint-model UI spec.
+
+Deployment rules for coding agents are kept outside the repository (a local
+`AGENTS.md` next to the checkout) and are not published.
 
 ## Commands
 
@@ -187,5 +204,6 @@ See [`docs/10-WIREFRAMES.md`](./docs/10-WIREFRAMES.md) for the sprint-model UI s
 npm run dev        # Dev server on :3000
 npm run build      # Production build
 npm run lint       # ESLint (flat config, eslint-config-next)
+npm test           # Vitest (node env, src/**/*.test.ts)
 npx tsc --noEmit   # Type check
 ```

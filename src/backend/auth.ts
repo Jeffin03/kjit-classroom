@@ -101,8 +101,8 @@ const devProviders = isDevTestAuthEnabled()
   : []
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Auth.js refuses to trust the Host header unless told to. Vercel enables
-  // this automatically, but self-hosted / proxied deployments throw
+  // Auth.js refuses to trust the Host header unless told to. Some platforms
+  // enable this automatically, but self-hosted / proxied deployments throw
   // UntrustedHost at sign-in without it.
   trustHost: true,
   // Auth.js's built-in sign-in page is unstyled; the app ships its own at

@@ -1,7 +1,8 @@
 #cloud-config
 # EC2 user-data for Ubuntu 24.04 LTS (arm64) on a t4g instance.
-# Installs Docker, the compose plugin, AWS CLI v2 and jq, then prepares the
-# deployment directory. App files are copied in afterwards.
+# Installs Docker, the compose plugin, AWS CLI v2, the ECR credential helper and
+# jq, adds swap (the box has 2 GB RAM), then prepares the deployment directory.
+# App files are copied in afterwards — see docs/AWS-DEPLOYMENT.md, section 9.
 
 package_update: true
 package_upgrade: false
@@ -9,9 +10,26 @@ package_upgrade: false
 packages:
   - docker.io
   - docker-compose-v2
+  - amazon-ecr-credential-helper
   - jq
   - ca-certificates
   - curl
+
+write_files:
+  # Both users need the ECR helper: `ubuntu` during manual work, `root` because
+  # SSM RunCommand deploys run as root and `docker compose pull` would otherwise
+  # fail with "no basic auth credentials".
+  # Change the account/region here if the deployment moves.
+  - path: /home/ubuntu/.docker/config.json
+    owner: ubuntu:ubuntu
+    permissions: "0600"
+    content: |
+      {"credHelpers":{"290719180191.dkr.ecr.ap-south-1.amazonaws.com":"ecr-login"}}
+  - path: /root/.docker/config.json
+    owner: root:root
+    permissions: "0600"
+    content: |
+      {"credHelpers":{"290719180191.dkr.ecr.ap-south-1.amazonaws.com":"ecr-login"}}
 
 runcmd:
   - systemctl enable --now docker
@@ -19,3 +37,10 @@ runcmd:
   - snap install aws-cli --classic
   - mkdir -p /opt/kjit-classroom/src
   - chown -R ubuntu:ubuntu /opt/kjit-classroom
+  # 2 GB swap: on-box builds are unsupported, but swap keeps the box alive if
+  # the app or a stray build spikes memory.
+  - fallocate -l 2G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab

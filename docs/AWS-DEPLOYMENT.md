@@ -216,8 +216,11 @@ aws ecr put-image-scanning-configuration \
   --image-scanning-configuration scanOnPush=true
 ```
 
-Build and push **on the instance** (arm64 native — no buildx/QEMU needed). The
-instance role carries `AmazonEC2ContainerRegistryPowerUser` for the push:
+Build and push **on the instance** (arm64 native — no buildx/QEMU needed). This
+is the fallback path: production images are normally built and pushed by
+`.github/workflows/release.yml` (see [section 11](#11-continuous-deployment-github-actions)).
+The instance role carries `AmazonEC2ContainerRegistryPowerUser` so an on-box
+build can still push:
 
 ```bash
 cd /opt/kjit-classroom/src
@@ -320,7 +323,10 @@ put() {  # put NAME VALUE [type]
 put AUTH_SECRET "$(openssl rand -base64 48)"
 put AUTH_GITHUB_ID '<github app client id>'
 put AUTH_GITHUB_SECRET '<github app client secret>'
+put AUTH_URL 'https://<APP_HOST>' String       # exact origin, no trailing slash
+put AUTH_TRUST_HOST 'true' String
 put GITHUB_ORG '<org login>'
+put GITHUB_FACULTY_TEAM '<faculty team slug>' String   # optional
 put GITHUB_APP_ID '<app id>'
 put GITHUB_APP_INSTALLATION_ID '<installation id>'
 put DYNAMODB_TABLE 'kjit-classroom' String
@@ -328,6 +334,10 @@ put AWS_REGION "$AWS_REGION" String
 put AWS_INSTANCE_ROLE 'true' String
 put SEED_DUMMY_DATA 'false' String
 ```
+
+`AWS_INSTANCE_ROLE=true` tells the app to take DynamoDB credentials from the
+instance profile instead of static keys, so no `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` parameters are stored.
 
 The GitHub App private key must be **one line with literal `\n`**. From the
 `.pem` file on your machine:
@@ -368,13 +378,22 @@ ssh ubuntu@<EIP>
 (Reconnect if `docker` says permission denied — the instance profile add of the
 `docker` group needs a fresh login.)
 
-Put the repo on the instance. For a private repo, add a read-only deploy key:
+Put the deployment config on the instance. The box is **not a git checkout** —
+`/opt/kjit-classroom/src` is a plain copy (no `.git`), and only `deploy/`
+matters at runtime: the application code arrives inside the container image.
+Copy the deploy directory from your machine:
 
 ```bash
 mkdir -p /opt/kjit-classroom/src
-cd /opt/kjit-classroom/src
-git clone git@github.com:<org>/<repo>.git .
+rsync -av --delete \
+  --exclude '.env' --exclude 'secrets.env' \
+  deploy/ ubuntu@<EIP>:/opt/kjit-classroom/src/deploy/
 ```
+
+`.env` and `secrets.env` are created on the host in the next step and must never
+be overwritten from your machine. If you prefer a full checkout (handy for
+on-box builds), clone once and remember that the pipeline still only updates the
+image and `deploy/.env` — a stale checkout is normal and harmless.
 
 Configure and start:
 
@@ -420,7 +439,8 @@ docker compose logs -f app
 docker compose logs -f caddy
 ```
 
-**Build and push a new image** (on the host, arm64 native):
+**Build and push a new image** (fallback only — CI normally builds; the box has
+2 GB RAM and swapping during a build is slow):
 
 ```bash
 cd /opt/kjit-classroom/src
@@ -474,6 +494,24 @@ JSON
 
 > Scoping the helper to the ECR host keeps Docker Hub pulls anonymous; setting a
 > global `credsStore` would make the helper answer for every registry.
+
+**Change deploy config (compose file, Caddyfile, extra files)**
+
+The release pipeline only rewrites `APP_IMAGE` in `deploy/.env` and restarts the
+`app` service. It does **not** sync anything else, so changes under `deploy/`
+have to be copied by hand:
+
+```bash
+rsync -av --exclude '.env' --exclude 'secrets.env' \
+  deploy/ ubuntu@<EIP>:/opt/kjit-classroom/src/deploy/
+
+ssh ubuntu@<EIP> 'cd /opt/kjit-classroom/src/deploy && \
+  docker compose up -d && docker compose restart caddy'
+```
+
+`docker compose up -d` recreates containers whose config changed (an image-only
+change is a no-op); `caddy` needs an explicit restart to re-read a mounted
+`Caddyfile`.
 
 **Restart**
 
@@ -545,7 +583,9 @@ gh workflow run release.yml -f tag=v0.1.0
 
 The deploy step rewrites `APP_IMAGE` in `deploy/.env` to the exact tag (not
 `:latest`), so the host is pinned to a known artifact and a later restart cannot
-silently pick up something newer.
+silently pick up something newer. That is the **only** host-side change: the
+pipeline never copies code or config to the box — see
+[Change deploy config](#change-deploy-config-compose-file-caddyfile-extra-files).
 
 **Deploy approval gate:** create the `Production` environment with required
 reviewers and the deploy job waits for approval. Without reviewers it runs
@@ -566,6 +606,11 @@ attached). No SSH key or inbound port is used by the pipeline.
 | Symptom | Check |
 | --- | --- |
 | `502` from Caddy | `docker compose logs app`; hit `/api/health`; the container may be unhealthy |
+| `ssh: connect ... timed out` | The port-22 rule is pinned to your public IP; update it to `$(curl -fsS https://checkip.amazonaws.com)/32` |
+| `Could not assume role with OIDC` | Trust policy must accept the repo's immutable subject (`repo:owner@id/repo@id:...`); re-run `deploy/github-oidc-bootstrap.sh` |
+| `no basic auth credentials` on pull | The user running `docker compose` lacks the ECR helper — SSM deploys run as `root`, so `/root/.docker/config.json` must exist |
+| Deploy says success but old version serves | `grep '^APP_IMAGE=' deploy/.env` on the host; if it is stale, the SSM step failed before the `sed` |
+| `dash: Syntax error` in an SSM deploy | RunCommand uses `dash`; avoid `set -o pipefail` and bash-only syntax |
 | Certificate not issued | `dig +short <APP_HOST>` returns the EIP; ports 80/443 open; `docker compose logs caddy` |
 | Login loops / callback error | `AUTH_URL` and the GitHub callback must both be `https://<APP_HOST>` |
 | `/api/health` says `AWS credentials` missing | Instance profile attached? `AWS_INSTANCE_ROLE=true` in secrets? |
@@ -586,7 +631,7 @@ Approximate `ap-south-1` list prices:
 | Elastic IP | ~$3.65 |
 | DynamoDB (on-demand, this volume) | ~$0 |
 | SSM Parameter Store | $0 |
-| CloudWatch | ~$1.20 |
+| CloudWatch (logs; metrics/alarms are free tier) | ~$1.20 |
 | Data transfer | ~$1 |
 | **Total** | **≈ $21/month** |
 

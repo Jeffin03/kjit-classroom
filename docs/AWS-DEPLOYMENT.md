@@ -618,6 +618,10 @@ It grants the instance role `CloudWatchAgentServerPolicy`, creates the
 `KJIT-Classroom` dashboard, and the `kjit-classroom-monthly` budget. Alerts
 only arrive after the recipient clicks the SNS confirmation email.
 
+It has to run as root: the instance role may publish metrics and edit
+dashboards, but `cloudwatch:PutMetricAlarm` and all billing APIs are reserved
+for the account root / admins.
+
 **The agent** (`deploy/cloudwatch-agent.json`) publishes `mem_used_percent`,
 `disk_used_percent` for `/`, and `swap_used_percent` into the `CWAgent`
 namespace, tagged with `InstanceId`. Installing or changing it is a manual host

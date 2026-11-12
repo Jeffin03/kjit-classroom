@@ -115,9 +115,10 @@ alarm() { # name description namespace metric json-dimensions operator threshold
 }
 
 # Dimensions are passed as JSON: the CLI shorthand cannot express two keys
-# (Name=InstanceId,Name=path) in one --dimensions argument.
-DIM_INSTANCE="{\"InstanceId\":\"$INSTANCE_ID\"}"
-DIM_DISK="{\"InstanceId\":\"$INSTANCE_ID\",\"path\":\"/\"}"
+# (Name=InstanceId,Name=path) in one --dimensions argument, and the value must be
+# a *list* of {Name,Value} objects, not a map.
+DIM_INSTANCE="[{\"Name\":\"InstanceId\",\"Value\":\"$INSTANCE_ID\"}]"
+DIM_DISK="[{\"Name\":\"InstanceId\",\"Value\":\"$INSTANCE_ID\"},{\"Name\":\"path\",\"Value\":\"/\"}]"
 
 alarm "kjit-classroom-cpu-high" "CPU above 80% for 10 minutes" \
   AWS/EC2 CPUUtilization "$DIM_INSTANCE" \

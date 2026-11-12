@@ -601,7 +601,65 @@ attached). No SSH key or inbound port is used by the pipeline.
 
 ---
 
-## 12. Troubleshooting
+## 12. Monitoring and cost
+
+Everything here is inside the AWS free tier at this scale (10 custom metrics,
+10 alarms, 3 dashboards, 1,000 SNS emails, 2 budgets).
+
+**Bootstrap (once, from root CloudShell)** — idempotent, re-run it any time:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Jeffin03/kjit-classroom/master/deploy/monitoring-bootstrap.sh \
+  | ALERT_EMAIL=25mcab24@kristujayanti.com bash
+```
+
+It grants the instance role `CloudWatchAgentServerPolicy`, creates the
+`kjit-classroom-alerts` topic + email subscription, four alarms, the
+`KJIT-Classroom` dashboard, and the `kjit-classroom-monthly` budget. Alerts
+only arrive after the recipient clicks the SNS confirmation email.
+
+**The agent** (`deploy/cloudwatch-agent.json`) publishes `mem_used_percent`,
+`disk_used_percent` for `/`, and `swap_used_percent` into the `CWAgent`
+namespace, tagged with `InstanceId`. Installing or changing it is a manual host
+step (the pipeline only ships images):
+
+```bash
+scp -i ~/.ssh/kjit-classroom.pem deploy/cloudwatch-agent.json ubuntu@<EIP>:/tmp/
+ssh ubuntu@<EIP> 'sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -s -c file:/tmp/cloudwatch-agent.json'
+```
+
+On a fresh instance the agent itself has to be installed first:
+
+```bash
+curl -fsSL -o /tmp/cwagent.deb \
+  https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
+sudo dpkg -i -E /tmp/cwagent.deb
+```
+
+> Alarm dimensions are passed as JSON in the bootstrap script. The AWS CLI's
+> `Name=k,Value=v` shorthand cannot express two keys (`InstanceId` + `path`) and
+> fails with `ParamValidation: Second instance of key "Name"`.
+
+**Alarms** (5-minute periods, two consecutive breaches, notify on ALARM and OK):
+CPU > 80%, memory > 85%, root disk > 85%, and `StatusCheckFailed` for 2 minutes.
+
+**Cost and credits.** The budget alerts at 50% and 80% of $30 actual spend, plus
+a 100% forecast alert. Month-to-date figures from the script group by
+`RECORD_TYPE`, because with credits applied the ungrouped total nets to ~$0 —
+`Usage` is gross spend and `Credit` is how much credit has been consumed. The
+**remaining** credit balance is not exposed by any API; only the Billing console
+→ *Credits* page shows it.
+
+Permissions note: the instance role may publish and describe alarms, but the
+AWS-managed `CloudWatchReadOnlyAccess` policy does **not** grant
+`ListMetrics` / `GetMetricStatistics` / `GetMetricData`, so the box cannot read
+metric values. Check the console dashboard or add an explicit policy if that is
+needed.
+
+---
+
+## 13. Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
@@ -639,7 +697,7 @@ Approximate `ap-south-1` list prices:
 
 ---
 
-## 13. When you outgrow this
+## 14. When you outgrow this
 
 - **Custom domain**: buy ~$10/yr at Cloudflare/Namecheap, add an A record to
   the Elastic IP, then update `APP_HOST`, `AUTH_URL`, and the GitHub callback.

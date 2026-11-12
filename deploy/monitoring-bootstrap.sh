@@ -102,7 +102,7 @@ echo "topic policy set (CloudWatch + Budgets may publish)"
 # --- 3. Alarms ---------------------------------------------------------------
 say "alarms"
 
-alarm() { # name description namespace metric dimensions operator threshold...
+alarm() { # name description namespace metric json-dimensions operator threshold
   local name="$1" desc="$2" ns="$3" metric="$4" dims="$5" op="$6" threshold="$7"
   aws cloudwatch put-metric-alarm \
     --alarm-name "$name" --alarm-description "$desc" \
@@ -114,16 +114,21 @@ alarm() { # name description namespace metric dimensions operator threshold...
   echo "  $name"
 }
 
+# Dimensions are passed as JSON: the CLI shorthand cannot express two keys
+# (Name=InstanceId,Name=path) in one --dimensions argument.
+DIM_INSTANCE="{\"InstanceId\":\"$INSTANCE_ID\"}"
+DIM_DISK="{\"InstanceId\":\"$INSTANCE_ID\",\"path\":\"/\"}"
+
 alarm "kjit-classroom-cpu-high" "CPU above 80% for 10 minutes" \
-  AWS/EC2 CPUUtilization "Name=InstanceId,Value=$INSTANCE_ID" \
+  AWS/EC2 CPUUtilization "$DIM_INSTANCE" \
   GreaterThanThreshold 80
 
 alarm "kjit-classroom-memory-high" "Memory above 85% for 10 minutes" \
-  CWAgent mem_used_percent "Name=InstanceId,Value=$INSTANCE_ID" \
+  CWAgent mem_used_percent "$DIM_INSTANCE" \
   GreaterThanThreshold 85
 
 alarm "kjit-classroom-disk-high" "Root filesystem above 85% for 10 minutes" \
-  CWAgent disk_used_percent "Name=InstanceId,Value=$INSTANCE_ID,Name=path,Value=/" \
+  CWAgent disk_used_percent "$DIM_DISK" \
   GreaterThanThreshold 85
 
 # Status checks are a 1/0 signal; 1 minute granularity for two periods.
@@ -131,7 +136,7 @@ aws cloudwatch put-metric-alarm \
   --alarm-name kjit-classroom-status-check \
   --alarm-description "EC2 status check failed for 2 minutes" \
   --namespace AWS/EC2 --metric-name StatusCheckFailed \
-  --dimensions "Name=InstanceId,Value=$INSTANCE_ID" \
+  --dimensions "$DIM_INSTANCE" \
   --statistic Maximum --period 60 --evaluation-periods 2 \
   --threshold 1 --comparison-operator GreaterThanOrEqualToThreshold \
   --treat-missing-data notBreaching \
@@ -243,21 +248,26 @@ fi
 say "cost snapshot (month to date)"
 START=$(date -u +%Y-%m-01)
 END=$(date -u -d '+1 day' +%Y-%m-%d)
-aws ce get-cost-and-usage --time-period "Start=$START,End=$END" \
-  --granularity MONTHLY --metrics UnblendedCost \
-  --query 'ResultsByTime[0].Total.UnblendedCost.{Amount:Amount,Unit:Unit}' \
-  --output text 2>/dev/null \
-  && echo "(that is gross usage; credits are applied on top)" \
-  || echo "Cost Explorer responded with an error (it may still be activating)."
-
-say "credits applied this month"
-aws ce get-cost-and-usage --time-period "Start=$START,End=$END" \
-  --granularity MONTHLY --metrics UnblendedCost \
-  --filter '{"Dimensions":{"Key":"RECORD_TYPE","Values":["Credit"]}}' \
-  --query 'ResultsByTime[0].Total.UnblendedCost.Amount' --output text 2>/dev/null \
-  || echo "(unavailable)"
-echo "Remaining credit balance is not exposed by any API — see"
-echo "Billing and Cost Management console -> Credits."
+# Grouping by RECORD_TYPE separates gross usage from the credit line items;
+# the ungrouped total nets to ~0 while credits are covering everything.
+if OUT=$(aws ce get-cost-and-usage --time-period "Start=$START,End=$END" \
+      --granularity MONTHLY --metrics UnblendedCost \
+      --group-by Type=DIMENSION,Key=RECORD_TYPE \
+      --query 'ResultsByTime[0].Groups[].[Keys[0],Metrics.UnblendedCost.Amount]' \
+      --output text 2>/dev/null); then
+  echo "$OUT" | while read -r kind amount; do
+    [ -n "${amount:-}" ] || continue
+    case "$kind" in
+      Usage)  printf '  gross usage   $%.2f\n' "$(echo "$amount" | tr -d '-')" ;;
+      Credit) printf '  credits used  $%.2f\n' "$(echo "$amount" | tr -d '-')" ;;
+      Tax)    printf '  tax           $%.2f\n' "$amount" ;;
+      *)      printf '  %-13s $%.2f\n' "$kind" "$amount" ;;
+    esac
+  done
+else
+  echo "  Cost Explorer returned an error (it may still be activating)."
+fi
+echo "  Remaining credit balance has no API — see Billing -> Credits."
 
 say "done"
 cat <<EOF

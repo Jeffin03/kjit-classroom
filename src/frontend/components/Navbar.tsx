@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Avatar from "./Avatar"
+import CommandPalette, { CommandPaletteTrigger } from "./CommandPalette"
 import logo from "@/frontend/assets/KJU_Logo.webp"
 
 export default function Navbar() {
@@ -14,6 +15,7 @@ export default function Navbar() {
   const pathname = usePathname()
   const { isFaculty, team, loading: accessLoading } = useSessionUser()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -53,8 +55,9 @@ export default function Navbar() {
   const image = session?.user?.image || undefined
 
   return (
-    <nav className="sticky top-0 z-40 h-16 border-b border-border bg-surface">
-      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
+    <>
+      <nav className="sticky top-0 z-40 h-16 border-b border-border bg-surface">
+        <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-6">
           <Link
             href={session ? "/dashboard" : "/"}
@@ -93,6 +96,7 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {session ? (
             <>
+              <CommandPaletteTrigger onClick={() => setSearchOpen(true)} />
               {!accessLoading && team && !isFaculty && (
                 <span className="hidden rounded-full bg-canvas px-3 py-1 text-xs font-medium text-ink-muted md:block">
                   {team}
@@ -158,5 +162,13 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+    {session && (
+      <CommandPalette
+        open={searchOpen}
+        onOpen={() => setSearchOpen(true)}
+        onClose={() => setSearchOpen(false)}
+      />
+    )}
+  </>
   )
 }

@@ -39,9 +39,11 @@ const PAGE_SIZE = 25
 
 export default function FacultyRoster({
   classParam,
+  searchParam,
   initialView = "roster",
 }: {
   classParam?: string
+  searchParam?: string
   initialView?: "roster" | "onboard"
 }) {
   const { data: session, status } = useSession()
@@ -53,8 +55,18 @@ export default function FacultyRoster({
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [filterTeam, setFilterTeam] = useState<string>(classParam || "all")
-  const [search, setSearch] = useState("")
+  const prevSearchParam = useRef(searchParam)
+  const [search, setSearch] = useState(searchParam || "")
   const [page, setPage] = useState(0)
+
+  useEffect(() => {
+    if (searchParam !== prevSearchParam.current) {
+      prevSearchParam.current = searchParam
+      setSearch(searchParam || "")
+      setPage(0)
+    }
+  }, [searchParam])
+
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [pendingRemove, setPendingRemove] = useState<RosterEntry | null>(null)
   const [removing, setRemoving] = useState(false)

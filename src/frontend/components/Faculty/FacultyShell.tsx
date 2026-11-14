@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { useSessionUser, type Role } from "@/frontend/hooks/useSessionUser"
 import logo from "@/frontend/assets/KJU_Logo.webp"
+import CommandPalette, { CommandPaletteTrigger } from "@/frontend/components/CommandPalette"
 
 function Icon({ children }: { children: ReactNode }) {
   return (
@@ -187,6 +188,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const { user, username, role, capabilities } = useSessionUser()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [pendingRequests, setPendingRequests] = useState(0)
 
   useEffect(() => {
@@ -252,7 +254,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-white px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -270,6 +272,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
             <span className="truncate text-sm font-medium text-[var(--color-ink-muted)]">
               KJIT Classroom
             </span>
+            <CommandPaletteTrigger onClick={() => setSearchOpen(true)} />
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -299,6 +302,12 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
 
         <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
       </div>
+
+      <CommandPalette
+        open={searchOpen}
+        onOpen={() => setSearchOpen(true)}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   )
 }

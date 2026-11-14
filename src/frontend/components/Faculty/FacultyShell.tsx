@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -189,7 +189,27 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
   const { user, username, role, capabilities } = useSessionUser()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [pendingRequests, setPendingRequests] = useState(0)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointerDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false)
+    }
+    document.addEventListener("mousedown", onPointerDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [menuOpen])
 
   useEffect(() => {
     if (!capabilities.includes("teacher.approve")) return
@@ -254,7 +274,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-white px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -272,31 +292,89 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
             <span className="truncate text-sm font-medium text-[var(--color-ink-muted)]">
               KJIT Classroom
             </span>
-            <CommandPaletteTrigger onClick={() => setSearchOpen(true)} />
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <span
-              aria-hidden
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-sm font-semibold text-[var(--color-accent)]"
-            >
-              {initial}
-            </span>
-            <span className="hidden min-w-0 sm:block">
-              <span className="block truncate text-sm font-medium leading-tight text-[var(--color-ink)]">
-                {displayName}
-              </span>
-              <span className="block truncate text-xs leading-tight text-[var(--color-ink-muted)]">
-                {roleLabels[role]}
-              </span>
-            </span>
-            <button
-              type="button"
-              onClick={() => signOut()}
-              className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
-            >
-              Sign out
-            </button>
+            <CommandPaletteTrigger onClick={() => setSearchOpen(true)} />
+
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label="Account menu"
+                className="flex items-center gap-2.5 rounded-xl p-1 transition-colors hover:bg-canvas focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <span
+                  aria-hidden
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-sm font-semibold text-[var(--color-accent)] shrink-0"
+                >
+                  {initial}
+                </span>
+                <span className="hidden min-w-0 sm:block text-left">
+                  <span className="block truncate text-sm font-medium leading-tight text-[var(--color-ink)]">
+                    {displayName}
+                  </span>
+                  <span className="block truncate text-xs leading-tight text-[var(--color-ink-muted)]">
+                    {roleLabels[role]}
+                  </span>
+                </span>
+                <svg
+                  className="size-3.5 text-ink-faint transition-transform hidden sm:block"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {menuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-border bg-surface p-2 shadow-lg"
+                >
+                  <div className="px-3 py-2">
+                    <p className="truncate text-sm font-medium">{displayName}</p>
+                    <p className="truncate text-xs text-ink-subtle">{roleLabels[role]}</p>
+                  </div>
+                  <div className="my-1 h-px bg-border" />
+                  <Link
+                    href="/profile"
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-sm text-ink-muted hover:bg-canvas hover:text-ink"
+                  >
+                    My Profile
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-sm text-ink-muted hover:bg-canvas hover:text-ink"
+                  >
+                    Switch to student view
+                  </Link>
+                  <div className="my-1 h-px bg-border" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      void signOut()
+                    }}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-ink-muted hover:bg-canvas hover:text-ink"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

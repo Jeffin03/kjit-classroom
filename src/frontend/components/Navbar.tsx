@@ -38,7 +38,12 @@ export default function Navbar() {
 
   // The landing page and sign-in render their own chrome; faculty uses the
   // sidebar shell.
-  if (pathname === "/" || pathname === "/signin" || pathname.startsWith("/faculty")) {
+  if (
+    pathname === "/" ||
+    pathname === "/signin" ||
+    pathname.startsWith("/faculty") ||
+    (isFaculty && pathname === "/profile")
+  ) {
     return null
   }
 
@@ -126,6 +131,14 @@ export default function Navbar() {
                       )}
                     </div>
                     <div className="my-1 h-px bg-border" />
+                    <Link
+                      href="/profile"
+                      role="menuitem"
+                      onClick={() => setMenuOpen(false)}
+                      className="block rounded-lg px-3 py-2 text-sm text-ink-muted hover:bg-canvas hover:text-ink"
+                    >
+                      My Profile
+                    </Link>
                     {isFaculty && (
                       <Link
                         href="/faculty"

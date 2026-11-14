@@ -138,7 +138,30 @@ export default function FacultyReview({
       ? assignments
       : assignments.filter((a) => a.assignedTeams.includes(filterClass))
 
-  const filtered = submissions.filter((s) => {
+  /** Deduplicate submissions by student & assignment so duplicates never render */
+  const deduplicatedSubmissions = useMemo(() => {
+    const map = new Map<string, SubmissionWithSprints>()
+    for (const s of submissions) {
+      const key = `${s.studentUsername.toLowerCase()}::${s.assignmentId}`
+      const existing = map.get(key)
+      if (!existing) {
+        map.set(key, s)
+      } else {
+        const existingCount = existing.sprints?.length || 0
+        const currentCount = s.sprints?.length || 0
+        if (currentCount > existingCount) {
+          map.set(key, s)
+        } else if (currentCount === existingCount) {
+          if (s.status === "accepted" && existing.status !== "accepted") {
+            map.set(key, s)
+          }
+        }
+      }
+    }
+    return Array.from(map.values())
+  }, [submissions])
+
+  const filtered = deduplicatedSubmissions.filter((s) => {
     const matchesStatus = filterStatus === "all" || s.status === filterStatus
     const matchesAssignment =
       filterAssignment === "all" || s.assignmentId === filterAssignment
@@ -261,14 +284,14 @@ export default function FacultyReview({
   }
 
   const stats = {
-    total: submissions.length,
-    reviewed: submissions.filter((s) =>
+    total: deduplicatedSubmissions.length,
+    reviewed: deduplicatedSubmissions.filter((s) =>
       s.sprints.some((sp) => sp.reviewedAt)
     ).length,
-    pending: submissions.filter((s) =>
+    pending: deduplicatedSubmissions.filter((s) =>
       s.sprints.some((sp) => !sp.reviewedAt) && s.status !== "accepted"
     ).length,
-    accepted: submissions.filter((s) => s.status === "accepted").length,
+    accepted: deduplicatedSubmissions.filter((s) => s.status === "accepted").length,
   }
 
   if (loading || userLoading) {
@@ -490,23 +513,55 @@ export default function FacultyReview({
                         const reviewed =
                           typeof sprint.reviewedAt === "string" &&
                           sprint.reviewedAt.length > 0
+                        const sprintDocUrl =
+                          sprint.documentationUrl ||
+                          (sprint.sprintNumber === 0 ? submission.abstractDocUrl : undefined)
+                        const demoUrl = sprint.summary?.demoUrl
+                        const hasSummary =
+                          sprint.summary &&
+                          ((sprint.summary.completed && sprint.summary.completed.length > 0) ||
+                            sprint.summary.changed ||
+                            (sprint.summary.blockers && sprint.summary.blockers.trim() !== ""))
+                        const hasFiles =
+                          diff &&
+                          ((diff.newFiles && diff.newFiles.length > 0) ||
+                            (diff.modifiedFiles && diff.modifiedFiles.length > 0))
 
                         return (
                           <div
                             key={idx}
-                            className={`border rounded-lg p-3 ${reviewed ? "border-[var(--color-success)] bg-[var(--color-success-soft)]/50" : "border-[var(--color-border)]"}`}
+                            className={`rounded-xl border p-4 transition-colors ${
+                              reviewed
+                                ? "border-[var(--color-success)]/40 bg-[var(--color-success-soft)]/30"
+                                : "border-[var(--color-border)] bg-[var(--color-canvas)]/40"
+                            }`}
                           >
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="text-sm font-medium text-[var(--color-ink)]">
-                                Sprint {idx}
+                            {/* Header: Sprint title + badges + commit + metrics + external links */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-[var(--color-border)]/60">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm text-[var(--color-ink)]">
+                                  Sprint {idx}
+                                  {idx === 0 ? " (Abstract & Setup)" : ""}
+                                </span>
                                 {sprint.isPivot && (
-                                  <span className="ml-2 text-xs font-medium text-[var(--color-caution)]">
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-caution-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--color-caution)]">
                                     <span className="status-dot status-dot--pivot" />
                                     Pivot
                                   </span>
                                 )}
+                                {reviewed ? (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-success-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--color-success)]">
+                                    <span className="status-dot status-dot--done" />
+                                    Reviewed
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--color-accent)]">
+                                    Pending review
+                                  </span>
+                                )}
                               </div>
-                              <div className="flex items-center gap-2">
+
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                                 {sprint.commitSha ? (
                                   <a
                                     href={commitUrl(
@@ -515,52 +570,141 @@ export default function FacultyReview({
                                     )}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-[var(--color-accent)] hover:underline font-mono"
+                                    className="inline-flex items-center gap-1 font-mono text-[var(--color-accent)] hover:underline"
                                     style={{ fontFamily: "var(--font-mono)" }}
                                   >
-                                    {sprint.commitSha.slice(0, 7)}
+                                    <span>git: {sprint.commitSha.slice(0, 7)}</span>
+                                    <span className="text-[10px]">↗</span>
                                   </a>
                                 ) : (
-                                  <span className="text-xs text-[var(--color-ink-faint)]">
+                                  <span className="text-[var(--color-ink-faint)]">
                                     No commit captured
                                   </span>
                                 )}
+
                                 {diff ? (
-                                  <span className="text-xs text-[var(--color-ink-muted)]">
-                                    +{diff.additions} -{diff.deletions} ·{" "}
-                                    {diff.filesChanged} files ·{" "}
-                                    {diff.totalCommits} commits
+                                  <span className="text-[var(--color-ink-muted)]">
+                                    <span className="text-[var(--color-success)] font-medium">+{diff.additions}</span>{" "}
+                                    <span className="text-[var(--color-danger)] font-medium">-{diff.deletions}</span> ·{" "}
+                                    {diff.filesChanged} {diff.filesChanged === 1 ? "file" : "files"} ·{" "}
+                                    {diff.totalCommits} {diff.totalCommits === 1 ? "commit" : "commits"}
                                   </span>
                                 ) : (
-                                  <span className="text-xs text-[var(--color-ink-faint)]">
+                                  <span className="text-[var(--color-ink-faint)]">
                                     No diff recorded
                                   </span>
                                 )}
-                                {reviewed && (
-                                  <span className="inline-flex items-center text-xs font-medium text-[var(--color-success)]">
-                                    <span className="status-dot status-dot--done" />
-                                    Reviewed
-                                  </span>
+
+                                {sprintDocUrl && (
+                                  <a
+                                    href={sprintDocUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 font-medium text-[var(--color-accent)] hover:underline"
+                                  >
+                                    <span>Documentation</span>
+                                    <span className="text-[10px]">↗</span>
+                                  </a>
+                                )}
+
+                                {demoUrl && (
+                                  <a
+                                    href={demoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 font-medium text-[var(--color-accent)] hover:underline"
+                                  >
+                                    <span>Live Demo</span>
+                                    <span className="text-[10px]">↗</span>
+                                  </a>
                                 )}
                               </div>
                             </div>
-                            <input
-                              type="text"
-                              placeholder={
-                                reviewed
-                                  ? sprint.reviewNotes || "Review notes saved"
-                                  : "Add review notes…"
-                              }
-                              defaultValue={sprint.reviewNotes || ""}
-                              value={drafts[sprint.id] ?? sprint.reviewNotes ?? ""}
-                              onChange={(e) =>
-                                setDrafts((prev) => ({
-                                  ...prev,
-                                  [sprint.id]: e.target.value,
-                                }))
-                              }
-                              className="w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
-                            />
+
+                            {/* Body: Student deliverables, architecture changes, blockers */}
+                            {(hasSummary || hasFiles) && (
+                              <div className="mt-3 space-y-2 text-xs">
+                                {sprint.summary?.completed && sprint.summary.completed.length > 0 && (
+                                  <div>
+                                    <span className="font-semibold text-[var(--color-ink)]">
+                                      Deliverables completed:
+                                    </span>
+                                    <ul className="mt-1 list-disc list-inside space-y-0.5 text-[var(--color-ink-muted)]">
+                                      {sprint.summary.completed.map((item, i) => (
+                                        <li key={i}>{item}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {sprint.summary?.changed && (
+                                  <div className="text-[var(--color-ink-muted)]">
+                                    <span className="font-semibold text-[var(--color-ink)]">
+                                      Key changes:{" "}
+                                    </span>
+                                    {sprint.summary.changed}
+                                  </div>
+                                )}
+
+                                {sprint.summary?.blockers && sprint.summary.blockers.trim() !== "" && (
+                                  <div className="rounded-md border border-[var(--color-caution)] bg-[var(--color-caution-soft)] p-2 text-[var(--color-caution)]">
+                                    <span className="font-semibold">⚠️ Blockers reported: </span>
+                                    {sprint.summary.blockers}
+                                  </div>
+                                )}
+
+                                {diff && (diff.newFiles?.length > 0 || diff.modifiedFiles?.length > 0) && (
+                                  <div className="pt-0.5 text-[11px] text-[var(--color-ink-faint)] flex flex-wrap gap-x-4 gap-y-1">
+                                    {diff.newFiles && diff.newFiles.length > 0 && (
+                                      <span>
+                                        <strong className="text-[var(--color-ink-muted)]">New files:</strong>{" "}
+                                        {diff.newFiles.slice(0, 3).join(", ")}
+                                        {diff.newFiles.length > 3 ? ` +${diff.newFiles.length - 3} more` : ""}
+                                      </span>
+                                    )}
+                                    {diff.modifiedFiles && diff.modifiedFiles.length > 0 && (
+                                      <span>
+                                        <strong className="text-[var(--color-ink-muted)]">Modified:</strong>{" "}
+                                        {diff.modifiedFiles.slice(0, 3).join(", ")}
+                                        {diff.modifiedFiles.length > 3 ? ` +${diff.modifiedFiles.length - 3} more` : ""}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Faculty review notes input */}
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="text-xs font-medium text-[var(--color-ink-muted)]">
+                                  Faculty review notes:
+                                </label>
+                                {reviewed && sprint.reviewedAt && (
+                                  <span className="text-[11px] text-[var(--color-ink-faint)]">
+                                    Reviewed on {new Date(sprint.reviewedAt).toLocaleDateString()}
+                                    {sprint.reviewedBy ? ` by @${sprint.reviewedBy}` : ""}
+                                  </span>
+                                )}
+                              </div>
+                              <input
+                                type="text"
+                                placeholder={
+                                  reviewed
+                                    ? sprint.reviewNotes || "Review notes saved"
+                                    : "Add review notes or guidance for the student…"
+                                }
+                                defaultValue={sprint.reviewNotes || ""}
+                                value={drafts[sprint.id] ?? sprint.reviewNotes ?? ""}
+                                onChange={(e) =>
+                                  setDrafts((prev) => ({
+                                    ...prev,
+                                    [sprint.id]: e.target.value,
+                                  }))
+                                }
+                                className="w-full border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] bg-white placeholder:text-[var(--color-ink-faint)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                              />
+                            </div>
                           </div>
                         )
                       }

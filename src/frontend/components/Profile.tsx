@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react"
 import Avatar from "@/frontend/components/Avatar"
 import StatusPill, { type StatusTone } from "@/frontend/components/StatusPill"
 import FacultyShell from "@/frontend/components/Faculty/FacultyShell"
+import RoleBadge from "@/frontend/components/RoleBadge"
 import { useSessionUser, type Role } from "@/frontend/hooks/useSessionUser"
 import { useSubmissions } from "@/frontend/hooks/useSubmissions"
 import { useAssignments } from "@/frontend/hooks/useAssignments"
@@ -16,15 +17,6 @@ import {
   ArrowRightIcon,
 } from "@/frontend/components/Icons"
 import type { SubmissionWithSprints } from "@/backend/types"
-
-const roleLabels: Record<Role, string> = {
-  owner: "Org owner",
-  animator: "Animator (all classes)",
-  "subject-teacher": "Subject teacher",
-  "elective-teacher": "Elective teacher",
-  student: "Student",
-  unrostered: "Not on roster",
-}
 
 const roleDescriptions: Record<Role, string> = {
   owner:
@@ -335,9 +327,7 @@ export default function Profile({
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
                   {displayedName}
                 </h1>
-                <span className="rounded-full bg-accent-soft px-3 py-0.5 text-xs font-semibold text-accent">
-                  {roleLabels[displayedRole] || displayedRole}
-                </span>
+                <RoleBadge role={displayedRole} size="sm" />
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
@@ -522,9 +512,7 @@ export default function Profile({
                 Teaching Role
               </p>
               <div className="mt-2">
-                <span className="text-sm font-semibold text-ink">
-                  {roleLabels[displayedRole]}
-                </span>
+                <RoleBadge role={displayedRole} size="sm" />
               </div>
               <p className="mt-1 text-xs text-ink-faint">
                 {displayedRole === "owner"

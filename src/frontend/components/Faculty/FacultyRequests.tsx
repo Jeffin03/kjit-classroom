@@ -8,12 +8,16 @@ import { useEffect, useMemo, useState } from "react"
 import Button from "@/frontend/components/Button"
 import Avatar from "@/frontend/components/Avatar"
 import KpiCard from "@/frontend/components/KpiCard"
+import RoleBadge from "@/frontend/components/RoleBadge"
 import {
   UsersIcon,
   ClipboardIcon,
   CheckCircleIcon,
   SearchIcon,
   ChevronRightIcon,
+  AlertCircleIcon,
+  StarFilledIcon,
+  BookOpenIcon,
 } from "@/frontend/components/Icons"
 import type { Assignment, TeacherProfile } from "@/backend/types"
 
@@ -578,6 +582,7 @@ export default function FacultyRequests() {
                 value={stats.animators}
                 hint="cohort coordinators"
                 tone="accent"
+                icon={<StarFilledIcon className="size-4 text-amber-600" />}
                 onClick={() => {
                   setActiveTab("teachers")
                   setFilterRole("animator")
@@ -587,6 +592,7 @@ export default function FacultyRequests() {
                 label="Subject Teachers"
                 value={stats.subjectTeachers}
                 hint="lab & subject faculty"
+                icon={<BookOpenIcon className="size-4 text-blue-600" />}
                 onClick={() => {
                   setActiveTab("teachers")
                   setFilterRole("subject-teacher")
@@ -705,10 +711,22 @@ export default function FacultyRequests() {
                 ) : (
                   <div className="space-y-4">
                     {filteredTeachers.map((teacher) => {
-                      const createdSubjects =
+                      // Subjects created by this teacher, plus any subject
+                      // assigned to a class they are responsible for (e.g. an
+                      // animator of MCA B 25-26 should see subjects created in
+                      // that class even if another teacher created them).
+                      const ownSubjects =
                         subjectsByTeacher.get(
                           teacher.githubUsername.toLowerCase()
                         ) || []
+                      const classSubjects = (teacher.classes || []).flatMap(
+                        (cls) => assignmentsByClass.get(cls) || []
+                      )
+                      const createdSubjects = Array.from(
+                        new Map(
+                          [...ownSubjects, ...classSubjects].map((a) => [a.id, a])
+                        ).values()
+                      )
                       const isAnimator = teacher.role === "animator"
 
                       return (
@@ -744,16 +762,7 @@ export default function FacultyRequests() {
                                   >
                                     @{teacher.githubUsername}
                                   </Link>
-                                  <span
-                                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                      isAnimator
-                                        ? "bg-amber-100 text-amber-900 border border-amber-300"
-                                        : "bg-accent-soft text-accent"
-                                    }`}
-                                  >
-                                    {isAnimator ? "⭐ " : ""}
-                                    {ROLE_LABELS[teacher.role] || teacher.role}
-                                  </span>
+                                  <RoleBadge role={teacher.role} />
                                 </div>
                                 <div className="text-xs text-ink-muted mt-0.5">
                                   {teacher.email || "No email on record"}
@@ -812,9 +821,10 @@ export default function FacultyRequests() {
                                       {isAnimator && (
                                         <span
                                           title="Class Animator"
-                                          className="text-amber-600 font-bold"
+                                          className="text-amber-700 font-semibold inline-flex items-center gap-1"
                                         >
-                                          ⭐ Animator:
+                                          <StarFilledIcon className="size-3 text-amber-600" />
+                                          Animator:
                                         </span>
                                       )}
                                       <Link
@@ -829,9 +839,12 @@ export default function FacultyRequests() {
                                   ))}
                                 </div>
                               ) : (
-                                <span className="text-xs text-ink-faint">
+                                <span className="text-xs text-ink-faint inline-flex items-center gap-1">
+                                  {isAnimator && (
+                                    <StarFilledIcon className="size-3 text-amber-600 inline" />
+                                  )}
                                   {isAnimator
-                                    ? "⭐ Animator for all classes (unrestricted institute-wide access)"
+                                    ? "Animator for all classes (unrestricted institute-wide access)"
                                     : "No classes assigned yet"}
                                 </span>
                               )}
@@ -1013,15 +1026,16 @@ export default function FacultyRequests() {
                                           </div>
                                         </div>
                                       </div>
-                                      <span className="rounded-full bg-amber-200 text-amber-900 px-2 py-0.5 text-[10px] font-bold">
-                                        ⭐ Animator
-                                      </span>
+                                      <RoleBadge role="animator" label="Animator" size="xs" />
                                     </div>
                                   ))}
                                 </div>
                               ) : (
                                 <div className="flex items-center justify-between rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900">
-                                  <span>⚠️ No Class Animator assigned</span>
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <AlertCircleIcon className="size-3.5 text-amber-700" />
+                                    No Class Animator assigned
+                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => setAddModalOpen(true)}
@@ -1066,6 +1080,7 @@ export default function FacultyRequests() {
                                       >
                                         {st.displayName || st.githubUsername}
                                       </Link>
+                                      <RoleBadge role={st.role} size="xs" />
                                     </span>
                                   ))}
                                 </div>
@@ -1389,13 +1404,13 @@ export default function FacultyRequests() {
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:ring-2 focus:ring-accent-soft"
                 >
                   <option value="animator">
-                    ⭐ Class Animator (Class Coordinator)
+                    Class Animator (Class Coordinator)
                   </option>
                   <option value="subject-teacher">
-                    📘 Subject Teacher (Lab & PBL Teacher)
+                    Subject Teacher (Lab & PBL Teacher)
                   </option>
                   <option value="elective-teacher">
-                    📙 Elective Teacher
+                    Elective Teacher
                   </option>
                 </select>
               </div>
@@ -1521,13 +1536,13 @@ export default function FacultyRequests() {
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:ring-2 focus:ring-accent-soft"
                 >
                   <option value="animator">
-                    ⭐ Class Animator (Class Coordinator)
+                    Class Animator (Class Coordinator)
                   </option>
                   <option value="subject-teacher">
-                    📘 Subject Teacher (Lab & PBL Teacher)
+                    Subject Teacher (Lab & PBL Teacher)
                   </option>
                   <option value="elective-teacher">
-                    📙 Elective Teacher
+                    Elective Teacher
                   </option>
                 </select>
               </div>

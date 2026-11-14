@@ -20,6 +20,8 @@ import {
   ChevronRightIcon,
   ClipboardIcon,
   ArrowRightIcon,
+  SettingsIcon,
+  XMarkIcon,
 } from "@/frontend/components/Icons"
 import type { Assignment } from "@/backend/types"
 import {
@@ -530,7 +532,8 @@ export default function FacultyRoster({
                       onClick={() => setBatchModalOpen(true)}
                       className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink-muted hover:border-accent hover:text-accent transition-colors"
                     >
-                      <span>⚙️ Configure Lab Split</span>
+                      <SettingsIcon className="size-3.5" />
+                      <span>Configure Lab Split</span>
                     </button>
                   </div>
                 </div>
@@ -1241,9 +1244,10 @@ export default function FacultyRoster({
                 <button
                   type="button"
                   onClick={() => setBatchModalOpen(false)}
-                  className="rounded-lg p-1 text-ink-muted hover:bg-canvas hover:text-ink"
+                  className="rounded-lg p-1 text-ink-muted hover:bg-canvas hover:text-ink transition-colors"
+                  aria-label="Close dialog"
                 >
-                  ✕
+                  <XMarkIcon className="size-4" />
                 </button>
               </div>
 

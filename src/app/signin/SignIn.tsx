@@ -53,7 +53,9 @@ export default function SignIn({
 
   return (
     <main className="grid min-h-screen lg:grid-cols-[1.2fr_1fr]">
-      <section className="flex min-h-52 flex-col justify-between bg-ink p-8 text-white lg:min-h-screen lg:p-12">
+      {/* Left branding panel: only shown on desktop/tablet (lg+).
+          On phones the login card takes the full screen instead. */}
+      <section className="hidden lg:flex min-h-52 flex-col justify-between bg-ink lg:min-h-screen lg:p-12">
         <div>
           {/* The seal is navy/blue on transparent: it needs a light tile on
               this dark panel or it reads as a smudge. */}

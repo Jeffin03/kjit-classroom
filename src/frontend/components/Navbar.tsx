@@ -91,16 +91,16 @@ export default function Navbar() {
           </div>
 
           {/* Center: KJU Banner */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center pointer-events-auto">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center justify-center pointer-events-auto">
             <Link
               href={session ? "/dashboard" : "/"}
-              className="flex items-center transition-opacity hover:opacity-90"
+              className="flex items-center transition-opacity hover:opacity-90 py-0.5"
             >
               <Image
                 src={banner}
-                alt="Somaiya Vidyavihar University / KJIT"
+                alt="Kristu Jayanti University"
                 priority
-                className="h-8 md:h-9 w-auto object-contain max-w-[200px] md:max-w-none"
+                className="h-10 sm:h-11 md:h-12 w-auto object-contain max-h-[48px]"
               />
             </Link>
           </div>

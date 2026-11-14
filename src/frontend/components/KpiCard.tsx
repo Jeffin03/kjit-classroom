@@ -38,7 +38,7 @@ export default function KpiCard({
           {icon}
         </span>
       </span>
-      <strong className={`mt-3 block text-3xl font-semibold tracking-tight ${tones[tone]}`}>
+      <strong className={`mt-3 block text-3xl font-semibold tracking-tight ${tones[tone]} break-words`}>
         {value}
       </strong>
       <span className="mt-1 block truncate text-xs text-ink-subtle">{hint}</span>

@@ -8,6 +8,7 @@ import type { Assignment, RosterEntry, SubmissionWithSprints } from "@/backend/t
 import KpiCard from "@/frontend/components/KpiCard"
 import ConfirmModal from "@/frontend/components/ConfirmModal"
 import FacultyPageHeader from "./FacultyPageHeader"
+import { AlertCircleIcon } from "@/frontend/components/Icons"
 import {
   compareRollNumbers,
   getStudentBatch,
@@ -748,7 +749,10 @@ export default function FacultyReview({
 
                                 {sprint.summary?.blockers && sprint.summary.blockers.trim() !== "" && (
                                   <div className="rounded-md border border-[var(--color-caution)] bg-[var(--color-caution-soft)] p-2 text-[var(--color-caution)]">
-                                    <span className="font-semibold">⚠️ Blockers reported: </span>
+                                    <span className="font-semibold inline-flex items-center gap-1">
+                                      <AlertCircleIcon className="size-3.5 inline text-[var(--color-caution)]" />
+                                      Blockers reported:{" "}
+                                    </span>
                                     {sprint.summary.blockers}
                                   </div>
                                 )}

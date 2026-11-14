@@ -173,10 +173,44 @@ export async function isTeamMember(
  * wins when set; otherwise the conventional names are probed in order. Shared
  * by authorization and by the faculty-removal path so both agree on which
  * teams count as "faculty".
+ *
+ * `kjit-faculty` covers the team named "KJIT Faculty" on the production org —
+ * without it, members of that team are treated as students and the team shows
+ * up in every class picker.
  */
 export function facultyTeamSlugs(): string[] {
   const configured = process.env.GITHUB_FACULTY_TEAM?.trim()
-  return configured ? [configured] : ["faculty", "teachers", "staff"]
+  return configured ? [configured] : ["faculty", "teachers", "staff", "kjit-faculty"]
+}
+
+/**
+ * Normalizes a team name or slug the way GitHub generates slugs (lowercase,
+ * runs of anything alphanumeric collapse to a single `-`), so the display name
+ * "KJIT Faculty" and its slug `kjit-faculty` compare equal.
+ */
+function normalizeTeamKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+/**
+ * Whether a GitHub team is a faculty team rather than a class team. Matches on
+ * both the slug and the display name so `GITHUB_FACULTY_TEAM` can be set to
+ * either, and so "KJIT Faculty" is recognized even though the default probe
+ * list only holds slugs. Used to keep faculty teams out of every class picker
+ * (dashboard, onboarding, assignment creation).
+ */
+export function isFacultyTeam(team: {
+  name?: string | null
+  slug?: string | null
+}): boolean {
+  const keys = new Set(facultyTeamSlugs().map(normalizeTeamKey))
+  if (team.slug && keys.has(normalizeTeamKey(team.slug))) return true
+  if (team.name && keys.has(normalizeTeamKey(team.name))) return true
+  return false
 }
 
 export async function getTeamMembers(

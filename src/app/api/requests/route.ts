@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getOrgToken } from "@/backend/github/client"
+import { getOrgToken, githubFetch } from "@/backend/github/client"
 import {
   addTeamMaintainer,
   findTeam,
@@ -96,6 +96,7 @@ export async function POST(request: Request) {
 
   const token = await getOrgToken(auth.session.accessToken).catch(() => null)
   const warnings: string[] = []
+  let displayName: string | undefined
   if (token) {
     // A typo'd or not-yet-invited username would otherwise create a faculty
     // record that grants access to whoever later claims that login.
@@ -119,6 +120,24 @@ export async function POST(request: Request) {
       )
     }
 
+    // Capture the GitHub display name so the roster can show a person's name
+    // rather than only their handle. Best-effort: a missing name falls back to
+    // the handle in the UI, so it never blocks staffing.
+    try {
+      const profileRes = await githubFetch(
+        `/users/${encodeURIComponent(githubUsername)}`,
+        token
+      )
+      if (profileRes.ok) {
+        const profile = await profileRes.json()
+        if (typeof profile.name === "string" && profile.name.trim()) {
+          displayName = profile.name.trim()
+        }
+      }
+    } catch {
+      // ignore — handle-only display is the fallback
+    }
+
     for (const className of classes) {
       try {
         const team = await findTeam(token, org, { name: className })
@@ -140,6 +159,7 @@ export async function POST(request: Request) {
   const profile: TeacherProfile = {
     id: `teacher-${Date.now()}`,
     githubUsername,
+    displayName,
     email,
     role,
     classes,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getOrgToken } from "@/backend/github/client"
-import { listTeams } from "@/backend/github/teams"
+import { isFacultyTeam, listTeams } from "@/backend/github/teams"
 import { authorize } from "@/backend/services/permissions"
 import { isDevTestAuthEnabled, TEST_CLASSES } from "@/backend/dev/testAccounts"
 
@@ -27,11 +27,15 @@ export async function GET() {
     } else {
       allTeams = await listTeams(await getOrgToken(auth.session.accessToken), org).catch(() => [])
     }
+    // The faculty team ("KJIT Faculty" on the production org) is not a class:
+    // without this every picker — dashboard, onboarding, assignment creation —
+    // would offer it as one.
+    const classTeams = allTeams.filter((t) => !isFacultyTeam(t))
     // Scoped teachers only ever pick from their own classes.
     const teams =
       access.scopedClasses === null
-        ? allTeams
-        : allTeams.filter((t) => access.scopedClasses!.includes(t.name))
+        ? classTeams
+        : classTeams.filter((t) => access.scopedClasses!.includes(t.name))
 
     // Only faculty see team metadata; everyone else just needs the class names
     // to pick from when requesting a role.

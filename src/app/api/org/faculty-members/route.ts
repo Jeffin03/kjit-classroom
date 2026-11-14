@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server"
 import { getOrgToken } from "@/backend/github/client"
-import { facultyTeamSlugs, findTeam, getTeamMembers } from "@/backend/github/teams"
+import { isFacultyTeam, getTeamMembers, listTeams } from "@/backend/github/teams"
 import { githubFetch } from "@/backend/github/client"
 import { authorize } from "@/backend/services/permissions"
+
+export interface FacultyMember {
+  login: string
+  name: string | null
+  email: string | null
+  avatar: string | null
+  teams: string[]
+}
 
 export async function GET() {
   const auth = await authorize("teacher.approve")
@@ -19,33 +27,63 @@ export async function GET() {
   }
 
   try {
-    const slug = facultyTeamSlugs()[0]
-    const team = await findTeam(token, org, { slug })
-    if (!team) {
-      return NextResponse.json({ members: [] })
+    // Every team that counts as faculty, not just the first probe hit: the
+    // production org's team is named "KJIT Faculty", and an org may hold both
+    // a legacy "faculty" team and the new one during migration.
+    const facultyTeams = (await listTeams(token, org).catch(() => [])).filter(
+      isFacultyTeam
+    )
+
+    const byLogin = new Map<string, FacultyMember>()
+    for (const team of facultyTeams) {
+      const logins = await getTeamMembers(token, org, team.slug)
+      for (const login of logins) {
+        const key = login.toLowerCase()
+        const existing = byLogin.get(key)
+        if (existing) {
+          existing.teams.push(team.name)
+        } else {
+          byLogin.set(key, {
+            login,
+            name: null,
+            email: null,
+            avatar: null,
+            teams: [team.name],
+          })
+        }
+      }
     }
 
-    const logins = await getTeamMembers(token, org, team.slug)
     const members = await Promise.all(
-      logins.map(async (login) => {
+      [...byLogin.values()].map(async (member) => {
         try {
-          const res = await githubFetch(`/users/${encodeURIComponent(login)}`, token)
+          const res = await githubFetch(
+            `/users/${encodeURIComponent(member.login)}`,
+            token
+          )
           if (res.ok) {
             const profile = await res.json()
-            return {
-              login: profile.login || login,
-              email: typeof profile.email === "string" ? profile.email.trim() : null,
-              avatar: typeof profile.avatar_url === "string" ? profile.avatar_url : null,
-            }
+            member.login = profile.login || member.login
+            member.name =
+              typeof profile.name === "string" && profile.name.trim()
+                ? profile.name.trim()
+                : null
+            member.email =
+              typeof profile.email === "string" ? profile.email.trim() : null
+            member.avatar =
+              typeof profile.avatar_url === "string" ? profile.avatar_url : null
           }
         } catch {
-          // ignore profile fetch failure
+          // ignore profile fetch failure — the login alone still lists them
         }
-        return { login, email: null, avatar: null }
+        return member
       })
     )
 
-    return NextResponse.json({ members: members.filter(Boolean) })
+    return NextResponse.json({
+      members,
+      teams: facultyTeams.map((t) => t.name),
+    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return NextResponse.json({ error: msg }, { status: 500 })

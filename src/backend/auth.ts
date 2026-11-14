@@ -119,7 +119,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...devProviders,
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, user, account, profile }) {
       const claims = token as Record<string, unknown>
 
       if (account) {
@@ -127,7 +127,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // services/permissions.ts. Never copy it onto `session` — Auth.js
         // serializes the session to the browser on /api/auth/session.
         if (account.provider === "dev-test" || account.type === "credentials") {
-          claims.login = (account as { id?: string }).id || ""
+          // Credentials accounts carry no `id` — Auth.js passes the
+          // authorize() result as `user` and only sets providerAccountId on
+          // the account. Keying off the wrong field leaves `login` empty and
+          // every API route treats the session as signed out.
+          claims.login =
+            (typeof user?.id === "string" && user.id) ||
+            (account as { providerAccountId?: string }).providerAccountId ||
+            ""
           // Reuse the org token so dev test accounts can read org data.
           claims.accessToken =
             process.env.GITHUB_ORG_TOKEN?.trim() ||

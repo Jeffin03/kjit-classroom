@@ -8,11 +8,7 @@ import Button from "@/frontend/components/Button"
 import Avatar from "@/frontend/components/Avatar"
 import type { TeacherProfile } from "@/backend/types"
 
-interface TeacherRequest {
-  id: string
-  githubUsername: string
-  email: string
-  classes: string[]
+interface TeacherRequest extends TeacherProfile {
   requestedAt: string
 }
 
@@ -41,7 +37,7 @@ export default function FacultyRequests() {
 
   // Add Faculty Modal state
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [facultyMembers, setFacultyMembers] = useState<Array<{ login: string; email?: string | null; avatar?: string | null }>>([])
+  const [facultyMembers, setFacultyMembers] = useState<Array<{ login: string; name?: string | null; email?: string | null; avatar?: string | null }>>([])
   const [newUsername, setNewUsername] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [newRole, setNewRole] = useState<GrantableRole>("subject-teacher")
@@ -327,18 +323,21 @@ export default function FacultyRequests() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
-                          <Avatar name={request.githubUsername} size="md" />
+                          <Avatar
+                            name={request.displayName || request.githubUsername}
+                            size="md"
+                          />
                           <div>
-                            <div className="font-medium text-[var(--color-ink)]">
-                              <span
-                                className="font-mono text-sm"
-                                style={{ fontFamily: "var(--font-mono)" }}
-                              >
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-[var(--color-ink)]">
+                                {request.displayName || request.githubUsername}
+                              </span>
+                              <span className="font-mono text-sm">
                                 @{request.githubUsername}
                               </span>
                             </div>
                             <div className="text-sm text-[var(--color-ink-muted)]">
-                              {request.email}
+                              {request.email || "—"}
                             </div>
                             <div className="text-xs text-[var(--color-ink-faint)] mt-1">
                               Requested {new Date(request.requestedAt).toLocaleDateString()}
@@ -431,10 +430,16 @@ export default function FacultyRequests() {
                       className="p-5 flex items-center justify-between gap-4"
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar name={teacher.githubUsername} size="sm" />
+                        <Avatar
+                          name={teacher.displayName || teacher.githubUsername}
+                          size="sm"
+                        />
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-medium text-ink">
+                            <span className="font-medium text-[var(--color-ink)]">
+                              {teacher.displayName || teacher.githubUsername}
+                            </span>
+                            <span className="font-mono text-sm">
                               @{teacher.githubUsername}
                             </span>
                             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
@@ -507,7 +512,8 @@ export default function FacultyRequests() {
                   <option value="">Select faculty member...</option>
                   {facultyMembers.map((m) => (
                     <option key={m.login} value={m.login}>
-                      {m.login} {m.email ? `— ${m.email.length > 30 ? m.email.slice(0, 30) + "…" : m.email}` : ""}
+                      {m.name ? `${m.name} (@${m.login})` : m.login}
+                      {m.email ? ` — ${m.email.length > 30 ? m.email.slice(0, 30) + "…" : m.email}` : ""}
                     </option>
                   ))}
                 </select>

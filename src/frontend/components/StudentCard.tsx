@@ -11,6 +11,8 @@ export interface StudentCardRow {
   key: string
   rollNo: string
   studentUsername: string
+  /** GitHub profile display name, when the roster has one. */
+  displayName?: string
   collegeEmail: string
   latestCommit?: string
   status: BadgeStatus
@@ -56,10 +58,18 @@ export default function StudentCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={row.rollNo || row.studentUsername || "?"} size="sm" />
+          <Avatar
+            name={row.displayName || row.rollNo || row.studentUsername || "?"}
+            size="sm"
+          />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{row.rollNo}</p>
+            <p className="truncate text-sm font-medium">
+              {row.displayName || row.rollNo}
+            </p>
             <p className="truncate text-xs text-ink-muted">
+              {row.displayName && row.rollNo && (
+                <span className="mr-1">{row.rollNo}</span>
+              )}
               {row.studentUsername ? (
                 <span className="font-mono">@{row.studentUsername}</span>
               ) : (

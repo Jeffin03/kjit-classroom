@@ -23,11 +23,13 @@ interface RosterEntry {
   rollNo: string
   collegeEmail: string
   classTeam: string
+  displayName?: string
 }
 
 interface StudentRow {
   studentUsername: string
   rollNo: string
+  displayName?: string
   collegeEmail: string
   latestCommit?: string
   submission?: SubmissionWithSprints
@@ -177,6 +179,7 @@ export default function FacultyAssignmentDetail({
     const fromRoster = assignedRoster.map<StudentRow>((entry) => ({
       studentUsername: entry.githubUsername ?? "",
       rollNo: entry.rollNo,
+      displayName: entry.displayName,
       collegeEmail: entry.collegeEmail,
       latestCommit: entry.githubUsername
         ? commitByUsername.get(entry.githubUsername)
@@ -194,6 +197,7 @@ export default function FacultyAssignmentDetail({
         return {
           studentUsername: s.studentUsername,
           rollNo: entry?.rollNo || `@${s.studentUsername}`,
+          displayName: entry?.displayName,
           collegeEmail: entry?.collegeEmail || "—",
           latestCommit: commitByUsername.get(s.studentUsername),
           submission: s,
@@ -236,6 +240,7 @@ export default function FacultyAssignmentDetail({
       key: row.studentUsername || row.rollNo,
       rollNo: row.rollNo,
       studentUsername: row.studentUsername,
+      displayName: row.displayName,
       collegeEmail: row.collegeEmail,
       latestCommit: row.latestCommit,
       status: badgeStatus(row.submission),
@@ -257,6 +262,7 @@ export default function FacultyAssignmentDetail({
     const matchesSearch =
       !query ||
       row.rollNo.toLowerCase().includes(query) ||
+      (row.displayName ?? "").toLowerCase().includes(query) ||
       row.studentUsername.toLowerCase().includes(query) ||
       row.collegeEmail.toLowerCase().includes(query)
     const matchesStatus = statusFilter === "all" || row.status === statusFilter
@@ -555,8 +561,13 @@ export default function FacultyAssignmentDetail({
                         </div>
                         <div className="truncate text-sm text-ink-muted">
                           {row.studentUsername ? (
-                            <span className="font-mono text-[13px]">
+                            <span className="font-mono text-[13px] flex items-center gap-1">
                               @{row.studentUsername}
+                              {row.displayName && (
+                                <span className="text-[12px]">
+                                  ({row.displayName})
+                                </span>
+                              )}
                             </span>
                           ) : (
                             <span>No GitHub account</span>

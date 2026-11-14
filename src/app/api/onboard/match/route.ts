@@ -17,6 +17,7 @@ interface MatchedStudent {
   githubUsername: string
   githubAvatar: string
   githubId: number
+  displayName?: string
   matchedVia: "email" | "username"
 }
 
@@ -131,6 +132,12 @@ export async function POST(request: Request) {
               githubUsername: ghUser.login,
               githubAvatar: ghUser.avatar_url,
               githubId: ghUser.id,
+              // The profile fetch already carries the display name — capture it
+              // now so the roster can show "Priya S." instead of "@priya-s".
+              displayName:
+                typeof ghUser.name === "string" && ghUser.name.trim()
+                  ? ghUser.name.trim()
+                  : undefined,
               matchedVia: "username",
             })
             processed++
@@ -161,12 +168,27 @@ export async function POST(request: Request) {
         const searchData = await searchRes.json()
         if (searchData.items?.length > 0) {
           const ghUser = searchData.items[0]
+          // Search results carry no `name` field — resolve it with one profile
+          // read so email-matched rows get the same display name as
+          // username-matched ones. A failure only costs the name, never the match.
+          let displayName: string | undefined
+          const profileRes = await githubFetch(
+            `/users/${encodeURIComponent(ghUser.login)}`,
+            token
+          ).catch(() => null)
+          if (profileRes?.ok) {
+            const profile = await profileRes.json()
+            if (typeof profile.name === "string" && profile.name.trim()) {
+              displayName = profile.name.trim()
+            }
+          }
           matched.push({
             rollNo: row.rollNo,
             collegeEmail: row.collegeEmail,
             githubUsername: ghUser.login,
             githubAvatar: ghUser.avatar_url,
             githubId: ghUser.id,
+            displayName,
             matchedVia: "email",
           })
           processed++

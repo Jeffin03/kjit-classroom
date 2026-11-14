@@ -131,6 +131,10 @@ export async function POST(request: Request) {
     collegeEmail,
     githubUsername: body.githubUsername || undefined,
     githubUserId: body.githubUserId,
+    displayName:
+      typeof body.displayName === "string" && body.displayName.trim()
+        ? body.displayName.trim()
+        : undefined,
     status:
       body.status === "invited" || body.status === "no-account"
         ? body.status

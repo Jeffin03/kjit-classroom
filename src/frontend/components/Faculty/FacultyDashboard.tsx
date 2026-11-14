@@ -20,6 +20,7 @@ import FacultyPageHeader from "./FacultyPageHeader"
 interface RosterEntry {
   githubUsername?: string
   rollNo: string
+  displayName?: string
   classTeam: string
 }
 
@@ -364,12 +365,12 @@ export default function FacultyDashboard() {
                     className="flex flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-canvas"
                   >
                     <Avatar
-                      name={entry?.rollNo || submission.studentUsername}
+                      name={entry?.displayName || entry?.rollNo || submission.studentUsername}
                       size="sm"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
-                        {entry?.rollNo || `@${submission.studentUsername}`}
+                        {entry?.displayName || entry?.rollNo || `@${submission.studentUsername}`}
                       </p>
                       <p className="truncate text-xs text-ink-muted">
                         {entry?.classTeam ? `${entry.classTeam} · ` : ""}

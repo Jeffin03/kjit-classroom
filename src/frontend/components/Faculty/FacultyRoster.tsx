@@ -22,6 +22,7 @@ interface RosterEntry {
   collegeEmail: string
   githubUsername?: string
   githubUserId?: number
+  displayName?: string
   classTeam: string
   status: "invited" | "active" | "no-account"
   onboardedBy: string
@@ -119,6 +120,7 @@ export default function FacultyRoster({
       !search ||
       r.rollNo.toLowerCase().includes(search.toLowerCase()) ||
       r.collegeEmail.toLowerCase().includes(search.toLowerCase()) ||
+      r.displayName?.toLowerCase().includes(search.toLowerCase()) ||
       r.githubUsername?.toLowerCase().includes(search.toLowerCase())
     return matchesTeam && matchesSearch
   })
@@ -406,9 +408,19 @@ export default function FacultyRoster({
                       >
                         <td className="px-6 py-4">
                           <span className="flex items-center gap-3">
-                            <Avatar name={entry.rollNo} size="sm" />
-                            <span className="text-sm font-medium">
-                              {entry.rollNo}
+                            <Avatar
+                              name={entry.displayName || entry.rollNo}
+                              size="sm"
+                            />
+                            <span>
+                              <span className="block text-sm font-medium">
+                                {entry.displayName || entry.rollNo}
+                              </span>
+                              {entry.displayName && (
+                                <span className="block text-xs text-ink-muted">
+                                  {entry.rollNo}
+                                </span>
+                              )}
                             </span>
                           </span>
                         </td>

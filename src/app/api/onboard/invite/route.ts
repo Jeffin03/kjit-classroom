@@ -16,6 +16,7 @@ interface MatchedStudent {
   collegeEmail: string
   githubUsername: string
   githubId: number
+  displayName?: string
 }
 
 export async function POST(request: Request) {
@@ -185,6 +186,10 @@ export async function POST(request: Request) {
       collegeEmail: s.collegeEmail,
       githubUsername: s.githubUsername,
       githubUserId: s.githubId,
+      displayName:
+        typeof s.displayName === "string" && s.displayName.trim()
+          ? s.displayName.trim()
+          : undefined,
       classTeam,
       status: "active" as const,
       onboardedBy: currentUser,

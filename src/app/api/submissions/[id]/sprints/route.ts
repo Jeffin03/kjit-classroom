@@ -4,6 +4,7 @@ import { submitSprint } from "@/backend/services/submission.service"
 import { authorize, canUseRepo } from "@/backend/services/permissions"
 import { parseRepoUrl } from "@/backend/github/repos"
 import { jsonError, readJson } from "@/backend/http"
+import { cleanSprintSummary } from "@/backend/validation"
 import type { SubmitSprintInput } from "@/backend/types"
 
 export async function POST(
@@ -42,8 +43,19 @@ export async function POST(
   if (documentationUrl !== undefined && typeof documentationUrl !== "string") {
     return jsonError("documentationUrl must be a string")
   }
-  if (summary !== undefined && typeof summary !== "string") {
-    return jsonError("summary must be a string")
+  // `summary` is a structured SprintSummary (completed[]/changed/blockers),
+  // not a free-text string — validate the shape the submit form actually sends.
+  let cleanedSummary: SubmitSprintInput["summary"]
+  if (summary === undefined || summary === null) {
+    cleanedSummary = undefined
+  } else {
+    const cleaned = cleanSprintSummary(summary)
+    if (!cleaned) {
+      return jsonError(
+        "summary must be an object like { completed: string[], changed: string, blockers: string }"
+      )
+    }
+    cleanedSummary = cleaned
   }
   if (isPivot !== undefined && typeof isPivot !== "boolean") {
     return jsonError("isPivot must be a boolean")
@@ -84,7 +96,7 @@ export async function POST(
         sprintNumber,
         repoUrl: effectiveRepoUrl,
         documentationUrl,
-        summary,
+        summary: cleanedSummary,
         isPivot,
       },
       accessToken

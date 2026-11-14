@@ -105,6 +105,20 @@ export default function FacultyReview({
     return teams.length === 1 ? teams[0] : null
   }
 
+  /** student login → roster row, so review rows can lead with the real name. */
+  const rosterByStudent = useMemo(() => {
+    const map = new Map<string, { displayName?: string; rollNo: string }>()
+    roster.forEach((entry) => {
+      if (entry.githubUsername) {
+        map.set(entry.githubUsername.toLowerCase(), {
+          displayName: entry.displayName,
+          rollNo: entry.rollNo,
+        })
+      }
+    })
+    return map
+  }, [roster])
+
   const classNames = useMemo(() => {
     const set = new Set<string>()
     roster.forEach((entry) => set.add(entry.classTeam))
@@ -374,6 +388,10 @@ export default function FacultyReview({
             filtered.map((submission) => {
               const assignment = getAssignment(submission.assignmentId)
               const isSaving = savingId === submission.id
+              const person = rosterByStudent.get(
+                submission.studentUsername.toLowerCase()
+              )
+              const personName = person?.displayName
               const statusConfig = {
                 active: { dot: "status-dot--active", label: "In Progress" },
                 completed: { dot: "status-dot--review", label: "Awaiting Acceptance" },
@@ -388,12 +406,21 @@ export default function FacultyReview({
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="w-11 h-11 bg-[var(--color-border)] rounded-full flex items-center justify-center text-[var(--color-ink-muted)] font-medium">
-                        {submission.studentUsername[0].toUpperCase()}
+                        {(personName || submission.studentUsername)
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase()}
                       </div>
                       <div>
                         <div className="font-medium text-[var(--color-ink)]">
-                          @{submission.studentUsername}
+                          {personName || `@${submission.studentUsername}`}
                         </div>
+                        {personName && (
+                          <div className="font-mono text-xs text-[var(--color-ink-muted)]">
+                            @{submission.studentUsername}
+                            {person?.rollNo ? ` · ${person.rollNo}` : ""}
+                          </div>
+                        )}
                         <div className="text-sm text-[var(--color-ink-muted)]">
                           {assignment?.title || submission.assignmentId}
                           {(assignment?.assignedTeams || []).length > 0 && (

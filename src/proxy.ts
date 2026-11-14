@@ -51,6 +51,12 @@ export async function proxy(request: NextRequest) {
 }
 
 /**
+ * `/profile` is deliberately NOT matched: any signed-in user may read their own
+ * profile via `/api/me`, so there is nothing to gate here. The page renders
+ * server-side from the session without a middleware check.
+ */
+
+/**
  * `/announcements` is deliberately not matched: the page only client-redirects
  * to `/dashboard#announcements`, so gating it here would bounce signed-out
  * visitors to /signin just to send them back through this gate.

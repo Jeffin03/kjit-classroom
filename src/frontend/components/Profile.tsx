@@ -5,9 +5,16 @@ import { useEffect, useState } from "react"
 import Avatar from "@/frontend/components/Avatar"
 import Badge from "@/frontend/components/Badge"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
+import { useSubmissions } from "@/frontend/hooks/useSubmissions"
+import { useAssignments } from "@/frontend/hooks/useAssignments"
+import StatusPill, { type StatusTone } from "@/frontend/components/StatusPill"
+import type { SubmissionWithSprints } from "@/backend/types"
 
 export default function Profile() {
   const { username, role, isOrgOwner } = useSessionUser()
+  const { submissions: allSubmissions, loading: subsLoading } =
+    useSubmissions()
+  const { assignments, loading: assignmentsLoading } = useAssignments()
   const [me, setMe] = useState<{
     name: string | null
     image: string | null
@@ -186,6 +193,86 @@ export default function Profile() {
             </>
           )}
         </dl>
+
+        {role === "student" && (
+          <section className="mt-10">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-subtle mb-4">
+              Your submissions
+            </h2>
+            {subsLoading || assignmentsLoading ? (
+              <div className="rounded-xl border border-[var(--color-border)] bg-white p-6 animate-pulse">
+                <div className="h-4 w-3/4 rounded bg-[var(--color-border)] mb-3" />
+                <div className="h-4 w-1/2 rounded bg-[var(--color-border)]" />
+              </div>
+            ) : allSubmissions.length === 0 ? (
+              <div className="rounded-xl border border-[var(--color-border)] bg-white p-6 text-center">
+                <p className="text-sm text-ink-muted">
+                  No submissions yet. Submit your first sprint from
+                  Dashboard → Assignments.
+                </p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border rounded-xl border border-[var(--color-border)] bg-white">
+                {allSubmissions.map((submission) => {
+                  const assignment = assignments.find(
+                    (a) => a.id === submission.assignmentId
+                  )
+                  const lastSprint =
+                    submission.sprints[submission.sprints.length - 1]
+                  const statusConfig: Record<
+                    SubmissionWithSprints["status"],
+                    { label: string; tone: StatusTone }
+                  > = {
+                    active: { label: "In progress", tone: "accent" },
+                    completed: { label: "Awaiting acceptance", tone: "caution" },
+                    accepted: { label: "Accepted", tone: "success" },
+                  }
+                  const config = statusConfig[submission.status]
+                  return (
+                    <li
+                      key={submission.id}
+                      className="px-5 py-4 flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[var(--color-ink)]">
+                          {assignment?.title || submission.assignmentId}
+                        </p>
+                        <p className="truncate text-xs text-ink-muted">
+                          {assignment?.subject ||
+                            submission.assignmentId} · Sprint {submission.sprints.length}
+                          {lastSprint ? ` · ${lastSprint.sprintNumber}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusPill tone={config.tone}>{config.label}</StatusPill>
+                        {submission.repoUrl && (
+                          <a
+                            href={submission.repoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-accent hover:underline font-mono"
+                          >
+                            Repo
+                          </a>
+                        )}
+                        {submission.abstractDocUrl && (
+                          <a
+                            href={submission.abstractDocUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-accent hover:underline font-mono"
+                          >
+                            Abstract
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+        )}
 
         <div className="mt-8 flex items-center gap-3">
           <Link

@@ -71,6 +71,23 @@ export function removeTeacher(githubUsername: string): void {
   denyTeacherRequest(githubUsername)
 }
 
+export function updateTeacherProfile(
+  githubUsername: string,
+  updates: Partial<Pick<TeacherProfile, "role" | "classes" | "email" | "displayName">>
+): TeacherProfile | null {
+  const needle = githubUsername.toLowerCase()
+  const teacher = teachers.find(
+    (t) => t.githubUsername.toLowerCase() === needle
+  )
+  if (!teacher) return null
+  if (updates.role !== undefined) teacher.role = updates.role
+  if (updates.classes !== undefined) teacher.classes = updates.classes
+  if (updates.email !== undefined) teacher.email = updates.email
+  if (updates.displayName !== undefined) teacher.displayName = updates.displayName
+  mutated(KEYS.teachers, needle, teacher)
+  return teacher
+}
+
 export function getTeachers(): TeacherProfile[] {
   return teachers
 }

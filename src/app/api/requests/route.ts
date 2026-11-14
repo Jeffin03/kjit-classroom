@@ -16,6 +16,7 @@ import {
   approveTeacherRequest,
   denyTeacherRequest,
   removeTeacher,
+  updateTeacherProfile,
 } from "@/backend/store/teachers"
 import { authorize } from "@/backend/services/permissions"
 import { jsonError, readJson } from "@/backend/http"
@@ -343,4 +344,102 @@ export async function PUT(request: Request) {
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 })
+}
+
+export async function PATCH(request: Request) {
+  const auth = await authorize("teacher.approve")
+  if (!auth.ok) return auth.response
+
+  const org = process.env.GITHUB_ORG
+  if (!org) return orgNotConfigured()
+
+  const body = await readJson<{
+    githubUsername?: unknown
+    role?: unknown
+    classes?: unknown
+    displayName?: unknown
+    email?: unknown
+  }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
+  const githubUsername =
+    typeof body.githubUsername === "string"
+      ? body.githubUsername.trim().replace(/^@/, "")
+      : ""
+  if (!githubUsername) {
+    return NextResponse.json(
+      { error: "githubUsername is required" },
+      { status: 400 }
+    )
+  }
+
+  const teacher = getTeacherByGithubUsername(githubUsername)
+  if (!teacher) {
+    return NextResponse.json(
+      { error: `No faculty record for @${githubUsername}` },
+      { status: 404 }
+    )
+  }
+
+  const updates: Partial<
+    Pick<TeacherProfile, "role" | "classes" | "email" | "displayName">
+  > = {}
+
+  if (body.role !== undefined) {
+    if (!GRANTABLE_ROLES.includes(body.role as GrantableRole)) {
+      return NextResponse.json(
+        { error: `role must be one of: ${GRANTABLE_ROLES.join(", ")}` },
+        { status: 400 }
+      )
+    }
+    updates.role = body.role as ApprovedTeacherRole
+  }
+
+  const warnings: string[] = []
+  if (body.classes !== undefined) {
+    if (!Array.isArray(body.classes)) {
+      return jsonError("classes must be a list of class team names")
+    }
+    const newClasses = body.classes
+      .map((c) => (typeof c === "string" ? c.trim() : ""))
+      .filter(Boolean)
+    updates.classes = newClasses
+
+    // Synchronize GitHub team maintainers
+    const token = await getOrgToken(auth.session.accessToken).catch(() => null)
+    if (token) {
+      const oldClasses = teacher.classes || []
+      const addedClasses = newClasses.filter((c) => !oldClasses.includes(c))
+      for (const className of addedClasses) {
+        try {
+          const team = await findTeam(token, org, { name: className })
+          if (team) {
+            await addTeamMaintainer(token, org, team.slug, githubUsername)
+          }
+        } catch (err) {
+          warnings.push(
+            `${className}: ${
+              err instanceof Error
+                ? err.message
+                : "failed to grant maintainer access"
+            }`
+          )
+        }
+      }
+    }
+  }
+
+  if (typeof body.email === "string") {
+    updates.email = body.email.trim()
+  }
+  if (typeof body.displayName === "string") {
+    updates.displayName = body.displayName.trim()
+  }
+
+  const updated = updateTeacherProfile(githubUsername, updates)
+
+  return NextResponse.json({
+    teacher: updated,
+    warnings: warnings.length > 0 ? warnings : undefined,
+  })
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
@@ -7,6 +8,11 @@ import type { Assignment, RosterEntry, SubmissionWithSprints } from "@/backend/t
 import KpiCard from "@/frontend/components/KpiCard"
 import ConfirmModal from "@/frontend/components/ConfirmModal"
 import FacultyPageHeader from "./FacultyPageHeader"
+import {
+  compareRollNumbers,
+  getStudentBatch,
+  loadBatchConfig,
+} from "@/frontend/lib/batches"
 
 interface ReviewDraft {
   [sprintSubmissionId: string]: string
@@ -42,6 +48,11 @@ export default function FacultyReview({
   )
   const [filterAssignment, setFilterAssignment] = useState<string>(
     assignmentParam || "all"
+  )
+  const [filterBatch, setFilterBatch] = useState<"all" | "1" | "2">("all")
+  const batchConfig = useMemo(
+    () => loadBatchConfig(filterClass),
+    [filterClass]
   )
   const [drafts, setDrafts] = useState<ReviewDraft>({})
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -161,16 +172,61 @@ export default function FacultyReview({
     return Array.from(map.values())
   }, [submissions])
 
+  /** Sorted students per class team for consistent batch indexing */
+  const studentsByClass = useMemo(() => {
+    const map = new Map<string, RosterEntry[]>()
+    roster.forEach((entry) => {
+      const list = map.get(entry.classTeam) || []
+      list.push(entry)
+      map.set(entry.classTeam, list)
+    })
+    map.forEach((list) => {
+      list.sort((a, b) => compareRollNumbers(a.rollNo, b.rollNo))
+    })
+    return map
+  }, [roster])
+
+  const getSubmissionBatch = useMemo(() => {
+    return (
+      username: string,
+      className?: string | null
+    ): { label: string; number: 1 | 2 } | null => {
+      const cls = className || (filterClass !== "all" ? filterClass : null)
+      if (!cls) return null
+      const person = rosterByStudent.get(username.toLowerCase())
+      if (!person) return null
+      const classStudents = studentsByClass.get(cls) || []
+      const idx = classStudents.findIndex(
+        (s) => s.githubUsername?.toLowerCase() === username.toLowerCase()
+      )
+      if (idx < 0) return null
+      const cfg = cls === filterClass ? batchConfig : loadBatchConfig(cls)
+      const b = getStudentBatch(person.rollNo, idx, classStudents.length, cfg)
+      if (!b) return null
+      return {
+        number: b,
+        label: (b === 1 ? cfg.batch1Label : cfg.batch2Label) || (b === 1 ? "Batch 1" : "Batch 2"),
+      }
+    }
+  }, [filterClass, rosterByStudent, studentsByClass, batchConfig])
+
   const filtered = deduplicatedSubmissions.filter((s) => {
     const matchesStatus = filterStatus === "all" || s.status === filterStatus
     const matchesAssignment =
       filterAssignment === "all" || s.assignmentId === filterAssignment
-    const matchesClass = filterClass === "all" || classOf(s) === filterClass
-    return matchesStatus && matchesAssignment && matchesClass
+    const submissionClass = classOf(s)
+    const matchesClass = filterClass === "all" || submissionClass === filterClass
+    let matchesBatch = true
+    if (filterClass !== "all" && filterBatch !== "all") {
+      const bInfo = getSubmissionBatch(s.studentUsername, submissionClass)
+      matchesBatch = bInfo?.number === (filterBatch === "1" ? 1 : 2)
+    }
+    return matchesStatus && matchesAssignment && matchesClass && matchesBatch
   })
 
   const handleClassChange = (value: string) => {
     setFilterClass(value)
+    setFilterBatch("all")
     setFilterAssignment((current) => {
       if (current === "all") return current
       const assignment = getAssignment(current)
@@ -183,6 +239,7 @@ export default function FacultyReview({
 
   const resetFilters = () => {
     setFilterClass("all")
+    setFilterBatch("all")
     setFilterStatus("all")
     setFilterAssignment("all")
   }
@@ -190,6 +247,11 @@ export default function FacultyReview({
   /** Plain-language description of the current filter stack, for the modal. */
   const filterScope = [
     filterClass !== "all" ? filterClass : null,
+    filterBatch !== "all"
+      ? filterBatch === "1"
+        ? batchConfig.batch1Label
+        : batchConfig.batch2Label
+      : null,
     filterAssignment !== "all" ? getAssignment(filterAssignment)?.title : null,
     filterStatus !== "all" ? filterStatus : null,
   ]
@@ -365,6 +427,20 @@ export default function FacultyReview({
               </option>
             ))}
           </select>
+
+          {filterClass !== "all" && (
+            <select
+              value={filterBatch}
+              onChange={(e) => setFilterBatch(e.target.value as "all" | "1" | "2")}
+              aria-label="Filter by lab batch"
+              className="border border-[var(--color-border)] rounded-md px-3 py-2 text-sm text-[var(--color-ink)] focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+            >
+              <option value="all">All Batches (Full Class)</option>
+              <option value="1">{batchConfig.batch1Label}</option>
+              <option value="2">{batchConfig.batch2Label}</option>
+            </select>
+          )}
+
           <select
             value={filterAssignment}
             onChange={(e) => setFilterAssignment(e.target.value)}
@@ -415,6 +491,11 @@ export default function FacultyReview({
                 submission.studentUsername.toLowerCase()
               )
               const personName = person?.displayName
+              const submissionClass = classOf(submission)
+              const batchInfo = getSubmissionBatch(
+                submission.studentUsername,
+                submissionClass
+              )
               const statusConfig = {
                 active: { dot: "status-dot--active", label: "In Progress" },
                 completed: { dot: "status-dot--review", label: "Awaiting Acceptance" },
@@ -436,19 +517,38 @@ export default function FacultyReview({
                       </div>
                       <div>
                         <div className="font-medium text-[var(--color-ink)]">
-                          {personName || `@${submission.studentUsername}`}
+                          <Link
+                            href={`/profile?username=${encodeURIComponent(submission.studentUsername)}`}
+                            className="hover:text-[var(--color-accent)] hover:underline"
+                          >
+                            {personName || `@${submission.studentUsername}`}
+                          </Link>
                         </div>
                         {personName && (
                           <div className="font-mono text-xs text-[var(--color-ink-muted)]">
-                            @{submission.studentUsername}
+                            <Link
+                              href={`/profile?username=${encodeURIComponent(submission.studentUsername)}`}
+                              className="hover:text-[var(--color-accent)] hover:underline"
+                            >
+                              @{submission.studentUsername}
+                            </Link>
                             {person?.rollNo ? ` · ${person.rollNo}` : ""}
                           </div>
                         )}
-                        <div className="text-sm text-[var(--color-ink-muted)]">
-                          {assignment?.title || submission.assignmentId}
-                          {(assignment?.assignedTeams || []).length > 0 && (
-                            <span className="ml-2 text-xs rounded-md bg-[var(--color-accent-soft)] text-[var(--color-accent)] px-2 py-0.5">
+                        <div className="text-sm text-[var(--color-ink-muted)] flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <span>{assignment?.title || submission.assignmentId}</span>
+                          {submissionClass ? (
+                            <span className="text-xs rounded-md bg-[var(--color-accent-soft)] text-[var(--color-accent)] px-2 py-0.5 font-medium">
+                              {submissionClass}
+                            </span>
+                          ) : (assignment?.assignedTeams || []).length > 0 ? (
+                            <span className="text-xs rounded-md bg-[var(--color-accent-soft)] text-[var(--color-accent)] px-2 py-0.5 font-medium">
                               {assignment?.assignedTeams.join(", ")}
+                            </span>
+                          ) : null}
+                          {batchInfo && (
+                            <span className="text-xs rounded-md bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 font-medium">
+                              {batchInfo.label}
                             </span>
                           )}
                         </div>

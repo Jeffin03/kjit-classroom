@@ -19,6 +19,7 @@ import { jsonError, readJson } from "@/backend/http"
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const assignmentId = searchParams.get("assignmentId")
+  const student = searchParams.get("student")
 
   if (assignmentId) {
     const auth = await authorize("submission.readAll")
@@ -41,6 +42,21 @@ export async function GET(request: Request) {
   const auth = await authenticate()
   if (!auth.ok) return auth.response
   const { access } = auth.session
+
+  if (student) {
+    const isSelf = access.username.toLowerCase() === student.toLowerCase()
+    const isFaculty =
+      access.isFaculty || access.capabilities.has("submission.readAll")
+
+    if (!isSelf && !isFaculty) {
+      return NextResponse.json(
+        { error: "Not authorized to view this student's submissions" },
+        { status: 403 }
+      )
+    }
+
+    return NextResponse.json(getSubmissionsForStudent(student))
+  }
 
   if (access.capabilities.has("submission.readAll")) {
     return NextResponse.json(getSubmissionsForFaculty(access.scopedClasses))

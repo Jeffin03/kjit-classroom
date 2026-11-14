@@ -302,9 +302,11 @@ function CommandPaletteDialog({
           title: studentName,
           subtitle: `${entry.rollNo} ${handle ? `· ${handle} ` : ""}· ${entry.classTeam}`,
           category: "Students",
-          href: `/faculty/roster?class=${encodeURIComponent(
-            entry.classTeam
-          )}&search=${encodeURIComponent(entry.rollNo)}`,
+          href: entry.githubUsername
+            ? `/profile?username=${encodeURIComponent(entry.githubUsername)}`
+            : `/faculty/roster?class=${encodeURIComponent(
+                entry.classTeam
+              )}&search=${encodeURIComponent(entry.rollNo)}`,
           keywords: [
             entry.rollNo,
             entry.githubUsername || "",

@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import Avatar from "@/frontend/components/Avatar"
 import StatusPill, { type StatusTone } from "@/frontend/components/StatusPill"
@@ -12,7 +13,6 @@ import {
   ClipboardIcon,
   GitHubIcon,
   UsersIcon,
-  CheckCircleIcon,
   ArrowRightIcon,
 } from "@/frontend/components/Icons"
 import type { SubmissionWithSprints } from "@/backend/types"
@@ -35,8 +35,7 @@ const roleDescriptions: Record<Role, string> = {
     "Course teacher access scoped to assigned class sections, assignments, and student reviews.",
   "elective-teacher":
     "Elective course teacher access scoped to elective student batches and submissions.",
-  student:
-    "Project-based learning student. Projects live in your personal GitHub account and are submitted per sprint.",
+  student: "",
   unrostered:
     "Your GitHub account is signed in, but has not yet been matched to a class roster or faculty team.",
 }
@@ -61,7 +60,7 @@ function ExternalLinkIcon({ className = "w-3.5 h-3.5" }: { className?: string })
   )
 }
 
-function MailIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+function MailIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -80,16 +79,122 @@ function MailIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   )
 }
 
-export default function Profile() {
+export default function Profile({
+  targetUsername,
+}: {
+  targetUsername?: string
+}) {
+  const router = useRouter()
   const {
-    username,
-    role,
-    isFaculty,
-    isOrgOwner,
+    username: sessionUsername,
+    role: sessionRole,
+    isFaculty: sessionIsFaculty,
+    isOrgOwner: sessionIsOrgOwner,
     loading: userLoading,
   } = useSessionUser()
-  const { submissions: allSubmissions, loading: subsLoading } = useSubmissions()
+
+  const isSelf =
+    !targetUsername ||
+    Boolean(
+      sessionUsername &&
+        targetUsername.toLowerCase() === sessionUsername.toLowerCase()
+    )
+
+  const { submissions: selfSubmissions, loading: selfSubsLoading } =
+    useSubmissions()
+  const [targetedSubmissions, setTargetedSubmissions] = useState<
+    SubmissionWithSprints[]
+  >([])
+  const [targetedSubsLoading, setTargetedSubsLoading] = useState(
+    Boolean(!isSelf && targetUsername)
+  )
+
   const { assignments, loading: assignmentsLoading } = useAssignments()
+
+  const [me, setMe] = useState<{
+    username?: string
+    role?: Role
+    name: string | null
+    image: string | null
+    email: string | null
+    rollNo: string | null
+    displayName: string | null
+    classTeam: string | null
+    rosterStatus: string | null
+    teacherRole: string | null
+    teacherClasses: string[] | null
+    isSelf?: boolean
+    viewerRole?: Role
+  } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [allTeams, setAllTeams] = useState<string[]>([])
+
+  const displayedRole: Role = me?.role || (isSelf ? sessionRole : "student")
+  const displayedUsername = me?.username || targetUsername || sessionUsername
+  const displayedName =
+    me?.displayName || me?.name || displayedUsername || "User"
+  const isTargetFaculty =
+    displayedRole !== "student" && displayedRole !== "unrostered"
+
+  // 1. Fetch targeted or self profile
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const url = isSelf
+          ? "/api/profile"
+          : `/api/profile?username=${encodeURIComponent(targetUsername!)}`
+        const res = await fetch(url)
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to load profile")
+        }
+        if (!cancelled) {
+          setMe(data)
+          setError(null)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Couldn't load profile."
+          )
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [isSelf, targetUsername])
+
+  // 2. If viewing another user who is a student, fetch that student's submissions
+  useEffect(() => {
+    if (!isSelf && targetUsername) {
+      let cancelled = false
+      fetch(`/api/submissions?student=${encodeURIComponent(targetUsername)}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => {
+          if (!cancelled) {
+            setTargetedSubmissions(Array.isArray(data) ? data : [])
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setTargetedSubmissions([])
+        })
+        .finally(() => {
+          if (!cancelled) setTargetedSubsLoading(false)
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+  }, [isSelf, targetUsername])
+
+  const allSubmissions = isSelf ? selfSubmissions : targetedSubmissions
+  const subsLoading = isSelf ? selfSubsLoading : targetedSubsLoading
 
   // Deduplicate submissions by assignmentId defensively (prefer the one with most sprints / highest progress)
   const studentSubmissions = useMemo(() => {
@@ -113,49 +218,9 @@ export default function Profile() {
     return Array.from(map.values())
   }, [allSubmissions])
 
-  const [me, setMe] = useState<{
-    name: string | null
-    image: string | null
-    email: string | null
-    rollNo: string | null
-    displayName: string | null
-    classTeam: string | null
-    rosterStatus: string | null
-    teacherRole: string | null
-    teacherClasses: string[] | null
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [allTeams, setAllTeams] = useState<string[]>([])
-
-  const displayName = me?.displayName || me?.name || username
-
+  // If viewer is faculty/animator/owner, load all teams so we can hyperlink all classes
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const res = await fetch("/api/me")
-        if (!res.ok) throw new Error("Failed to load profile")
-        const data = await res.json()
-        if (!cancelled) {
-          setMe(data)
-          setError(null)
-        }
-      } catch {
-        if (!cancelled) setError("Couldn't load your profile.")
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  // If faculty/animator/owner, load all teams so we can hyperlink all classes
-  useEffect(() => {
-    if (isFaculty) {
+    if (sessionIsFaculty) {
       fetch("/api/org/teams")
         .then((r) => (r.ok ? r.json() : { teams: [] }))
         .then((data) => {
@@ -169,7 +234,7 @@ export default function Profile() {
         })
         .catch(() => {})
     }
-  }, [isFaculty])
+  }, [sessionIsFaculty])
 
   if (loading || userLoading) {
     const skeleton = (
@@ -190,7 +255,7 @@ export default function Profile() {
       </div>
     )
 
-    if (isFaculty) {
+    if (sessionIsFaculty) {
       return <FacultyShell>{skeleton}</FacultyShell>
     }
     return <div className="max-w-4xl mx-auto px-4 py-8">{skeleton}</div>
@@ -201,18 +266,29 @@ export default function Profile() {
       <div className="max-w-4xl mx-auto py-12 text-center">
         <div className="rounded-2xl border border-danger bg-danger-soft p-8 text-danger-text">
           <p className="text-sm font-medium">{error}</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="mt-4 rounded-lg bg-white px-4 py-2 text-xs font-semibold text-danger shadow-xs hover:bg-canvas"
-          >
-            Retry
-          </button>
+          <div className="mt-4 flex items-center justify-center gap-3">
+            {!isSelf && (
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="rounded-lg bg-surface px-4 py-2 text-xs font-semibold text-ink border border-border hover:bg-canvas"
+              >
+                ← Go Back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-danger shadow-xs hover:bg-canvas"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     )
 
-    if (isFaculty) {
+    if (sessionIsFaculty) {
       return <FacultyShell>{errorBox}</FacultyShell>
     }
     return <div className="max-w-4xl mx-auto px-4 py-8">{errorBox}</div>
@@ -221,13 +297,35 @@ export default function Profile() {
   // Profile Content
   const profileContent = (
     <div className="space-y-6">
+      {/* Top Banner when viewing another user */}
+      {!isSelf && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface px-4 py-3 shadow-xs">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline cursor-pointer"
+          >
+            <span>← Back</span>
+          </button>
+          <div className="text-xs text-ink-muted">
+            Viewing {displayedRole === "student" ? "student" : "faculty"} profile:{" "}
+            <span
+              className="font-mono font-semibold text-ink"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              @{displayedUsername}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 1. Header Card */}
       <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="size-16 sm:size-20 shrink-0">
               <Avatar
-                name={displayName}
+                name={displayedName}
                 size="lg"
                 image={me?.image ?? undefined}
               />
@@ -235,24 +333,24 @@ export default function Profile() {
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
-                  {displayName}
+                  {displayedName}
                 </h1>
                 <span className="rounded-full bg-accent-soft px-3 py-0.5 text-xs font-semibold text-accent">
-                  {roleLabels[role] || role}
+                  {roleLabels[displayedRole] || displayedRole}
                 </span>
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
-                {username && (
+                {displayedUsername && (
                   <a
-                    href={`https://github.com/${username}`}
+                    href={`https://github.com/${displayedUsername}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 font-mono text-accent hover:underline"
                     style={{ fontFamily: "var(--font-mono)" }}
                   >
                     <GitHubIcon className="size-4" />
-                    <span>@{username}</span>
+                    <span>@{displayedUsername}</span>
                     <ExternalLinkIcon className="size-3 text-ink-faint" />
                   </a>
                 )}
@@ -271,34 +369,52 @@ export default function Profile() {
           </div>
 
           <div className="flex items-center gap-2">
-            {username && (
+            {displayedUsername && (
               <a
-                href={`https://github.com/${username}`}
+                href={`https://github.com/${displayedUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-canvas px-3.5 text-xs font-medium text-ink transition-colors hover:bg-surface hover:text-accent"
               >
                 <GitHubIcon className="size-4" />
-                <span>View GitHub Profile</span>
+                <span>GitHub Profile</span>
                 <ExternalLinkIcon className="size-3" />
               </a>
             )}
-            <Link
-              href={
-                role === "student" || role === "unrostered"
-                  ? "/dashboard"
-                  : "/faculty"
-              }
-              className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-xs font-medium text-white transition-colors hover:bg-accent-hover"
-            >
-              Dashboard →
-            </Link>
+            {isSelf ? (
+              <Link
+                href={
+                  displayedRole === "student" || displayedRole === "unrostered"
+                    ? "/dashboard"
+                    : "/faculty"
+                }
+                className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-xs font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                Dashboard →
+              </Link>
+            ) : displayedRole === "student" ? (
+              <Link
+                href="/faculty/roster"
+                className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-xs font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                Student Roster →
+              </Link>
+            ) : (
+              <Link
+                href="/faculty/requests"
+                className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-xs font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                Faculty Roster →
+              </Link>
+            )}
           </div>
         </div>
 
-        <p className="mt-4 border-t border-border pt-4 text-xs sm:text-sm text-ink-muted leading-relaxed">
-          {roleDescriptions[role]}
-        </p>
+        {roleDescriptions[displayedRole] ? (
+          <p className="mt-4 border-t border-border pt-4 text-xs sm:text-sm text-ink-muted leading-relaxed">
+            {roleDescriptions[displayedRole]}
+          </p>
+        ) : null}
       </div>
 
       {/* 2. Metadata Grid */}
@@ -309,16 +425,15 @@ export default function Profile() {
             GitHub Account
           </p>
           <div className="mt-2 flex items-center justify-between">
-            {username ? (
+            {displayedUsername ? (
               <a
-                href={`https://github.com/${username}`}
+                href={`https://github.com/${displayedUsername}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-sm font-semibold text-accent hover:underline flex items-center gap-1"
+                className="truncate font-mono text-sm font-semibold text-ink hover:text-accent hover:underline"
                 style={{ fontFamily: "var(--font-mono)" }}
               >
-                @{username}
-                <ExternalLinkIcon className="size-3" />
+                @{displayedUsername}
               </a>
             ) : (
               <span className="text-sm text-ink-muted">—</span>
@@ -354,7 +469,7 @@ export default function Profile() {
         </div>
 
         {/* Student-specific: Roll No / Class */}
-        {role === "student" && (
+        {displayedRole === "student" && (
           <>
             <div className="rounded-2xl border border-border bg-surface p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
@@ -378,7 +493,11 @@ export default function Profile() {
               <div className="mt-2">
                 {me?.classTeam ? (
                   <Link
-                    href="/dashboard"
+                    href={
+                      sessionIsFaculty
+                        ? `/faculty/class/${encodeURIComponent(me.classTeam)}`
+                        : "/dashboard"
+                    }
                     className="inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline"
                   >
                     <span>{me.classTeam}</span>
@@ -388,13 +507,15 @@ export default function Profile() {
                   <span className="text-sm text-ink-muted">—</span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-ink-faint">Assigned Section</p>
+              <p className="mt-1 text-xs text-ink-faint">
+                {sessionIsFaculty ? "Open Class Dashboard" : "Assigned Section"}
+              </p>
             </div>
           </>
         )}
 
         {/* Faculty/Admin: Teaching Role & Scope */}
-        {isFaculty && (
+        {isTargetFaculty && (
           <>
             <div className="rounded-2xl border border-border bg-surface p-5">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
@@ -402,11 +523,13 @@ export default function Profile() {
               </p>
               <div className="mt-2">
                 <span className="text-sm font-semibold text-ink">
-                  {roleLabels[role]}
+                  {roleLabels[displayedRole]}
                 </span>
               </div>
               <p className="mt-1 text-xs text-ink-faint">
-                {role === "owner" ? "Institute Admin" : "Faculty Permissions"}
+                {displayedRole === "owner"
+                  ? "Institute Admin"
+                  : "Faculty Permissions"}
               </p>
             </div>
 
@@ -415,7 +538,7 @@ export default function Profile() {
                 Teaching Scope
               </p>
               <div className="mt-2">
-                {role === "owner" || role === "animator" ? (
+                {displayedRole === "owner" || displayedRole === "animator" ? (
                   <Link
                     href="/faculty#classes"
                     className="inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline"
@@ -437,7 +560,7 @@ export default function Profile() {
         )}
 
         {/* Unrostered */}
-        {role === "unrostered" && (
+        {displayedRole === "unrostered" && (
           <div className="rounded-2xl border border-caution bg-caution-soft p-5 sm:col-span-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-caution">
               Roster Status
@@ -446,7 +569,7 @@ export default function Profile() {
               Action Required: Account not onboarded
             </p>
             <p className="mt-1 text-xs text-ink-muted">
-              Contact your faculty to be matched to your class roster.
+              Contact faculty or admin to be matched to your class roster.
             </p>
           </div>
         )}
@@ -455,24 +578,36 @@ export default function Profile() {
       {/* 3. Role-Specific Main Body */}
 
       {/* A. STUDENT: Submissions & Projects */}
-      {role === "student" && (
+      {displayedRole === "student" && (
         <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-border pb-4">
             <div>
               <h2 className="text-base font-semibold text-ink">
-                My Project Submissions
+                {isSelf
+                  ? "My Project Submissions"
+                  : `${displayedName}'s Project Submissions`}
               </h2>
               <p className="text-xs text-ink-muted">
                 Sprint submissions, git snapshots, and faculty review notes
               </p>
             </div>
-            <Link
-              href="/assignments"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-            >
-              <span>View All Assignments</span>
-              <ArrowRightIcon className="size-3" />
-            </Link>
+            {isSelf ? (
+              <Link
+                href="/assignments"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+              >
+                <span>View All Assignments</span>
+                <ArrowRightIcon className="size-3" />
+              </Link>
+            ) : (
+              <Link
+                href="/faculty/review"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+              >
+                <span>Review Submissions Queue</span>
+                <ArrowRightIcon className="size-3" />
+              </Link>
+            )}
           </div>
 
           {subsLoading || assignmentsLoading ? (
@@ -484,16 +619,24 @@ export default function Profile() {
           ) : studentSubmissions.length === 0 ? (
             <div className="rounded-xl border border-border bg-canvas p-8 text-center">
               <ClipboardIcon className="size-8 mx-auto text-ink-faint mb-2" />
-              <p className="text-sm font-medium text-ink">No project submissions yet</p>
-              <p className="mt-1 text-xs text-ink-muted">
-                Create a repo in your GitHub account and submit Sprint 0 to get started.
+              <p className="text-sm font-medium text-ink">
+                {isSelf
+                  ? "No project submissions yet"
+                  : "This student has not submitted any projects yet"}
               </p>
-              <Link
-                href="/assignments"
-                className="mt-4 inline-flex items-center rounded-lg bg-accent px-4 py-2 text-xs font-medium text-white hover:bg-accent-hover"
-              >
-                Browse Assignments →
-              </Link>
+              <p className="mt-1 text-xs text-ink-muted">
+                {isSelf
+                  ? "Create a repo in your GitHub account and submit Sprint 0 to get started."
+                  : "Submissions will appear here once the student starts an assignment."}
+              </p>
+              {isSelf && (
+                <Link
+                  href="/assignments"
+                  className="mt-4 inline-flex items-center rounded-lg bg-accent px-4 py-2 text-xs font-medium text-white hover:bg-accent-hover"
+                >
+                  Browse Assignments →
+                </Link>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-border rounded-xl border border-border bg-surface">
@@ -515,6 +658,10 @@ export default function Profile() {
                 }
                 const config = statusConfig[submission.status]
 
+                const timelineHref = sessionIsFaculty
+                  ? `/faculty/review?assignment=${submission.assignmentId}`
+                  : `/assignments/timeline?assignmentId=${submission.assignmentId}`
+
                 return (
                   <div
                     key={submission.id}
@@ -523,7 +670,7 @@ export default function Profile() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Link
-                          href={`/assignments/timeline?assignmentId=${submission.assignmentId}`}
+                          href={timelineHref}
                           className="text-base font-semibold text-ink hover:text-accent hover:underline"
                         >
                           {assignment?.title || submission.assignmentId}
@@ -540,7 +687,8 @@ export default function Profile() {
                         </span>
                         <span>·</span>
                         <span>
-                          {submission.sprints.length === 1 && lastSprint?.sprintNumber === 0
+                          {submission.sprints.length === 1 &&
+                          lastSprint?.sprintNumber === 0
                             ? "Sprint 0 (Abstract) submitted"
                             : `${submission.sprints.length} of ${maxSprints} sprints submitted`}
                         </span>
@@ -549,7 +697,9 @@ export default function Profile() {
                             <span>·</span>
                             <span>
                               Latest: Sprint {lastSprint.sprintNumber}{" "}
-                              {lastSprint.reviewedAt ? "(Reviewed)" : "(Pending review)"}
+                              {lastSprint.reviewedAt
+                                ? "(Reviewed)"
+                                : "(Pending review)"}
                             </span>
                           </>
                         )}
@@ -585,10 +735,10 @@ export default function Profile() {
                       )}
 
                       <Link
-                        href={`/assignments/timeline?assignmentId=${submission.assignmentId}`}
+                        href={timelineHref}
                         className="inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover transition-colors"
                       >
-                        <span>Sprint Timeline</span>
+                        <span>{sessionIsFaculty ? "Review Work" : "Sprint Timeline"}</span>
                         <ArrowRightIcon className="size-3" />
                       </Link>
                     </div>
@@ -601,8 +751,9 @@ export default function Profile() {
       )}
 
       {/* B. TEACHER: Scoped Classes & Quick Actions */}
-      {isFaculty && (role === "subject-teacher" || role === "elective-teacher") && (
-        <>
+      {isTargetFaculty &&
+        (displayedRole === "subject-teacher" ||
+          displayedRole === "elective-teacher") && (
           <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-border pb-4">
               <div>
@@ -610,16 +761,18 @@ export default function Profile() {
                   Assigned Classes
                 </h2>
                 <p className="text-xs text-ink-muted">
-                  Sections you are authorized to teach, create assignments for, and review
+                  Sections authorized to teach, create assignments for, and review
                 </p>
               </div>
-              <Link
-                href="/faculty#classes"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-              >
-                <span>View Dashboard</span>
-                <ArrowRightIcon className="size-3" />
-              </Link>
+              {sessionIsOrgOwner && (
+                <Link
+                  href="/faculty/requests"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+                >
+                  <span>Manage Class Scope</span>
+                  <ArrowRightIcon className="size-3" />
+                </Link>
+              )}
             </div>
 
             {me?.teacherClasses && me.teacherClasses.length > 0 ? (
@@ -656,294 +809,72 @@ export default function Profile() {
               </div>
             ) : (
               <div className="rounded-xl border border-border bg-canvas p-6 text-center text-sm text-ink-muted">
-                No specific classes scoped to your account yet. Contact an org owner.
+                No specific classes scoped yet.
               </div>
             )}
           </section>
+        )}
 
-          {/* Teacher Quick Management Links */}
-          <section className="grid gap-4 sm:grid-cols-3">
-            <Link
-              href="/faculty/review"
-              className="group rounded-2xl border border-border bg-surface p-5 transition-all hover:border-accent hover:shadow-xs"
-            >
-              <div className="size-8 rounded-lg bg-accent-soft flex items-center justify-center text-accent mb-3">
-                <CheckCircleIcon className="size-4" />
-              </div>
-              <h3 className="text-sm font-semibold text-ink group-hover:text-accent">
-                Review Queue →
-              </h3>
-              <p className="mt-1 text-xs text-ink-muted">
-                Inspect latest student commits, diffs, and record feedback.
-              </p>
-            </Link>
-
-            <Link
-              href="/faculty/roster"
-              className="group rounded-2xl border border-border bg-surface p-5 transition-all hover:border-accent hover:shadow-xs"
-            >
-              <div className="size-8 rounded-lg bg-accent-soft flex items-center justify-center text-accent mb-3">
-                <UsersIcon className="size-4" />
-              </div>
-              <h3 className="text-sm font-semibold text-ink group-hover:text-accent">
-                Student Roster →
-              </h3>
-              <p className="mt-1 text-xs text-ink-muted">
-                View onboarded students, rolls, and GitHub links.
-              </p>
-            </Link>
-
-            <Link
-              href="/faculty/assignments/new"
-              className="group rounded-2xl border border-border bg-surface p-5 transition-all hover:border-accent hover:shadow-xs"
-            >
-              <div className="size-8 rounded-lg bg-accent-soft flex items-center justify-center text-accent mb-3">
-                <ClipboardIcon className="size-4" />
-              </div>
-              <h3 className="text-sm font-semibold text-ink group-hover:text-accent">
-                Create Assignment →
-              </h3>
-              <p className="mt-1 text-xs text-ink-muted">
-                Draft new project rubrics and sprint milestones.
-              </p>
-            </Link>
-          </section>
-        </>
-      )}
-
-      {/* C. ANIMATOR & ORG OWNER: Institute-wide classes & Admin shortcuts */}
-      {isFaculty && (role === "owner" || role === "animator") && (
-        <>
+      {/* C. ANIMATOR / OWNER: Institute-Wide Overview */}
+      {isTargetFaculty &&
+        (displayedRole === "owner" || displayedRole === "animator") && (
           <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-border pb-4">
               <div>
                 <h2 className="text-base font-semibold text-ink">
-                  Institute Classes ({allTeams.length})
+                  Institute-Wide Cohorts & Governance
                 </h2>
                 <p className="text-xs text-ink-muted">
-                  Unrestricted access to every department cohort and class team
+                  Full administrative permissions across all academic departments
                 </p>
               </div>
-              <Link
-                href="/faculty#classes"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-              >
-                <span>View Dashboard</span>
-                <ArrowRightIcon className="size-3" />
-              </Link>
+              {sessionIsOrgOwner && (
+                <Link
+                  href="/faculty/requests"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+                >
+                  <span>Faculty Administration</span>
+                  <ArrowRightIcon className="size-3" />
+                </Link>
+              )}
             </div>
 
-            {allTeams.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {allTeams.map((teamName) => (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {allTeams.length > 0 ? (
+                allTeams.map((teamName) => (
                   <Link
                     key={teamName}
                     href={`/faculty/class/${encodeURIComponent(teamName)}`}
-                    className="group flex flex-col justify-between rounded-xl border border-border bg-canvas/60 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-sm"
+                    className="group rounded-xl border border-border bg-canvas/60 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
                   >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="rounded-lg bg-accent-soft p-2 text-accent">
-                          <UsersIcon className="size-4" />
-                        </span>
-                        <span className="text-xs text-ink-faint group-hover:text-accent transition-colors">
-                          Open ›
-                        </span>
-                      </div>
-                      <h3 className="mt-3 text-sm font-semibold text-ink group-hover:text-accent transition-colors">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm text-ink group-hover:text-accent transition-colors">
                         {teamName}
-                      </h3>
-                      <p className="mt-1 text-xs text-ink-muted">
-                        Class Dashboard & Rollups
-                      </p>
+                      </span>
+                      <ArrowRightIcon className="size-3.5 text-ink-faint group-hover:text-accent transition-colors" />
                     </div>
-
-                    <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-[11px] text-ink-muted">
-                      <span>Assignments & Roster</span>
-                      <span className="font-semibold text-accent">View →</span>
-                    </div>
+                    <p className="mt-1 text-xs text-ink-muted">
+                      Class Section
+                    </p>
                   </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border bg-canvas p-6 text-center text-sm text-ink-muted">
-                No class teams registered in the organization yet.
-              </div>
-            )}
-          </section>
-
-          {/* Admin Management Hub */}
-          <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
-            <h2 className="text-base font-semibold text-ink mb-1">
-              {role === "owner" ? "Administration Hub" : "Faculty Quick Hub"}
-            </h2>
-            <p className="text-xs text-ink-muted mb-6">
-              Institute-wide controls, role assignments, and review workflows
-            </p>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {isOrgOwner && (
-                <Link
-                  href="/faculty/requests"
-                  className="group rounded-xl border border-border bg-canvas/50 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
-                >
-                  <p className="text-xs font-semibold text-accent uppercase tracking-wider">
-                    Permissions
-                  </p>
-                  <h3 className="mt-1 text-sm font-semibold text-ink group-hover:text-accent">
-                    Faculty Access & Roles →
-                  </h3>
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Approve teachers, assign class teams, and manage institute animators.
-                  </p>
-                </Link>
-              )}
-
-              <Link
-                href="/faculty/roster?view=onboard"
-                className="group rounded-xl border border-border bg-canvas/50 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
-              >
-                <p className="text-xs font-semibold text-accent uppercase tracking-wider">
-                  Onboarding
-                </p>
-                <h3 className="mt-1 text-sm font-semibold text-ink group-hover:text-accent">
-                  Onboard Students (CSV) →
-                </h3>
-                <p className="mt-1 text-xs text-ink-muted">
-                  Upload class rosters, auto-match GitHub accounts, and invite students.
-                </p>
-              </Link>
-
-              <Link
-                href="/faculty/review"
-                className="group rounded-xl border border-border bg-canvas/50 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
-              >
-                <p className="text-xs font-semibold text-accent uppercase tracking-wider">
-                  Grading
-                </p>
-                <h3 className="mt-1 text-sm font-semibold text-ink group-hover:text-accent">
-                  Global Review Queue →
-                </h3>
-                <p className="mt-1 text-xs text-ink-muted">
-                  Review all active and completed sprint submissions across all classes.
-                </p>
-              </Link>
-
-              <Link
-                href="/faculty/assignments/new"
-                className="group rounded-xl border border-border bg-canvas/50 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
-              >
-                <p className="text-xs font-semibold text-accent uppercase tracking-wider">
-                  Curriculum
-                </p>
-                <h3 className="mt-1 text-sm font-semibold text-ink group-hover:text-accent">
-                  Create Assignment →
-                </h3>
-                <p className="mt-1 text-xs text-ink-muted">
-                  Draft problem statements, sprint milestones, and target classes.
-                </p>
-              </Link>
-
-              <Link
-                href="/faculty/roster"
-                className="group rounded-xl border border-border bg-canvas/50 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
-              >
-                <p className="text-xs font-semibold text-accent uppercase tracking-wider">
-                  Directory
-                </p>
-                <h3 className="mt-1 text-sm font-semibold text-ink group-hover:text-accent">
-                  Student Roster →
-                </h3>
-                <p className="mt-1 text-xs text-ink-muted">
-                  Browse all active and invited students across every class cohort.
-                </p>
-              </Link>
-
-              {isOrgOwner && (
-                <a
-                  href="https://github.com/kristu-jayanti-institute-of-technology"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group rounded-xl border border-border bg-canvas/50 p-4 transition-all hover:border-accent hover:bg-surface hover:shadow-xs"
-                >
-                  <p className="text-xs font-semibold text-accent uppercase tracking-wider flex items-center gap-1">
-                    GitHub Org <ExternalLinkIcon className="size-3" />
-                  </p>
-                  <h3 className="mt-1 text-sm font-semibold text-ink group-hover:text-accent">
-                    Organization Settings ↗
-                  </h3>
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Open the institution&apos;s GitHub organization dashboard.
-                  </p>
-                </a>
+                ))
+              ) : (
+                <div className="col-span-full rounded-xl border border-border bg-canvas p-6 text-center text-sm text-ink-muted">
+                  No cohort teams found.
+                </div>
               )}
             </div>
           </section>
-        </>
-      )}
-
-      {/* D. UNROSTERED GUIDANCE */}
-      {role === "unrostered" && (
-        <section className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
-          <h2 className="text-base font-semibold text-ink mb-1">
-            Getting Started on KJIT Classroom
-          </h2>
-          <p className="text-xs text-ink-muted mb-4">
-            Follow these steps to link your account and access class assignments
-          </p>
-
-          <ol className="space-y-3 text-sm text-ink-muted">
-            <li className="flex items-start gap-3">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
-                1
-              </span>
-              <span>
-                Share your GitHub username (
-                <strong className="text-ink">@{username}</strong>) and your college roll number with your class faculty or lab animator.
-              </span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
-                2
-              </span>
-              <span>
-                Your teacher will upload the class roster and send you an invitation to the class GitHub team.
-              </span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
-                3
-              </span>
-              <span>
-                Accept the invitation on GitHub. Refresh this page to view your assignments and begin submitting Sprint 0!
-              </span>
-            </li>
-          </ol>
-        </section>
-      )}
-
-      {/* Bottom Navigation */}
-      <div className="flex items-center justify-between pt-2">
-        <Link
-          href={
-            role === "student" || role === "unrostered"
-              ? "/dashboard"
-              : "/faculty"
-          }
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink transition-colors"
-        >
-          <span>← Back to {isFaculty ? "Faculty Dashboard" : "Dashboard"}</span>
-        </Link>
-      </div>
+        )}
     </div>
   )
 
-  if (isFaculty) {
+  if (sessionIsFaculty) {
     return <FacultyShell>{profileContent}</FacultyShell>
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       {profileContent}
     </div>
   )

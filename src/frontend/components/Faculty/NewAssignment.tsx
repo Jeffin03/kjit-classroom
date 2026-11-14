@@ -68,8 +68,10 @@ function ListInput({
 
 export default function NewAssignment({
   assignmentId,
+  initialClass,
 }: {
   assignmentId?: string
+  initialClass?: string
 }) {
   const isEdit = Boolean(assignmentId)
   const router = useRouter()
@@ -86,7 +88,9 @@ export default function NewAssignment({
   const [evaluationCriteria, setEvaluationCriteria] = useState<string[]>([""])
   const [teams, setTeams] = useState<string[]>([])
   const [teamsError, setTeamsError] = useState(false)
-  const [assignedTeams, setAssignedTeams] = useState<string[]>([])
+  const [assignedTeams, setAssignedTeams] = useState<string[]>(
+    initialClass ? [initialClass] : []
+  )
   const [allowLateSubmissions, setAllowLateSubmissions] = useState(false)
   const [loadingAssignment, setLoadingAssignment] = useState(isEdit)
   const [submitting, setSubmitting] = useState(false)

@@ -65,9 +65,11 @@ const STEPS = [
 export default function FacultyOnboard({
   embedded = false,
   onDone,
+  initialTeamName,
 }: {
   embedded?: boolean
   onDone?: () => void
+  initialTeamName?: string
 } = {}) {
   const { data: session, status } = useSession()
   const { capabilities, loading: accessLoading } = useSessionUser()
@@ -165,6 +167,17 @@ export default function FacultyOnboard({
       .then((teamsData) => {
         if (Array.isArray(teamsData.teams)) {
           setTeams(teamsData.teams)
+          if (initialTeamName) {
+            const needle = initialTeamName.toLowerCase()
+            const match = teamsData.teams.find(
+              (t: Team) =>
+                t.name.toLowerCase() === needle || t.slug.toLowerCase() === needle
+            )
+            if (match) {
+              setSelectedTeam(match)
+              setStep(2)
+            }
+          }
           if (teamsData.teams.length === 0 && teamsData.error) {
             setTeamsError(teamsData.error)
           } else {
@@ -179,7 +192,7 @@ export default function FacultyOnboard({
         setTeamsError("Network error while loading classes")
         setTeamsLoaded(true)
       })
-  }, [session, capabilities, accessLoading, router])
+  }, [session, capabilities, accessLoading, router, initialTeamName])
 
   const parseCsv = (content: string): CsvParseResult => {
     const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/)

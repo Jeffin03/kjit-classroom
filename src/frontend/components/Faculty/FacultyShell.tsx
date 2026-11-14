@@ -6,7 +6,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { useSessionUser, type Role } from "@/frontend/hooks/useSessionUser"
-import logo from "@/frontend/assets/KJU_Logo.webp"
+import banner from "@/frontend/assets/KJU_Banner.png"
 import CommandPalette, { CommandPaletteTrigger } from "@/frontend/components/CommandPalette"
 
 function Icon({ children }: { children: ReactNode }) {
@@ -78,16 +78,6 @@ const navItems: NavItem[] = [
       </Icon>
     ),
   },
-  {
-    href: "/profile",
-    label: "Profile",
-    icon: (
-      <Icon>
-        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </Icon>
-    ),
-  },
 ]
 
 const roleLabels: Record<Role, string> = {
@@ -104,45 +94,72 @@ function isActiveRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+function getBreadcrumb(pathname: string, role: Role) {
+  const root = role === "owner" ? "Admin" : "Faculty"
+  if (pathname === "/faculty") return { section: root, page: "Dashboard" }
+  if (pathname.startsWith("/faculty/review")) return { section: root, page: "Sprint Review" }
+  if (pathname.startsWith("/faculty/roster")) return { section: root, page: "Student Roster" }
+  if (pathname.startsWith("/faculty/requests")) return { section: root, page: "Faculty Roster & Staffing" }
+  if (pathname.startsWith("/faculty/class")) {
+    const parts = pathname.split("/")
+    const team = parts[3] ? decodeURIComponent(parts[3]) : "Class"
+    return { section: "Classes", page: team }
+  }
+  if (pathname.startsWith("/faculty/assignments/new")) return { section: "Assignments", page: "New Subject" }
+  if (pathname.startsWith("/faculty/assignments")) return { section: root, page: "Assignments" }
+  if (pathname.startsWith("/profile")) return { section: "Account", page: "Profile" }
+  return { section: root, page: "Overview" }
+}
+
 function SidebarNav({
   pathname,
   capabilities,
   onNavigate,
   onClose,
   pendingRequests = 0,
-  title = "Faculty",
+  role = "animator",
 }: {
   pathname: string
   capabilities: readonly string[]
   onNavigate: () => void
   onClose?: () => void
   pendingRequests?: number
-  title?: string
+  role?: Role
 }) {
   const visibleItems = navItems.filter(
     (item) => !item.capability || capabilities.includes(item.capability)
   )
 
   return (
-    <nav aria-label="Faculty" className="flex h-full flex-col">
-      <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[var(--color-border)] px-5">
-        <span className="flex items-center gap-2.5">
-          <Image
-            src={logo}
-            alt=""
-            sizes="32px"
-            className="h-8 w-8 object-contain"
-          />
-          <span className="text-sm font-semibold tracking-tight text-[var(--color-ink)]">
-            {title}
+    <nav aria-label="Faculty" className="flex h-full flex-col bg-surface">
+      {/* Brand & Portal Anchor */}
+      <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border px-5">
+        <Link
+          href="/faculty"
+          onClick={onNavigate}
+          className="flex flex-col justify-center min-w-0 group"
+        >
+          <span className="text-sm font-bold tracking-tight text-ink leading-tight">
+            KJIT Classroom
           </span>
-        </span>
+          <span className="mt-1 inline-flex items-center">
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
+                role === "owner"
+                  ? "bg-amber-100 text-amber-900 border border-amber-200"
+                  : "bg-accent-soft text-accent"
+              }`}
+            >
+              {role === "owner" ? "Admin Console" : "Faculty Portal"}
+            </span>
+          </span>
+        </Link>
         {onClose ? (
           <button
             type="button"
             onClick={onClose}
             aria-label="Close navigation"
-            className="-mr-2 inline-flex h-10 w-10 items-center justify-center rounded-lg text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
+            className="-mr-1.5 inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink-muted hover:bg-canvas hover:text-ink transition-colors"
           >
             <Icon>
               <path d="M6 18 18 6" />
@@ -152,34 +169,64 @@ function SidebarNav({
         ) : null}
       </div>
 
-      <ul className="flex-1 space-y-1 overflow-y-auto p-3">
-        {visibleItems.map((item) => {
-          const active = isActiveRoute(pathname, item.href)
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                onClick={onNavigate}
-                aria-current={active ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                    : "text-[var(--color-ink-muted)] hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)]"
-                }`}
-              >
-                <span className="shrink-0">{item.icon}</span>
-                {item.label}
-                {item.href === "/faculty/requests" && pendingRequests > 0 && (
-                  <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-white">
-                    {pendingRequests}
+      {/* Nav Items Section */}
+      <div className="flex-1 overflow-y-auto px-3 py-4">
+        <div className="px-3 pb-2 text-[10px] font-bold tracking-wider uppercase text-ink-subtle">
+          Workspace
+        </div>
+        <ul className="space-y-1">
+          {visibleItems.map((item) => {
+            const active = isActiveRoute(pathname, item.href)
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={`group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                    active
+                      ? "bg-accent-soft text-accent font-semibold shadow-2xs"
+                      : "text-ink-muted hover:bg-canvas hover:text-ink"
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-accent" />
+                  )}
+                  <span
+                    className={`shrink-0 transition-colors ${
+                      active
+                        ? "text-accent"
+                        : "text-ink-faint group-hover:text-ink"
+                    }`}
+                  >
+                    {item.icon}
                   </span>
-                )}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+                  <span>{item.label}</span>
+                  {item.href === "/faculty/requests" && pendingRequests > 0 && (
+                    <span className="ml-auto rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-2xs">
+                      {pendingRequests}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
 
+      {/* Quick Switch Footer */}
+      <div className="mt-auto border-t border-border p-3">
+        <Link
+          href="/dashboard"
+          className="flex items-center justify-between rounded-xl p-2.5 text-xs text-ink-muted hover:bg-canvas hover:text-ink transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-500" />
+            <span className="font-medium">Student View</span>
+          </div>
+          <span className="text-[11px] text-ink-faint font-medium">Switch →</span>
+        </Link>
+      </div>
     </nav>
   )
 }
@@ -233,16 +280,17 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
   const closeDrawer = () => setDrawerOpen(false)
   const displayName = user?.name || (username ? `@${username}` : "Faculty")
   const initial = (user?.name || username || "?").trim().charAt(0).toUpperCase()
+  const breadcrumb = getBreadcrumb(pathname, role)
 
   return (
     <div className="min-h-full">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-[var(--color-border)] bg-white lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-surface lg:block">
         <SidebarNav
           pathname={pathname}
           capabilities={capabilities}
           onNavigate={closeDrawer}
           pendingRequests={pendingRequests}
-          title={role === "owner" ? "Admin" : "Faculty"}
+          role={role}
         />
       </aside>
 
@@ -254,11 +302,11 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
             aria-hidden="true"
             tabIndex={-1}
             onClick={closeDrawer}
-            className="absolute inset-0 bg-[var(--color-ink)]/25"
+            className="absolute inset-0 bg-ink/25"
           />
           <div
             id="faculty-drawer"
-            className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-[var(--color-border)] bg-white shadow-xl"
+            className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-surface shadow-2xl"
           >
             <SidebarNav
               pathname={pathname}
@@ -266,22 +314,22 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
               onNavigate={closeDrawer}
               onClose={closeDrawer}
               pendingRequests={pendingRequests}
-              title={role === "owner" ? "Admin" : "Faculty"}
+              role={role}
             />
           </div>
         </div>
       )}
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-white px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-surface/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 relative">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label="Open navigation"
               aria-expanded={drawerOpen}
               aria-controls="faculty-drawer"
-              className="-ml-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-canvas)] hover:text-[var(--color-ink)] lg:hidden"
+              className="-ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-canvas hover:text-ink transition-colors lg:hidden"
             >
               <Icon>
                 <path d="M3.75 6.75h16.5" />
@@ -289,9 +337,32 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
                 <path d="M3.75 17.25h16.5" />
               </Icon>
             </button>
-            <span className="truncate text-sm font-medium text-[var(--color-ink-muted)]">
-              KJIT Classroom
-            </span>
+
+            {/* Desktop Contextual Breadcrumb */}
+            <nav aria-label="Breadcrumb" className="hidden lg:flex items-center gap-2 text-sm">
+              <span className="font-medium text-ink-muted">
+                {breadcrumb.section}
+              </span>
+              <span className="text-border-strong select-none font-light">/</span>
+              <span className="font-semibold text-ink tracking-tight">
+                {breadcrumb.page}
+              </span>
+            </nav>
+          </div>
+
+          {/* Center: KJU Banner */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-auto">
+            <Link
+              href="/faculty"
+              className="flex items-center transition-opacity hover:opacity-90"
+            >
+              <Image
+                src={banner}
+                alt="Somaiya Vidyavihar University / KJIT"
+                priority
+                className="h-8 sm:h-9 md:h-10 w-auto object-contain max-w-[170px] sm:max-w-[240px] md:max-w-none"
+              />
+            </Link>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">

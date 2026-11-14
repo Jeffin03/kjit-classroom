@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Avatar from "./Avatar"
 import CommandPalette, { CommandPaletteTrigger } from "./CommandPalette"
-import logo from "@/frontend/assets/KJU_Logo.webp"
+import banner from "@/frontend/assets/KJU_Banner.png"
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -53,7 +53,6 @@ export default function Navbar() {
   const links: { label: string; href: string }[] = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Assignments", href: "/assignments" },
-    { label: "Profile", href: "/profile" },
   ]
 
   const displayName = session?.user?.name || "Account"
@@ -61,44 +60,52 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-40 h-16 border-b border-border bg-surface">
-        <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-6">
-          <Link
-            href={session ? "/dashboard" : "/"}
-            className="flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-accent"
-          >
-            <Image
-              src={logo}
-              alt=""
-              sizes="32px"
-              priority
-              className="size-8 object-contain"
-            />
-            <strong className="hidden text-sm sm:block">KJIT Classroom</strong>
-          </Link>
+      <nav className="sticky top-0 z-40 h-16 border-b border-border bg-surface/90 backdrop-blur-md">
+        <div className="relative mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-6">
+            <Link
+              href={session ? "/dashboard" : "/"}
+              className="text-sm font-bold tracking-tight text-ink hover:text-accent transition-colors"
+            >
+              KJIT Classroom
+            </Link>
 
-          {session && (
-            <div className="flex items-center gap-1">
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  aria-current={isActive(link.href) ? "page" : undefined}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
-                    isActive(link.href)
-                      ? "bg-accent-soft text-accent"
-                      : "text-ink-muted hover:bg-canvas hover:text-ink"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
+            {session && (
+              <div className="flex items-center gap-1">
+                {links.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={isActive(link.href) ? "page" : undefined}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent ${
+                      isActive(link.href)
+                        ? "bg-accent-soft text-accent font-semibold"
+                        : "text-ink-muted hover:bg-canvas hover:text-ink"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
-        <div className="flex items-center gap-3">
+          {/* Center: KJU Banner */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center pointer-events-auto">
+            <Link
+              href={session ? "/dashboard" : "/"}
+              className="flex items-center transition-opacity hover:opacity-90"
+            >
+              <Image
+                src={banner}
+                alt="Somaiya Vidyavihar University / KJIT"
+                priority
+                className="h-8 md:h-9 w-auto object-contain max-w-[200px] md:max-w-none"
+              />
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-3">
           {session ? (
             <>
               <CommandPaletteTrigger onClick={() => setSearchOpen(true)} />

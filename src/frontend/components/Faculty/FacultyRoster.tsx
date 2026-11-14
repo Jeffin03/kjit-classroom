@@ -12,6 +12,7 @@ import ConfirmModal from "@/frontend/components/ConfirmModal"
 import Toast, { type ToastMessage } from "@/frontend/components/Toast"
 import FacultyPageHeader from "./FacultyPageHeader"
 import FacultyOnboard from "./FacultyOnboard"
+import CreateSubjectModal from "./CreateSubjectModal"
 import {
   UsersIcon,
   CheckCircleIcon,
@@ -119,6 +120,12 @@ export default function FacultyRoster({
   const [newClassName, setNewClassName] = useState("")
   const [newClassDesc, setNewClassDesc] = useState("")
   const [creatingClass, setCreatingClass] = useState(false)
+
+  // Create Subject Modal state
+  const [createSubjectModalOpen, setCreateSubjectModalOpen] = useState(false)
+  const [subjectInitialClass, setSubjectInitialClass] = useState<string | undefined>(
+    undefined
+  )
   const lastRemoved = useRef<RosterEntry | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -781,12 +788,13 @@ export default function FacultyRoster({
                         >
                           <span>+ Create Class</span>
                         </button>
-                        <Link
-                          href="/faculty/assignments/new"
+                        <button
+                          type="button"
+                          onClick={() => setCreateSubjectModalOpen(true)}
                           className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-medium text-ink hover:bg-canvas transition-colors shadow-xs"
                         >
                           <span>+ Create Subject</span>
-                        </Link>
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -981,15 +989,17 @@ export default function FacultyRoster({
                                     >
                                       Dashboard
                                     </Link>
-                                    <Link
-                                      href={`/faculty/assignments/new?class=${encodeURIComponent(
-                                        teamName
-                                      )}`}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSubjectInitialClass(teamName)
+                                        setCreateSubjectModalOpen(true)
+                                      }}
                                       className="rounded px-2 py-1 text-xs text-accent hover:bg-accent-soft transition-colors"
                                       title="Create Subject for this class"
                                     >
                                       + Subject
-                                    </Link>
+                                    </button>
                                     {canWrite && (
                                       <button
                                         type="button"
@@ -1500,6 +1510,18 @@ export default function FacultyRoster({
           />
         )}
       </div>
+
+      {/* CREATE SUBJECT MODAL */}
+      {createSubjectModalOpen && (
+        <CreateSubjectModal
+          open={createSubjectModalOpen}
+          onClose={() => setCreateSubjectModalOpen(false)}
+          onSuccess={() => {
+            setCreateSubjectModalOpen(false)
+          }}
+          initialClass={subjectInitialClass}
+        />
+      )}
     </>
   )
 }

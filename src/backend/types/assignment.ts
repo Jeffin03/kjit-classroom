@@ -12,7 +12,12 @@ export interface Assignment {
   sprintCount: number
   /** When true, students may still submit after the deadline. */
   allowLateSubmissions?: boolean
+  /** The faculty member who created this subject/assignment. */
   createdBy: string
+  /** The faculty member who teaches this subject (defaults to createdBy). */
+  subjectTeacher?: string
+  /** Optional co-teacher for this subject. */
+  coTeacher?: string
   createdAt: string
   updatedAt: string
 }
@@ -28,6 +33,10 @@ export interface CreateAssignmentInput {
   requirements?: string[]
   evaluationCriteria?: string[]
   allowLateSubmissions?: boolean
+  /** The faculty member who teaches this subject. */
+  subjectTeacher?: string
+  /** Optional co-teacher for this subject. */
+  coTeacher?: string
 }
 
 export interface SprintCompletion {

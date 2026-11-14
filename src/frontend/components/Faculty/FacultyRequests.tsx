@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import FacultyPageHeader from "./FacultyPageHeader"
+import CreateSubjectModal from "./CreateSubjectModal"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
@@ -85,6 +86,10 @@ export default function FacultyRequests() {
   const [newClassDesc, setNewClassDesc] = useState("")
   const [newClassAnimator, setNewClassAnimator] = useState("")
   const [creatingClass, setCreatingClass] = useState(false)
+
+  // Create Subject Modal state
+  const [createSubjectModalOpen, setCreateSubjectModalOpen] = useState(false)
+  const [subjectInitialClass, setSubjectInitialClass] = useState<string | undefined>(undefined)
 
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -530,12 +535,13 @@ export default function FacultyRequests() {
               >
                 <span>+ Create Class Cohort</span>
               </button>
-              <Link
-                href="/faculty/assignments/new"
+              <button
+                type="button"
+                onClick={() => setCreateSubjectModalOpen(true)}
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink hover:bg-canvas transition-colors shadow-xs"
               >
                 <span>+ Create Subject</span>
-              </Link>
+              </button>
               <Button onClick={() => setAddModalOpen(true)}>
                 + Add Faculty Member
               </Button>
@@ -856,18 +862,18 @@ export default function FacultyRequests() {
                                 <span className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
                                   Subjects Created ({createdSubjects.length})
                                 </span>
-                                <Link
-                                  href={`/faculty/assignments/new${
-                                    teacher.classes?.length
-                                      ? `?class=${encodeURIComponent(
-                                          teacher.classes[0]
-                                        )}`
-                                      : ""
-                                  }`}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSubjectInitialClass(
+                                      teacher.classes?.[0]
+                                    )
+                                    setCreateSubjectModalOpen(true)
+                                  }}
                                   className="text-xs font-medium text-accent hover:underline"
                                 >
                                   + Create Subject
-                                </Link>
+                                </button>
                               </div>
                               {createdSubjects.length > 0 ? (
                                 <div className="space-y-1.5">
@@ -1097,14 +1103,16 @@ export default function FacultyRequests() {
                                 <span className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
                                   PBL Subjects ({classAssignments.length})
                                 </span>
-                                <Link
-                                  href={`/faculty/assignments/new?class=${encodeURIComponent(
-                                    teamName
-                                  )}`}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSubjectInitialClass(teamName)
+                                    setCreateSubjectModalOpen(true)
+                                  }}
                                   className="text-xs font-medium text-accent hover:underline"
                                 >
                                   + Add Subject
-                                </Link>
+                                </button>
                               </div>
                               {classAssignments.length > 0 ? (
                                 <div className="space-y-1.5">
@@ -1144,14 +1152,16 @@ export default function FacultyRequests() {
                               <span>Class Dashboard</span>
                               <ChevronRightIcon className="size-3" />
                             </Link>
-                            <Link
-                              href={`/faculty/assignments/new?class=${encodeURIComponent(
-                                teamName
-                              )}`}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSubjectInitialClass(teamName)
+                                setCreateSubjectModalOpen(true)
+                              }}
                               className="text-xs font-medium text-ink-muted hover:text-accent hover:underline"
                             >
                               + New Subject
-                            </Link>
+                            </button>
                           </div>
                         </div>
                       )
@@ -1584,6 +1594,19 @@ export default function FacultyRequests() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* MODAL 4: CREATE SUBJECT */}
+      {createSubjectModalOpen && (
+        <CreateSubjectModal
+          open={createSubjectModalOpen}
+          onClose={() => setCreateSubjectModalOpen(false)}
+          onSuccess={() => {
+            setCreateSubjectModalOpen(false)
+            setRefreshKey((k) => k + 1)
+          }}
+          initialClass={subjectInitialClass}
+        />
       )}
     </>
   )

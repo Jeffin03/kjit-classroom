@@ -94,6 +94,28 @@ export function validateAssignmentInput(
     value.allowLateSubmissions = input.allowLateSubmissions
   }
 
+  if (input.coTeacher !== undefined) {
+    const coTeacher = cleanString(input.coTeacher, 200)
+    if (!coTeacher) {
+      return {
+        ok: false,
+        error: "coTeacher must be a non-empty string of at most 200 characters",
+      }
+    }
+    value.coTeacher = coTeacher
+  }
+
+  if (input.subjectTeacher !== undefined) {
+    const subjectTeacher = cleanString(input.subjectTeacher, 200)
+    if (!subjectTeacher) {
+      return {
+        ok: false,
+        error: "subjectTeacher must be a non-empty string of at most 200 characters",
+      }
+    }
+    value.subjectTeacher = subjectTeacher
+  }
+
   return { ok: true, value }
 }
 
@@ -131,6 +153,8 @@ export function createAssignment(
     sprintCount: DEFAULT_SPRINT_COUNT,
     allowLateSubmissions: data.allowLateSubmissions === true,
     createdBy,
+    subjectTeacher: data.subjectTeacher || createdBy,
+    coTeacher: data.coTeacher || undefined,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }

@@ -135,7 +135,7 @@ function SidebarNav({
   return (
     <nav aria-label="Faculty" className="flex h-full flex-col bg-surface">
       {/* Brand & Portal Anchor */}
-      <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border/70 px-4">
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4">
         <Link
           href="/faculty"
           onClick={onNavigate}
@@ -292,7 +292,7 @@ export default function FacultyShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-canvas">
       {/* Desktop Sidebar: floating panel with smooth rounded corners, no intersecting border line */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 p-3 lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 px-1 py-3 lg:block">
         <div className="flex h-full flex-col rounded-xl border border-border/80 bg-surface shadow-2xs overflow-hidden">
           <SidebarNav
             pathname={pathname}

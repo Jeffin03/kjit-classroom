@@ -174,5 +174,7 @@ export function toCreateAssignmentData(
     evaluationCriteria: input.evaluationCriteria || [],
     sprintCount: 4,
     allowLateSubmissions: input.allowLateSubmissions === true,
+    coTeacher: input.coTeacher || undefined,
+    subjectTeacher: input.subjectTeacher || undefined,
   }
 }

@@ -9,6 +9,7 @@ import { CheckIcon, GitHubIcon } from "@/frontend/components/Icons"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import { TEST_ACCOUNTS, isDevTestAuthEnabled } from "@/backend/dev/testAccounts"
 import logo from "@/frontend/assets/KJU_Logo.webp"
+import signinBg from "@/frontend/assets/signin_bg.jpg"
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied:
@@ -55,43 +56,81 @@ export default function SignIn({
     <main className="grid min-h-screen lg:grid-cols-[1.2fr_1fr]">
       {/* Left branding panel: only shown on desktop/tablet (lg+).
           On phones the login card takes the full screen instead. */}
-      <section className="hidden lg:flex min-h-52 flex-col justify-between bg-ink lg:min-h-screen lg:p-12">
-        <div>
+      <section className="relative hidden lg:flex min-h-52 flex-col justify-between overflow-hidden bg-ink text-white lg:min-h-screen lg:p-12">
+        {/* Background photo with subtle dark gradient overlay */}
+        <div className="absolute inset-0">
+          <Image
+            src={signinBg}
+            alt="Kristu Jayanti University Campus"
+            fill
+            priority
+            className="object-cover object-center"
+            sizes="(min-width: 1024px) 55vw, 100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-black/85" />
+        </div>
+
+        <div className="relative z-10">
           {/* The seal is navy/blue on transparent: it needs a light tile on
               this dark panel or it reads as a smudge. */}
           <span className="flex size-10 items-center justify-center rounded-xl bg-white p-1 shadow-sm">
             <Image
               src={logo}
-              alt=""
+              alt="Kristu Jayanti University"
               sizes="40px"
               priority
               className="size-full object-contain"
             />
           </span>
-          <h1 className="mt-5 text-3xl font-semibold">KJIT Classroom</h1>
-          <p className="mt-2 text-white/60">Project-based learning, on GitHub.</p>
+          <h1 className="mt-5 text-3xl font-bold tracking-tight text-white drop-shadow-xs">
+            KJIT Classroom
+          </h1>
+          <p className="mt-2 text-base text-zinc-200 drop-shadow-xs">
+            Project-based learning, on GitHub.
+          </p>
         </div>
-        <div className="my-12 hidden space-y-5 lg:block">
+        <div className="relative z-10 my-12 hidden space-y-5 lg:block">
           {SPRINTS.map(([name, done], index) => (
-            <div key={name} className="flex items-center gap-3">
+            <div key={name} className="flex items-center gap-3.5">
               <span
-                className={`flex size-8 items-center justify-center rounded-full ${
-                  done ? "bg-accent" : "border border-white/30 text-white/50"
+                className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                  done
+                    ? "bg-accent text-white shadow-xs"
+                    : "border border-white/30 bg-black/40 text-zinc-200 backdrop-blur-xs"
                 }`}
               >
-                {done ? <CheckIcon className="size-4" /> : index}
+                {done ? <CheckIcon className="size-4 text-white" /> : index}
               </span>
-              <span>Sprint {index} · {name}</span>
+              <span
+                className={`text-sm font-medium drop-shadow-xs ${
+                  done ? "text-white" : "text-zinc-200"
+                }`}
+              >
+                Sprint {index} · {name}
+              </span>
             </div>
           ))}
         </div>
-        <p className="hidden text-xs text-white/40 lg:block">
+        <p className="relative z-10 hidden text-xs text-zinc-300 drop-shadow-xs lg:block">
           Read-only access. Your token stays on our servers.
         </p>
       </section>
 
-      <section className="flex items-center justify-center bg-canvas p-5">
-        <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8 shadow-sm">
+      <section className="relative flex min-h-screen items-center justify-center overflow-hidden p-5 lg:min-h-0 lg:bg-canvas">
+        {/* Mobile background photo: shown when left panel is hidden */}
+        <div className="absolute inset-0 -z-0 lg:hidden">
+          <Image
+            src={signinBg}
+            alt="Kristu Jayanti University Campus"
+            fill
+            priority
+            className="object-cover object-center"
+            sizes="100vw"
+          />
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border/80 bg-surface/95 p-8 shadow-xl backdrop-blur-md lg:border-border lg:bg-surface lg:shadow-sm lg:backdrop-blur-none">
           <GitHubIcon className="size-10" />
           <h2 className="mt-5 text-xl font-semibold">Sign in to KJIT Classroom</h2>
           <p className="mt-2 text-sm leading-6 text-ink-muted">

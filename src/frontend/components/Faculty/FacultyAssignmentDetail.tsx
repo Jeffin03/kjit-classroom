@@ -74,6 +74,11 @@ export default function FacultyAssignmentDetail({
   const [reviewingStudent, setReviewingStudent] = useState<string | null>(null)
   const [reviewNotes, setReviewNotes] = useState("")
   const [reviewingId, setReviewingId] = useState<string | null>(null)
+  const [deadlineDrafts, setDeadlineDrafts] = useState<Record<number, string>>(
+    {}
+  )
+  const [savingDeadlines, setSavingDeadlines] = useState(false)
+  const [deadlineError, setDeadlineError] = useState<string | null>(null)
 
   const load = async () => {
     try {
@@ -156,6 +161,35 @@ export default function FacultyAssignmentDetail({
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to mark done")
       setReviewingId(null)
+    }
+  }
+
+  const saveDeadlines = async () => {
+    if (!assignment) return
+    setSavingDeadlines(true)
+    setDeadlineError(null)
+    try {
+      const res = await fetch(
+        `/api/assignments/${assignment.id}/deadlines`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deadlines: deadlineDrafts }),
+        }
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to save deadlines")
+      }
+      await res.json()
+      setDeadlineDrafts({})
+      await load()
+    } catch (err) {
+      setDeadlineError(
+        err instanceof Error ? err.message : "Failed to save deadlines"
+      )
+    } finally {
+      setSavingDeadlines(false)
     }
   }
 
@@ -441,6 +475,83 @@ export default function FacultyAssignmentDetail({
           onClick={() => setStatusFilter("not-started")}
         />
       </div>
+
+      {/* Sprint deadline management */}
+      {canManage && assignment && (
+        <div className="mb-6 rounded-2xl border border-[var(--color-border)] bg-surface p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-[var(--color-ink)]">
+                Sprint Deadlines
+              </h3>
+              <p className="mt-0.5 text-sm text-[var(--color-ink-muted)]">
+                Set per-sprint deadlines. Students can&rsquo;t submit after a
+                sprint deadline unless late submissions are allowed.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: assignment.sprintCount }, (_, i) => i).map(
+              (sprintNumber) => {
+                const currentDeadline =
+                  assignment.sprintDeadlines?.[sprintNumber] ??
+                  assignment.deadline
+                const [datePart] = currentDeadline.split("T")
+                return (
+                  <div
+                    key={sprintNumber}
+                    className="flex items-center gap-4 px-4 py-3 rounded-lg border border-[var(--color-border)] bg-white"
+                  >
+                    <span className="shrink-0 text-sm font-medium text-[var(--color-ink-muted)] w-12">
+                      Sprint {sprintNumber}
+                    </span>
+                    <input
+                      type="datetime-local"
+                      value={datePart}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (!val) return
+                        const newDeadlines = {
+                          ...(assignment.sprintDeadlines ?? {}),
+                          [sprintNumber]: val,
+                        }
+                        setDeadlineDrafts(newDeadlines)
+                      }}
+                      className="flex-1 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newDeadlines = { ...(assignment.sprintDeadlines ?? {}) }
+                        delete newDeadlines[sprintNumber]
+                        setDeadlineDrafts(newDeadlines)
+                      }}
+                      className="shrink-0 text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-accent)]"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )
+              }
+            )}
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={saveDeadlines}
+              disabled={savingDeadlines}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors disabled:opacity-60 hover:bg-[var(--color-accent-hover)]"
+            >
+              {savingDeadlines ? "Saving…" : "Save Deadlines"}
+            </button>
+            {deadlineError && (
+              <span className="ml-3 text-xs text-[var(--color-danger-text)]">
+                {deadlineError}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Inline review cards for teams needing review */}
       {reviewingStudent && assignment && (

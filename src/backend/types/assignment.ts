@@ -4,11 +4,13 @@ export interface Assignment {
   description: string
   assignedTeams: string[]
   deadline: string
+  /** Per-sprint deadlines mapped by sprint number (0-indexed). */
+  sprintDeadlines?: Record<number, string>
   subject: string
   problemStatement: string
   objectives: string[]
   requirements: string[]
-  evaluationCriteria: string[]
+  evaluationCriteria?: string[]
   sprintCount: number
   /** When true, students may still submit after the deadline. */
   allowLateSubmissions?: boolean
@@ -32,6 +34,7 @@ export interface CreateAssignmentInput {
   objectives?: string[]
   requirements?: string[]
   evaluationCriteria?: string[]
+  sprintCount: number
   allowLateSubmissions?: boolean
   /** The faculty member who teaches this subject. */
   subjectTeacher?: string

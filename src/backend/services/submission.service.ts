@@ -48,8 +48,12 @@ export async function createSubmission(
   }
 
   const assignment = getAssignment(input.assignmentId)
-  if (assignment && isDeadlinePassed(assignment) && !assignment.allowLateSubmissions) {
-    throw new Error(deadlineMessage(assignment))
+  if (
+    assignment &&
+    isDeadlinePassed(assignment, 0) &&
+    !assignment.allowLateSubmissions
+  ) {
+    throw new Error(deadlineMessage(assignment, 0))
   }
 
   const { owner, repo } = parseRepoUrl(input.repoUrl)
@@ -264,8 +268,11 @@ export async function submitSprint(
     throw new Error("Assignment not found")
   }
 
-  if (isDeadlinePassed(assignment) && !assignment.allowLateSubmissions) {
-    throw new Error(deadlineMessage(assignment))
+  if (
+    isDeadlinePassed(assignment, input.sprintNumber) &&
+    !assignment.allowLateSubmissions
+  ) {
+    throw new Error(deadlineMessage(assignment, input.sprintNumber))
   }
 
   if (

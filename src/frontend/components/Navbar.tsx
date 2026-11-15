@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from "react"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Avatar from "./Avatar"
 import CommandPalette, { CommandPaletteTrigger } from "./CommandPalette"
+import { HelpIcon } from "./Icons"
+import HelpModal from "./HelpModal"
 import banner from "@/frontend/assets/KJU_Banner.png"
 
 export default function Navbar() {
@@ -16,6 +18,7 @@ export default function Navbar() {
   const { isFaculty, team, loading: accessLoading } = useSessionUser()
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,7 +57,6 @@ export default function Navbar() {
     { label: "Dashboard", href: "/dashboard" },
     { label: "Team", href: "/teams" },
     { label: "Assignments", href: "/assignments" },
-    { label: "Help", href: "/help" },
   ]
 
   const displayName = session?.user?.name || "Account"
@@ -91,6 +93,18 @@ export default function Navbar() {
               </div>
             )}
           </div>
+
+          {session && (
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              aria-label="Open help"
+              className="inline-flex items-center rounded-lg p-1.5 text-ink-muted hover:bg-canvas hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <HelpIcon className="size-5" />
+              <span className="sr-only">Help</span>
+            </button>
+          )}
 
           {/* Center: KJU Banner */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center justify-center pointer-events-auto">
@@ -190,6 +204,9 @@ export default function Navbar() {
         onOpen={() => setSearchOpen(true)}
         onClose={() => setSearchOpen(false)}
       />
+    )}
+    {session && (
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     )}
   </>
   )

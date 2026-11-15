@@ -1,5 +1,10 @@
 import type { Assignment, AssignmentWithStats, CreateAssignmentInput } from "../types"
-import { addAssignment, getAssignment, getAssignments } from "../store/assignments"
+import {
+  addAssignment,
+  getAssignment,
+  getAssignments,
+  updateAssignment,
+} from "../store/assignments"
 import { cleanString, cleanStringList } from "../validation"
 import { getSubmissionsByAssignment, getSprintSubmissions } from "../store/submissions"
 import { getClassTeamForUsername } from "../store/roster"
@@ -120,7 +125,22 @@ export function validateAssignmentInput(
 }
 
 /** Submissions stay open through the end of the deadline day. */
-export function isDeadlinePassed(assignment: Assignment): boolean {
+export function isDeadlinePassed(
+  assignment: Assignment,
+  sprintNumber?: number
+): boolean {
+  // Per-sprint deadline takes precedence
+  if (sprintNumber !== undefined && assignment.sprintDeadlines) {
+    const sprintDeadline = assignment.sprintDeadlines[sprintNumber]
+    if (sprintDeadline) {
+      const end = new Date(`${sprintDeadline}T23:59:59.999`)
+      if (!Number.isNaN(end.getTime())) return Date.now() > end.getTime()
+      const fallback = new Date(sprintDeadline)
+      return !Number.isNaN(fallback.getTime()) && Date.now() > fallback.getTime()
+    }
+  }
+
+  // Fall back to the assignment-level deadline
   const end = new Date(`${assignment.deadline}T23:59:59.999`)
   if (!Number.isNaN(end.getTime())) return Date.now() > end.getTime()
 
@@ -128,11 +148,40 @@ export function isDeadlinePassed(assignment: Assignment): boolean {
   return !Number.isNaN(fallback.getTime()) && Date.now() > fallback.getTime()
 }
 
-export function deadlineMessage(assignment: Assignment): string {
+export function deadlineMessage(
+  assignment: Assignment,
+  sprintNumber?: number
+): string {
+  const sprintDeadline =
+    sprintNumber !== undefined && assignment.sprintDeadlines
+      ? assignment.sprintDeadlines[sprintNumber]
+      : undefined
+  const deadline = sprintDeadline ?? assignment.deadline
   return (
-    `The deadline for "${assignment.title}" passed on ${assignment.deadline} ` +
+    `The deadline for "${assignment.title}"${
+      sprintNumber !== undefined ? ` sprint ${sprintNumber}` : ""
+    } passed on ${deadline} ` +
     "and late submissions are not enabled."
   )
+}
+
+/**
+ * Set or update deadlines for specific sprints on an assignment.
+ */
+export function setSprintDeadlines(
+  assignmentId: string,
+  deadlines: Record<number, string>
+): Assignment | null {
+  const assignment = getAssignment(assignmentId)
+  if (!assignment) return null
+
+  assignment.sprintDeadlines = {
+    ...assignment.sprintDeadlines,
+    ...deadlines,
+  }
+  assignment.updatedAt = new Date().toISOString()
+  updateAssignment(assignmentId, assignment)
+  return assignment
 }
 
 export function createAssignment(

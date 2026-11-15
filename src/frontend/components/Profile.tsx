@@ -589,10 +589,10 @@ export default function Profile({
               </Link>
             ) : (
               <Link
-                href="/faculty/review"
+                href="/faculty/assignments"
                 className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
               >
-                <span>Review Submissions Queue</span>
+                <span>View All Assignments</span>
                 <ArrowRightIcon className="size-3" />
               </Link>
             )}
@@ -647,7 +647,7 @@ export default function Profile({
                 const config = statusConfig[submission.status]
 
                 const timelineHref = sessionIsFaculty
-                  ? `/faculty/review?assignment=${submission.assignmentId}`
+                  ? `/faculty/assignments/${submission.assignmentId}`
                   : `/assignments/timeline?assignmentId=${submission.assignmentId}`
 
                 return (

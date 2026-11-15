@@ -49,20 +49,13 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    href: "/faculty/review",
-    label: "Review",
+    href: "/faculty/assignments",
+    label: "Assignments",
     icon: (
       <Icon>
-        <path d="M4.75 12.75 9.5 17.5 19.25 6.5" />
-      </Icon>
-    ),
-  },
-  {
-    href: "/faculty/review/pwa",
-    label: "Review PWA",
-    icon: (
-      <Icon>
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+        <path d="M3.75 6.75h16.5" />
+        <path d="M3.75 12h16.5" />
+        <path d="M3.75 17.25h16.5" />
       </Icon>
     ),
   },
@@ -117,7 +110,7 @@ function isActiveRoute(pathname: string, href: string) {
 function getBreadcrumb(pathname: string, role: Role) {
   const root = role === "owner" ? "Admin" : "Faculty"
   if (pathname === "/faculty") return { section: root, page: "Dashboard" }
-  if (pathname.startsWith("/faculty/review")) return { section: root, page: "Sprint Review" }
+  if (pathname.startsWith("/faculty/assignments")) return { section: root, page: "Assignments" }
   if (pathname.startsWith("/faculty/roster")) return { section: root, page: "Student Roster" }
   if (pathname.startsWith("/faculty/requests")) return { section: root, page: "Faculty Roster & Staffing" }
   if (pathname.startsWith("/faculty/class")) {

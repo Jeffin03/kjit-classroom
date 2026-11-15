@@ -71,6 +71,9 @@ export default function FacultyAssignmentDetail({
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [view, setView] = useState<"grid" | "table">("grid")
+  const [reviewingStudent, setReviewingStudent] = useState<string | null>(null)
+  const [reviewNotes, setReviewNotes] = useState("")
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
 
   const load = async () => {
     try {
@@ -130,6 +133,29 @@ export default function FacultyAssignmentDetail({
       setActionError(
         err instanceof Error ? err.message : "Failed to accept submission"
       )
+    }
+  }
+
+  const handleMarkDone = async (submissionId: string, sprintSubmissionId: string) => {
+    setReviewingId(sprintSubmissionId)
+    setActionError(null)
+    try {
+      const res = await fetch(`/api/submissions/${submissionId}/review`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sprintSubmissionId, notes: reviewNotes.trim() }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to mark done")
+      }
+      setReviewingStudent(null)
+      setReviewNotes("")
+      setReviewingId(null)
+      await load()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to mark done")
+      setReviewingId(null)
     }
   }
 
@@ -353,12 +379,7 @@ export default function FacultyAssignmentDetail({
               >
                 Classes
               </Link>
-              <Link
-                href={`/faculty/review?assignmentId=${assignmentId}`}
-                className="inline-flex min-h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-              >
-                Open review
-              </Link>
+
             </>
           }
         />
@@ -421,6 +442,118 @@ export default function FacultyAssignmentDetail({
         />
       </div>
 
+      {/* Inline review cards for teams needing review */}
+      {reviewingStudent && assignment && (
+        <div className="mb-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-ink">Review — {assignment.title}</h2>
+              <p className="mt-0.5 text-sm text-ink-muted">
+                Mark sprints as reviewed with optional notes
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReviewingStudent(null)}
+              className="inline-flex min-h-9 items-center rounded-lg border border-border bg-surface px-4 text-sm text-ink-muted hover:bg-canvas hover:text-ink"
+            >
+              Close
+            </button>
+          </div>
+
+          {submissions.map((sub) => {
+            if (sub.studentUsername.toLowerCase() !== reviewingStudent.toLowerCase()) return null
+            const sprints = sub.sprints || []
+            const unreviewed = sprints.filter((s) => !s.reviewedAt)
+            const currentSprint = unreviewed[0] || sprints[sprints.length - 1]
+
+            if (!currentSprint) return null
+
+            return (
+              <div
+                key={`review-${sub.id}-${currentSprint.sprintNumber}`}
+                className="rounded-xl border border-[var(--color-border)] bg-white p-5 mb-4"
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-ink truncate">
+                      {sub.abstractDocUrl ? "Project" : "Sprint 0"}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-ink-muted flex items-center gap-1">
+                      {sub.studentUsername}
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+                    Sprint {currentSprint.sprintNumber}
+                  </span>
+                </div>
+
+                {currentSprint.documentationUrl && (
+                  <p className="text-xs text-[var(--color-ink-muted)] truncate max-w-[60%] mb-3">
+                    <span className="font-mono">{currentSprint.documentationUrl}</span>
+                  </p>
+                )}
+
+                <div className="space-y-2 mb-4">
+                  {currentSprint.summary && (
+                    <div className="text-xs text-[var(--color-ink-muted)]">
+                      {currentSprint.summary.completed?.length > 0 && (
+                        <p className="text-[var(--color-ink)]">
+                          <span className="font-semibold">Done:</span>{" "}
+                          {currentSprint.summary.completed.join(", ")}
+                        </p>
+                      )}
+                      {currentSprint.summary.changed && (
+                        <p className="text-[var(--color-ink-muted)]">
+                          <span className="font-semibold">Changed:</span>{" "}
+                          {currentSprint.summary.changed}
+                        </p>
+                      )}
+                      {currentSprint.summary.blockers && (
+                        <p className="text-[var(--color-caution-text)]">
+                          <span className="font-semibold">Blockers:</span>{" "}
+                          {currentSprint.summary.blockers}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  handleMarkDone(sub.id, currentSprint.id)
+                }} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
+                      Review notes (optional)
+                    </label>
+                    <textarea
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      placeholder="Add guidance or feedback for the student…"
+                      rows={3}
+                      className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-[var(--color-ink-muted)]">
+                      Mark sprint {currentSprint.sprintNumber} as reviewed
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={reviewingId === currentSprint.id}
+                      className="inline-flex min-h-9 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors disabled:opacity-60"
+                    >
+                      {reviewingId === currentSprint.id ? "Saving…" : "Mark Done"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 items-center gap-2">
           <input
@@ -482,12 +615,13 @@ export default function FacultyAssignmentDetail({
                 row={row}
                 actions={
                   <>
-                    <Link
-                      href={`/faculty/review?assignmentId=${assignmentId}`}
-                      className="inline-flex min-h-9 items-center rounded-lg px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
+                    <button
+                      type="button"
+                      onClick={() => setReviewingStudent(row.studentUsername)}
+                      className="inline-flex min-h-9 items-center rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-accent-soft"
                     >
-                      Open
-                    </Link>
+                      Review
+                    </button>
                     {row.status !== "accepted" &&
                       submissions.find(
                         (s) =>
@@ -617,12 +751,13 @@ export default function FacultyAssignmentDetail({
                       <div className="flex items-center justify-end gap-2">
                         {submission ? (
                           <>
-                            <Link
-                              href={`/faculty/review?assignmentId=${assignmentId}`}
+                            <button
+                              type="button"
+                              onClick={() => setReviewingStudent(submission.studentUsername)}
                               className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-accent-soft"
                             >
                               Review
-                            </Link>
+                            </button>
                             {submission.status === "accepted" ? null : (
                               <button
                                 type="button"

@@ -158,12 +158,12 @@ function CommandPaletteDialog({
           keywords: ["home", "classes", "overview"],
         },
         {
-          id: "nav-review-queue",
-          title: "Review Queue",
-          subtitle: "Evaluate sprint submissions and commits",
+          id: "nav-assignments",
+          title: "Assignments",
+          subtitle: "Review sprint submissions by subject",
           category: "Quick Actions",
-          href: "/faculty/review",
-          keywords: ["grading", "sprints", "submissions", "feedback", "accept"],
+          href: "/faculty/assignments",
+          keywords: ["grading", "sprints", "submissions", "feedback", "accept", "subjects"],
         },
         {
           id: "nav-student-roster",

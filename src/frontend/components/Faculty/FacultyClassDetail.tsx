@@ -163,10 +163,10 @@ export default function FacultyClassDetail({ team }: { team: string }) {
         <KpiCard
           label="To review"
           value={stats.toReview}
-          hint="unreviewed sprints"
+          hint="unreviewed sprints by subject"
           tone="caution"
           icon={<CheckCircleIcon className="size-4" />}
-          to={`/faculty/review?class=${encodeURIComponent(team)}`}
+          to="/faculty/assignments"
         />
       </div>
 

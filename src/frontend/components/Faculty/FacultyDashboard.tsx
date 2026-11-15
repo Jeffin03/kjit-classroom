@@ -197,10 +197,10 @@ export default function FacultyDashboard() {
               </span>
             )}
             <Link
-              href="/faculty/review"
+              href="/faculty/assignments"
               className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-canvas"
             >
-              Open review queue
+              Open assignments
             </Link>
           </>
         }
@@ -300,10 +300,10 @@ export default function FacultyDashboard() {
         <KpiCard
           label="To review"
           value={stats.pendingReview}
-          hint="sprint submissions"
+          hint="sprint submissions by subject"
           tone="caution"
           icon={<ClipboardIcon className="size-4" />}
-          to="/faculty/review"
+          to="/faculty/assignments"
         />
         <KpiCard
           label="Accepted this week"
@@ -311,7 +311,7 @@ export default function FacultyDashboard() {
           hint="faculty sign-offs"
           tone="success"
           icon={<CheckCircleIcon className="size-4" />}
-          to="/faculty/review?status=accepted"
+          to="/faculty/assignments"
         />
       </div>
 
@@ -346,7 +346,7 @@ export default function FacultyDashboard() {
             Recent submissions
           </h2>
           <Link
-            href="/faculty/review"
+            href="/faculty/assignments"
             className="text-xs font-medium text-accent hover:underline"
           >
             View all →
@@ -400,7 +400,7 @@ export default function FacultyDashboard() {
                       })}
                     </span>
                     <Link
-                      href={`/faculty/review?assignmentId=${submission.assignmentId}`}
+                      href={`/faculty/assignments/${submission.assignmentId}`}
                       className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-accent-soft"
                     >
                       Review →

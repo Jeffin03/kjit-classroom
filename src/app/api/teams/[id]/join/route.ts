@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
 import { authenticate } from "@/backend/services/permissions"
 import { joinTeam, getTeam } from "@/backend/store/teams"
+import { getAssignment } from "@/backend/store/assignments"
+import { getRosterByGithubUsername } from "@/backend/store/roster"
+import { isStudentAssigned } from "@/backend/services/assignment.service"
 import { jsonError, readJson } from "@/backend/http"
 import { flushNow } from "@/backend/store/persistence"
-import type { JoinTeamInput } from "@/backend/types"
 import { csrfCheck } from "@/backend/csrf"
 import { rateLimit, getClientIp } from "@/backend/rateLimit"
 
@@ -41,19 +43,30 @@ export async function POST(
     )
   }
 
-  const body = await readJson<JoinTeamInput>(request)
+  const assignment = getAssignment(team.assignmentId)
+  if (!assignment) {
+    return NextResponse.json(
+      { error: "Assignment for this team no longer exists" },
+      { status: 404 }
+    )
+  }
+  if (!isStudentAssigned(assignment, access.team)) {
+    return NextResponse.json(
+      { error: "This assignment is not assigned to your class" },
+      { status: 403 }
+    )
+  }
+
+  const body = await readJson<{
+    username?: unknown
+    consentToExistingProject?: unknown
+  }>(request)
   if (!body) return jsonError("Request body must be valid JSON")
 
-  const { username, rollNo, consentToExistingProject } = body
-
-  if (
-    typeof username !== "string" ||
-    typeof rollNo !== "string" ||
-    !username ||
-    !rollNo
-  ) {
-    return jsonError("username and rollNo are required")
-  }
+  const username =
+    typeof body.username === "string" && body.username
+      ? body.username
+      : access.username
 
   // You can only join as yourself
   if (username.toLowerCase() !== access.username.toLowerCase()) {
@@ -63,12 +76,24 @@ export async function POST(
     )
   }
 
+  // Roll number comes from the roster, never from the client.
+  const rosterEntry = getRosterByGithubUsername(access.username)
+  if (!rosterEntry?.rollNo) {
+    return NextResponse.json(
+      { error: "You are not on the class roster yet. Ask faculty to add you." },
+      { status: 403 }
+    )
+  }
+
   try {
     const updated = joinTeam({
       teamId: id,
-      username,
-      rollNo,
-      consentToExistingProject: consentToExistingProject ?? true,
+      username: access.username,
+      rollNo: rosterEntry.rollNo,
+      consentToExistingProject:
+        typeof body.consentToExistingProject === "boolean"
+          ? body.consentToExistingProject
+          : true,
     })
     await flushNow()
     return NextResponse.json({ team: updated }, { status: 200 })

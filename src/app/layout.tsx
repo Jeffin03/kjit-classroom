@@ -28,7 +28,10 @@ const jetbrainsMono = localFont({
 })
 
 export const metadata: Metadata = {
-  title: "KJIT Classroom",
+  title: {
+    default: "KJIT Classroom",
+    template: "%s | KJIT Classroom",
+  },
   description: "GitHub-native project submission & portfolio management platform",
   manifest: "/manifest.json",
   themeColor: "#4338ca",

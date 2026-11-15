@@ -3,7 +3,7 @@ import { headers } from "next/headers"
 import SignIn from "./SignIn"
 
 export const metadata: Metadata = {
-  title: "Sign in — KJIT Classroom",
+  title: "Sign in",
   description:
     "Sign in with GitHub to access KJIT Classroom assignments and reviews",
 }

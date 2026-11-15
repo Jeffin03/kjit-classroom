@@ -8,6 +8,7 @@ import {
   getTeams,
   getTeamsByAssignment,
   getTeamByMember,
+  getTeamByMemberAndAssignment,
 } from "@/backend/store/teams"
 import { getAssignment } from "@/backend/store/assignments"
 import { isStudentAssigned } from "@/backend/services/assignment.service"
@@ -42,12 +43,31 @@ export async function GET(request: Request) {
       return NextResponse.json({ teams: getTeamsByAssignment(assignmentId) })
     }
 
-    // Student: only see their own team
-    const team = getTeamByMember(access.username)
-    if (team && team.assignmentId === assignmentId) {
-      return NextResponse.json({ teams: [team] })
+    // Student: only see their own team, plus a lightweight summary of
+    // teams that still have space so they can join one.
+    if (!isStudentAssigned(assignment, access.team)) {
+      return NextResponse.json(
+        { error: "This assignment is not assigned to your team" },
+        { status: 403 }
+      )
     }
-    return NextResponse.json({ teams: [] })
+
+    const team = getTeamByMemberAndAssignment(access.username, assignmentId)
+    const joinable = getTeamsByAssignment(assignmentId)
+      .filter((t) => t.id !== team?.id && t.members.length < 3)
+      .map((t) => ({
+        id: t.id,
+        projectTitle: t.projectTitle,
+        memberCount: t.members.length,
+        members: t.members.map((m) => ({
+          username: m.username,
+          displayName: m.displayName,
+          rollNo: m.rollNo,
+          isLead: m.isLead,
+        })),
+        createdAt: t.createdAt,
+      }))
+    return NextResponse.json({ teams: team ? [team] : [], joinable })
   }
 
   // No assignment filter: return teams the user can see

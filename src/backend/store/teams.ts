@@ -141,7 +141,7 @@ export function createTeam(input: CreateTeamInput): Team {
   })
 
   const team: Team = {
-    id: `team-${Date.now().toString(36)}`,
+    id: `team-${crypto.randomUUID()}`,
     assignmentId: input.assignmentId,
     projectTitle: input.projectTitle,
     members,

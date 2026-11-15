@@ -10,6 +10,7 @@ import type {
   SubmissionWithSprints,
 } from "@/backend/types"
 import Breadcrumbs from "@/frontend/components/Breadcrumbs"
+import Button from "@/frontend/components/Button"
 import KpiCard from "@/frontend/components/KpiCard"
 import StudentCard, { type StudentCardRow } from "@/frontend/components/StudentCard"
 import SprintPill, { type SprintState } from "@/frontend/components/SprintPill"
@@ -17,6 +18,7 @@ import StatusPill from "@/frontend/components/StatusPill"
 import ChecklistProgress from "@/frontend/components/ChecklistProgress"
 import type { BadgeStatus } from "@/frontend/components/Badge"
 import FacultyPageHeader from "./FacultyPageHeader"
+import { PlusIcon } from "@/frontend/components/Icons"
 
 interface RosterEntry {
   githubUsername?: string
@@ -74,11 +76,19 @@ export default function FacultyAssignmentDetail({
   const [reviewingStudent, setReviewingStudent] = useState<string | null>(null)
   const [reviewNotes, setReviewNotes] = useState("")
   const [reviewingId, setReviewingId] = useState<string | null>(null)
-  const [deadlineDrafts, setDeadlineDrafts] = useState<Record<number, string>>(
-    {}
-  )
+  const [deadlineDrafts, setDeadlineDrafts] = useState<
+    Record<number, { date: string; time: string }>
+  >({})
+  const [visibleSprints, setVisibleSprints] = useState<number[]>([0])
   const [savingDeadlines, setSavingDeadlines] = useState(false)
   const [deadlineError, setDeadlineError] = useState<string | null>(null)
+  const [notifyOpen, setNotifyOpen] = useState(false)
+  const [notifySprint, setNotifySprint] = useState(0)
+  const [notifyTitle, setNotifyTitle] = useState("Sprint 0")
+  const [notifyMessage, setNotifyMessage] = useState("")
+  const [notifyDate, setNotifyDate] = useState("")
+  const [sendingNotify, setSendingNotify] = useState(false)
+  const [notifyError, setNotifyError] = useState<string | null>(null)
 
   const load = async () => {
     try {
@@ -164,17 +174,22 @@ export default function FacultyAssignmentDetail({
     }
   }
 
-  const saveDeadlines = async () => {
+  const handleSaveDeadlines = async () => {
     if (!assignment) return
     setSavingDeadlines(true)
     setDeadlineError(null)
     try {
+      const deadlines: Record<number, string> = {}
+      for (const [sprintNum, draft] of Object.entries(deadlineDrafts)) {
+        if (!draft.date) continue
+        deadlines[parseInt(sprintNum)] = `${draft.date}T${draft.time || "23:59:59"}`
+      }
       const res = await fetch(
         `/api/assignments/${assignment.id}/deadlines`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deadlines: deadlineDrafts }),
+          body: JSON.stringify({ deadlines }),
         }
       )
       if (!res.ok) {
@@ -190,6 +205,57 @@ export default function FacultyAssignmentDetail({
       )
     } finally {
       setSavingDeadlines(false)
+    }
+  }
+
+  const deadlineForSprint = (sprintNumber: number): string => {
+    const draft = deadlineDrafts[sprintNumber]
+    const value =
+      (draft?.date ? `${draft.date}T${draft.time || "23:59"}` : undefined) ??
+      assignment?.sprintDeadlines?.[sprintNumber] ??
+      assignment?.deadline ??
+      ""
+    return value
+  }
+
+  const openNotify = () => {
+    const sprint = visibleSprints[visibleSprints.length - 1] ?? 0
+    const [datePart] = deadlineForSprint(sprint).split("T")
+    setNotifySprint(sprint)
+    setNotifyTitle(`Sprint ${sprint}`)
+    setNotifyDate(datePart ?? "")
+    setNotifyMessage("")
+    setNotifyError(null)
+    setNotifyOpen(true)
+  }
+
+  const handleSendNotify = async () => {
+    if (!assignment || !notifyOpen) return
+    setSendingNotify(true)
+    setNotifyError(null)
+    try {
+      const res = await fetch(`/api/assignments/${assignment.id}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sprintNumber: notifySprint,
+          title: notifyTitle.trim() || `Sprint ${notifySprint}`,
+          message: notifyMessage.trim(),
+          deadline: notifyDate ? `${notifyDate}T23:59:59` : undefined,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to send notification")
+      }
+      setNotifyOpen(false)
+      setNotifyMessage("")
+    } catch (err) {
+      setNotifyError(
+        err instanceof Error ? err.message : "Failed to send notification"
+      )
+    } finally {
+      setSendingNotify(false)
     }
   }
 
@@ -491,61 +557,110 @@ export default function FacultyAssignmentDetail({
             </div>
           </div>
           <div className="space-y-3">
-            {Array.from({ length: assignment.sprintCount }, (_, i) => i).map(
-              (sprintNumber) => {
-                const currentDeadline =
-                  assignment.sprintDeadlines?.[sprintNumber] ??
-                  assignment.deadline
-                const [datePart] = currentDeadline.split("T")
-                return (
-                  <div
-                    key={sprintNumber}
-                    className="flex items-center gap-4 px-4 py-3 rounded-lg border border-[var(--color-border)] bg-white"
-                  >
-                    <span className="shrink-0 text-sm font-medium text-[var(--color-ink-muted)] w-12">
-                      Sprint {sprintNumber}
-                    </span>
+            {visibleSprints.map((sprintNumber) => {
+              const draft = deadlineDrafts[sprintNumber]
+              const currentDeadline =
+                (draft?.date
+                  ? `${draft.date}T${draft.time || "23:59"}`
+                  : undefined) ??
+                assignment.sprintDeadlines?.[sprintNumber] ??
+                assignment.deadline
+              const [datePart, timePart] = currentDeadline.split("T")
+              return (
+                <div
+                  key={sprintNumber}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--color-border)] bg-white"
+                >
+                  <span className="shrink-0 text-sm font-medium text-[var(--color-ink-muted)] w-12">
+                    Sprint {sprintNumber}
+                  </span>
+                  <div className="flex-1 flex gap-2">
                     <input
-                      type="datetime-local"
-                      value={datePart}
+                      type="date"
+                      value={datePart || ""}
                       onChange={(e) => {
                         const val = e.target.value
                         if (!val) return
-                        const newDeadlines = {
-                          ...(assignment.sprintDeadlines ?? {}),
-                          [sprintNumber]: val,
-                        }
-                        setDeadlineDrafts(newDeadlines)
+                        const time = draft?.time || "23:59"
+                        setDeadlineDrafts((prev) => ({
+                          ...prev,
+                          [sprintNumber]: { date: val, time },
+                        }))
                       }}
-                      className="flex-1 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
+                      className="rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newDeadlines = { ...(assignment.sprintDeadlines ?? {}) }
-                        delete newDeadlines[sprintNumber]
-                        setDeadlineDrafts(newDeadlines)
+                    <input
+                      type="time"
+                      value={timePart || "23:59"}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (!val) return
+                        const date = draft?.date || currentDeadline.split("T")[0]
+                        setDeadlineDrafts((prev) => ({
+                          ...prev,
+                          [sprintNumber]: { date, time: val },
+                        }))
                       }}
-                      className="shrink-0 text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-accent)]"
-                    >
-                      Clear
-                    </button>
+                      className="rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
+                    />
                   </div>
-                )
-              }
+                  <div className="flex items-end gap-2">
+                    {draft && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeadlineDrafts((prev) => {
+                            const next = { ...prev }
+                            delete next[sprintNumber]
+                            return next
+                          })
+                        }}
+                        className="shrink-0 text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-accent)]"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            )}
+            {visibleSprints.length < assignment.sprintCount && (
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    setVisibleSprints((prev) => {
+                      const next = prev[prev.length - 1] + 1
+                      if (next >= assignment.sprintCount) return prev
+                      return [...prev, next]
+                    })
+                  }}
+                  className="min-h-9 px-4 text-sm font-medium text-accent hover:bg-accent-soft"
+                >
+                  <PlusIcon className="size-4 mr-2" /> Add Sprint {visibleSprints.length + 1}
+                </Button>
+              </div>
             )}
           </div>
-          <div className="mt-4 flex items-center gap-3">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={saveDeadlines}
+              onClick={handleSaveDeadlines}
               disabled={savingDeadlines}
               className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors disabled:opacity-60 hover:bg-[var(--color-accent-hover)]"
             >
               {savingDeadlines ? "Saving…" : "Save Deadlines"}
             </button>
+            <button
+              type="button"
+              onClick={openNotify}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--color-accent)] px-4 text-sm font-medium text-[var(--color-accent)] transition-colors hover:bg-accent-soft"
+            >
+              Notify
+            </button>
             {deadlineError && (
-              <span className="ml-3 text-xs text-[var(--color-danger-text)]">
+              <span className="text-xs text-[var(--color-danger-text)]">
                 {deadlineError}
               </span>
             )}
@@ -887,6 +1002,139 @@ export default function FacultyAssignmentDetail({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Notify sprint dialog */}
+      {notifyOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center p-4 bg-[var(--color-ink)]/30 backdrop-blur-sm">
+          <button
+            type="button"
+            aria-label="Close notify dialog"
+            onClick={() => setNotifyOpen(false)}
+            className="absolute inset-0 bg-transparent"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notify-dialog-title"
+            className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 id="notify-dialog-title" className="text-lg font-semibold text-[var(--color-ink)]">
+                  Notify students
+                </h2>
+                <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
+                  Post a short notice about a sprint deadline.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotifyOpen(false)}
+                className="inline-flex size-9 items-center justify-center rounded-full bg-[var(--color-canvas)] text-[var(--color-ink-muted)] hover:bg-[var(--color-border)]"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="size-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
+                  Sprint
+                </label>
+                <select
+                  value={notifySprint}
+                  onChange={(e) => {
+                    const next = parseInt(e.target.value, 10)
+                    setNotifySprint(next)
+                    setNotifyTitle(`Sprint ${next}`)
+                    const [datePart] = deadlineForSprint(next).split("T")
+                    setNotifyDate(datePart ?? "")
+                  }}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
+                >
+                  {Array.from({ length: assignment.sprintCount }, (_, i) => i).map(
+                    (n) => (
+                      <option key={n} value={n}>
+                        Sprint {n}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
+                  Heading
+                </label>
+                <input
+                  type="text"
+                  value={notifyTitle}
+                  onChange={(e) => setNotifyTitle(e.target.value)}
+                  maxLength={120}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={notifyDate}
+                  onChange={(e) => setNotifyDate(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
+                  Message
+                </label>
+                <textarea
+                  value={notifyMessage}
+                  onChange={(e) => setNotifyMessage(e.target.value)}
+                  rows={4}
+                  maxLength={2000}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
+                  placeholder="e.g. Sprint 0 submission closes this Friday. Push your abstract links."
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNotifyOpen(false)}
+                  className="inline-flex min-h-9 items-center justify-center rounded-lg border border-[var(--color-border)] px-4 text-sm font-medium text-[var(--color-ink-muted)] hover:bg-canvas"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendNotify}
+                  disabled={sendingNotify || !notifyMessage.trim()}
+                  className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors disabled:opacity-60 hover:bg-[var(--color-accent-hover)]"
+                >
+                  {sendingNotify ? "Sending…" : "Send"}
+                </button>
+              </div>
+              {notifyError && (
+                <p className="mt-2 text-xs text-[var(--color-danger-text)]">
+                  {notifyError}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -11,6 +11,7 @@ import { flushNow } from "@/backend/store/persistence"
 import { deleteSubmissionsByAssignment } from "@/backend/store/submissions"
 import { jsonError, readJson } from "@/backend/http"
 import type { CreateAssignmentInput } from "@/backend/types"
+import { csrfCheck } from "@/backend/csrf"
 
 export async function GET(
   _request: Request,
@@ -40,6 +41,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
+
   const auth = await authorize("assignment.create")
   if (!auth.ok) return auth.response
 
@@ -97,9 +101,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
+
   const auth = await authorize("assignment.create")
   if (!auth.ok) return auth.response
 

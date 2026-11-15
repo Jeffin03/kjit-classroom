@@ -9,6 +9,7 @@ import { authenticate, authorize, canAccessClass } from "@/backend/services/perm
 import { jsonError, readJson } from "@/backend/http"
 import { flushNow } from "@/backend/store/persistence"
 import type { CreateAssignmentInput } from "@/backend/types"
+import { csrfCheck } from "@/backend/csrf"
 
 export async function GET() {
   const auth = await authenticate()
@@ -30,6 +31,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
+
   const auth = await authorize("assignment.create")
   if (!auth.ok) return auth.response
 

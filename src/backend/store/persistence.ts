@@ -43,6 +43,7 @@ export const KEYS = {
   onboardingSessions: "kc:onboarding",
   teachers: "kc:teachers",
   announcements: "kc:announcements",
+  teams: "kc:teams",
 } as const
 
 const COLLECTION_KEYS: string[] = [
@@ -53,6 +54,7 @@ const COLLECTION_KEYS: string[] = [
   KEYS.onboardingSessions,
   KEYS.teachers,
   KEYS.announcements,
+  KEYS.teams,
 ]
 
 const FRESH_MS = 1_000

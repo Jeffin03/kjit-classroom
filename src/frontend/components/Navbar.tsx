@@ -52,7 +52,9 @@ export default function Navbar() {
 
   const links: { label: string; href: string }[] = [
     { label: "Dashboard", href: "/dashboard" },
+    { label: "Team", href: "/teams" },
     { label: "Assignments", href: "/assignments" },
+    { label: "Help", href: "/help" },
   ]
 
   const displayName = session?.user?.name || "Account"

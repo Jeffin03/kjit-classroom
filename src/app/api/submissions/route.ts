@@ -15,6 +15,10 @@ import {
 import { parseRepoUrl } from "@/backend/github/repos"
 import { isStudentAssigned } from "@/backend/services/assignment.service"
 import { jsonError, readJson } from "@/backend/http"
+import { flushNow } from "@/backend/store/persistence"
+import { getTeamByMember } from "@/backend/store/teams"
+import { csrfCheck } from "@/backend/csrf"
+import { rateLimit, getClientIp } from "@/backend/rateLimit"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -70,6 +74,18 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
+
+  const ip = getClientIp(request)
+  const rl = rateLimit(`submissions:post:${ip}`, { limit: 10, windowMs: 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    )
+  }
+
   const auth = await authorize("submission.create")
   if (!auth.ok) return auth.response
 
@@ -79,10 +95,12 @@ export async function POST(request: Request) {
     assignmentId?: string
     repoUrl?: string
     abstractDocUrl?: string
+    teamId?: string
+    teamMembers?: string[]
   }>(request)
   if (!body) return jsonError("Request body must be valid JSON")
 
-  const { assignmentId, repoUrl, abstractDocUrl } = body
+  const { assignmentId, repoUrl, abstractDocUrl, teamId, teamMembers } = body
 
   if (
     typeof assignmentId !== "string" ||
@@ -113,9 +131,9 @@ export async function POST(request: Request) {
     )
   }
 
-  // Sprint 0 must satisfy the same repo-ownership rule as every later sprint,
-  // otherwise a submission could be started on someone else's repo and then
-  // be impossible to advance.
+  // If a teamId is provided, verify the submitter is a member of that team.
+  // Repo ownership check: any team member's repo is acceptable for a team
+  // submission; otherwise the submitter must own the repo.
   let repoOwner: string
   try {
     ;({ owner: repoOwner } = parseRepoUrl(repoUrl))
@@ -126,23 +144,50 @@ export async function POST(request: Request) {
     )
   }
 
-  if (!canUseRepo(access, repoOwner)) {
-    return NextResponse.json(
-      { error: "You can only submit from your own repositories" },
-      { status: 403 }
-    )
+  if (teamId) {
+    const team = getTeamByMember(access.username)
+    if (!team || team.id !== teamId) {
+      return NextResponse.json(
+        { error: "You are not a member of this team" },
+        { status: 403 }
+      )
+    }
+    // For team submissions, any member's repo is fine.
+    if (!teamMembers || teamMembers.length === 0) {
+      return NextResponse.json(
+        { error: "teamMembers is required for team submissions" },
+        { status: 400 }
+      )
+    }
+    if (!teamMembers.includes(access.username)) {
+      return NextResponse.json(
+        { error: "You must be listed in teamMembers" },
+        { status: 403 }
+      )
+    }
+  } else {
+    // Solo submission: submitter must own the repo
+    if (!canUseRepo(access, repoOwner)) {
+      return NextResponse.json(
+        { error: "You can only submit from your own repositories" },
+        { status: 403 }
+      )
+    }
   }
 
   try {
     const submission = await createSubmission(
       {
         studentUsername: access.username,
+        teamId,
+        teamMembers,
         assignmentId,
         repoUrl,
         abstractDocUrl,
       },
       accessToken
     )
+    await flushNow()
     return NextResponse.json(submission, { status: 201 })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create submission"

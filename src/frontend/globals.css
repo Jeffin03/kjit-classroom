@@ -200,3 +200,43 @@ html {
   box-shadow: 0 4px 16px rgba(24, 24, 27, 0.06);
   transform: translateY(-1px);
 }
+
+/* Print styles — hide interactive chrome, keep only the review list table */
+@media print {
+  body {
+    background: white !important;
+    color: #000 !important;
+  }
+  /* Hide interactive elements */
+  .fixed.bottom-0,
+  .fixed.inset-0.z-50,
+  .bg-ink\/20.backdrop-blur-sm,
+  nav,
+  button,
+  [class*="hover:bg-accent-soft"],
+  .animate-spin,
+  .animate-pulse,
+  .cursor-pointer {
+    display: none !important;
+  }
+  /* Keep print view visible */
+  .pwa-print-view {
+    display: block !important;
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  /* Ensure the print table takes full width */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
+  }
+  /* Page breaks */
+  .page-break {
+    break-before: page;
+  }
+}

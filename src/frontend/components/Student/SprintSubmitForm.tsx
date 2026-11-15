@@ -2,12 +2,15 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import type { Assignment, SubmissionWithSprints } from "@/backend/types"
+import type { Assignment, SubmissionWithSprints, Team } from "@/backend/types"
+import { UsersIcon } from "@/frontend/components/Icons"
 
 export interface Sprint0Payload {
   assignmentId: string
   repoUrl: string
   abstractDocUrl: string
+  teamId?: string
+  teamMembers?: string[]
 }
 
 export interface SprintNPayload {
@@ -32,6 +35,7 @@ export default function SprintSubmitForm({
   onSubmit,
   loading,
   error,
+  teams,
 }: {
   assignment: Assignment
   submission?: SubmissionWithSprints
@@ -39,6 +43,7 @@ export default function SprintSubmitForm({
   onSubmit: (payload: SprintSubmitPayload) => void
   loading?: boolean
   error?: string | null
+  teams?: Team[]
 }) {
   const isSprint0 = sprintNumber === 0
 
@@ -55,6 +60,8 @@ export default function SprintSubmitForm({
   const [demoUrl, setDemoUrl] = useState("")
   const [isPivot, setIsPivot] = useState(false)
   const [clientError, setClientError] = useState<string | null>(null)
+  const [submitAsTeam, setSubmitAsTeam] = useState(false)
+  const [selectedTeamId, setSelectedTeamId] = useState("")
 
   const addCompleted = () => {
     const value = completedInput.trim()
@@ -74,11 +81,17 @@ export default function SprintSubmitForm({
         setClientError("Please fill in the repository URL and abstract link")
         return
       }
-      onSubmit({
+      const payload: Sprint0Payload = {
         assignmentId: assignment.id,
         repoUrl,
         abstractDocUrl,
-      })
+      }
+      if (submitAsTeam && selectedTeamId) {
+        const team = teams?.find((t) => t.id === selectedTeamId)
+        payload.teamId = selectedTeamId
+        payload.teamMembers = team?.members.map((m) => m.username) || []
+      }
+      onSubmit(payload)
       return
     }
 
@@ -164,20 +177,89 @@ export default function SprintSubmitForm({
           </div>
 
           {isSprint0 ? (
-            <div>
-              <label className={labelClass}>Abstract / synopsis link *</label>
-              <input
-                type="url"
-                className={inputClass}
-                placeholder="https://docs.google.com/document/d/..."
-                value={abstractDocUrl}
-                onChange={(e) => setAbstractDocUrl(e.target.value)}
-                required
-              />
-              <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
-                Paste a link to your Google Doc with the project abstract
-              </p>
-            </div>
+            <>
+              <div>
+                <label className={labelClass}>Abstract / synopsis link *</label>
+                <input
+                  type="url"
+                  className={inputClass}
+                  placeholder="https://docs.google.com/document/d/..."
+                  value={abstractDocUrl}
+                  onChange={(e) => setAbstractDocUrl(e.target.value)}
+                  required
+                />
+                <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
+                  Paste a link to your Google Doc with the project abstract
+                </p>
+              </div>
+
+              {/* Team submission option */}
+              {teams && teams.length > 0 && (
+                <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-accent-soft)] p-4">
+                  <label className="flex items-center gap-3 cursor-pointer mb-3">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded accent-[var(--color-accent)]"
+                      checked={submitAsTeam}
+                      onChange={(e) => setSubmitAsTeam(e.target.checked)}
+                    />
+                    <span className="text-sm font-medium text-[var(--color-ink)]">
+                      Submit as a team
+                    </span>
+                  </label>
+                  {submitAsTeam && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className={labelClass}>Select your team</label>
+                        <select
+                          value={selectedTeamId}
+                          onChange={(e) => setSelectedTeamId(e.target.value)}
+                          className={inputClass}
+                          required
+                        >
+                          <option value="">Choose a team</option>
+                          {teams.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.projectTitle} ({t.members.length} member{
+                                t.members.length !== 1 ? "s" : ""
+                              })
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {selectedTeamId && teams && (
+                        <div>
+                          <p className="text-xs text-[var(--color-ink-muted)] mb-2">
+                            Team members:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {teams
+                              .find((t) => t.id === selectedTeamId)
+                              ?.members.map((m) => (
+                                <span
+                                  key={m.username}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] bg-white text-xs text-[var(--color-ink-muted)]"
+                                >
+                                  {m.displayName || m.username}
+                                  {m.isLead && (
+                                    <span className="text-[var(--color-accent)]">
+                                      (lead)
+                                    </span>
+                                  )}
+                                </span>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-[var(--color-ink-faint)]">
+                    One submission per team — any member can submit. Make sure
+                    your team is created first on the Team page.
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-caution-soft)] p-4">
               <label className="flex items-center gap-3 cursor-pointer">
@@ -191,6 +273,32 @@ export default function SprintSubmitForm({
                   I&apos;m starting over in a new repository
                 </span>
               </label>
+            </div>
+          )}
+
+          {/* Team info for team submissions (Sprint 1+) */}
+          {!isSprint0 && submission?.teamMembers?.length && submission.teamMembers.length > 1 && (
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-accent-soft)] p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <UsersIcon className="size-4 text-[var(--color-accent)]" />
+                <span className="text-sm font-medium text-[var(--color-ink)]">
+                  Team submission
+                </span>
+              </div>
+              <p className="text-xs text-[var(--color-ink-muted)] mb-3">
+                Any team member can submit this sprint. Submission is shared
+                across the whole team.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {submission.teamMembers.map((m) => (
+                  <span
+                    key={m}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] bg-white text-xs text-[var(--color-ink-muted)]"
+                  >
+                    {m}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 

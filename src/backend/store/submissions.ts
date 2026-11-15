@@ -56,11 +56,14 @@ export function reconcileSubmissions(): void {
     // Find the canonical submission:
     // Prefer the one with the most sprint submissions; if equal, prefer accepted or most recent.
     group.sort((a, b) => {
+      // Prefer an accepted submission so a reviewed/signed-off record is never
+      // discarded in favour of a duplicate that merely has more sprint rows;
+      // sprint rows are merged below, so no data is lost.
+      if (a.status === "accepted" && b.status !== "accepted") return -1
+      if (b.status === "accepted" && a.status !== "accepted") return 1
       const aSprints = sprintSubmissions.filter((sp) => sp.submissionId === a.id).length
       const bSprints = sprintSubmissions.filter((sp) => sp.submissionId === b.id).length
       if (bSprints !== aSprints) return bSprints - aSprints
-      if (a.status === "accepted" && b.status !== "accepted") return -1
-      if (b.status === "accepted" && a.status !== "accepted") return 1
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     })
 
@@ -74,6 +77,10 @@ export function reconcileSubmissions(): void {
       }
       if (!canonical.abstractDocUrl && dup.abstractDocUrl) {
         canonical.abstractDocUrl = dup.abstractDocUrl
+        mutated(KEYS.submissions, canonical.id, canonical)
+      }
+      if (canonical.status !== "accepted" && dup.status === "accepted") {
+        canonical.status = "accepted"
         mutated(KEYS.submissions, canonical.id, canonical)
       }
 
@@ -94,6 +101,18 @@ export function reconcileSubmissions(): void {
           }
           if (!canonicalSprint.documentationUrl && dupSprint.documentationUrl) {
             canonicalSprint.documentationUrl = dupSprint.documentationUrl
+            updated = true
+          }
+          if (!canonicalSprint.reviewNotes && dupSprint.reviewNotes) {
+            canonicalSprint.reviewNotes = dupSprint.reviewNotes
+            updated = true
+          }
+          if (!canonicalSprint.reviewedBy && dupSprint.reviewedBy) {
+            canonicalSprint.reviewedBy = dupSprint.reviewedBy
+            updated = true
+          }
+          if (!canonicalSprint.reviewedAt && dupSprint.reviewedAt) {
+            canonicalSprint.reviewedAt = dupSprint.reviewedAt
             updated = true
           }
           if (updated) {

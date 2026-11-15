@@ -45,6 +45,40 @@ export function getAnnouncements(): Announcement[] {
   return announcements
 }
 
+/**
+ * Returns announcements visible to a given user, filtered by:
+ * - expiry (expired announcements are hidden)
+ * - target teams (only shown to members of those teams)
+ * - target sprint (shown to everyone in the class)
+ *
+ * `userTeams` is the caller's class teams (null = unrestricted staff).
+ */
+export function getAnnouncementsForUser(
+  userTeams: string[] | null
+): Announcement[] {
+  return announcements.filter((a) => {
+    // Hide expired announcements
+    if (a.expiresAt && new Date(a.expiresAt).getTime() <= new Date().getTime()) {
+      return false
+    }
+
+    // If targeted at specific teams, only show to members of those teams
+    if (a.targetTeams && a.targetTeams.length > 0) {
+      if (userTeams === null) return true // unrestricted staff sees all
+      return a.targetTeams.some((t) => userTeams.includes(t))
+    }
+
+    // If targeted at a specific sprint, show to everyone in the class
+    if (a.targetSprint !== undefined) {
+      if (userTeams === null) return true
+      return true // sprint-scoped announcements are visible to all class members
+    }
+
+    // Untargeted announcements are visible to everyone
+    return true
+  })
+}
+
 registerCollection({
   key: KEYS.announcements,
   getAll: () => announcements,
@@ -60,7 +94,8 @@ export function getAnnouncement(id: string): Announcement | undefined {
 
 export function createAnnouncement(
   input: CreateAnnouncementInput,
-  author: string
+  author: string,
+  authorRole: "admin" | "subject-teacher" = "subject-teacher"
 ): Announcement {
   sequence += 1
   const announcement: Announcement = {
@@ -68,8 +103,12 @@ export function createAnnouncement(
     title: input.title,
     body: input.body,
     author,
+    authorRole,
     createdAt: new Date().toISOString(),
     unread: true,
+    ...(input.targetTeams && { targetTeams: input.targetTeams }),
+    ...(input.targetSprint !== undefined && { targetSprint: input.targetSprint }),
+    ...(input.expiresAt && { expiresAt: input.expiresAt }),
   }
   announcements.unshift(announcement)
   mutated(KEYS.announcements, announcement.id, announcement)
@@ -78,13 +117,24 @@ export function createAnnouncement(
 
 export function updateAnnouncement(
   id: string,
-  updates: Partial<Pick<Announcement, "title" | "body">>
+  updates: Partial<
+    Pick<
+      Announcement,
+      "title" | "body" | "targetTeams" | "targetSprint" | "expiresAt"
+    >
+  >
 ): Announcement | null {
   const announcement = announcements.find((a) => a.id === id)
   if (!announcement) return null
 
   if (updates.title !== undefined) announcement.title = updates.title
   if (updates.body !== undefined) announcement.body = updates.body
+  if (updates.targetTeams !== undefined)
+    announcement.targetTeams = updates.targetTeams
+  if (updates.targetSprint !== undefined)
+    announcement.targetSprint = updates.targetSprint
+  if (updates.expiresAt !== undefined)
+    announcement.expiresAt = updates.expiresAt
 
   mutated(KEYS.announcements, announcement.id, announcement)
   return announcement

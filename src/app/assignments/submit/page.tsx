@@ -9,6 +9,7 @@ import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import SprintSubmitForm, {
   type SprintSubmitPayload,
 } from "@/frontend/components/Student/SprintSubmitForm"
+import type { Team } from "@/backend/types"
 
 export default function SubmitPage({
   searchParams,
@@ -26,6 +27,8 @@ export default function SubmitPage({
   const { submissions, loading: submissionsLoading, refetch } = useSubmissions()
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [teams, setTeams] = useState<Team[]>([])
+  const [teamsLoading, setTeamsLoading] = useState(true)
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -35,7 +38,32 @@ export default function SubmitPage({
     }
   }, [user, isFaculty, userLoading, router])
 
-  if (userLoading || assignmentsLoading || submissionsLoading) {
+  useEffect(() => {
+    let cancelled = false
+    if (!assignmentId) return
+    fetch(`/api/teams?assignmentId=${encodeURIComponent(assignmentId)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load teams")
+        return res.json()
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setTeams(data?.teams || [])
+          setTeamsLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTeams([])
+          setTeamsLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [assignmentId])
+
+  if (userLoading || assignmentsLoading || submissionsLoading || teamsLoading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="animate-pulse space-y-4">
@@ -159,6 +187,7 @@ export default function SubmitPage({
       onSubmit={handleSubmit}
       loading={submitting}
       error={submitError}
+      teams={teams}
     />
   )
 }

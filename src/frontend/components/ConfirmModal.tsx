@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import Button from "./Button"
 import { TrashIcon } from "./Icons"
 
@@ -15,7 +15,7 @@ export default function ConfirmModal({
 }: {
   open: boolean
   title: string
-  body: string
+  body: ReactNode
   confirmLabel?: string
   busy?: boolean
   onConfirm: () => void

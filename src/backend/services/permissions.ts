@@ -34,6 +34,7 @@ export type Capability =
   | "teacher.approve"
   | "team.read"
   | "repo.read"
+  | "announcement.create"
 
 const OWNER: readonly Capability[] = [
   "assignment.read",
@@ -50,6 +51,7 @@ const OWNER: readonly Capability[] = [
   "teacher.approve",
   "team.read",
   "repo.read",
+  "announcement.create",
 ]
 
 const ANIMATOR: readonly Capability[] = OWNER.filter(
@@ -69,6 +71,7 @@ const SUBJECT_TEACHER: readonly Capability[] = [
   "submission.commitOverride",
   "team.read",
   "repo.read",
+  "announcement.create",
 ]
 
 const ELECTIVE_TEACHER: readonly Capability[] = [
@@ -81,6 +84,7 @@ const ELECTIVE_TEACHER: readonly Capability[] = [
   "submission.accept",
   "team.read",
   "repo.read",
+  "announcement.create",
 ]
 
 const STUDENT: readonly Capability[] = [
@@ -322,16 +326,30 @@ export function canUseRepo(access: AccessContext, owner: string): boolean {
 }
 
 /**
- * Whether the caller may act on a specific submission: the owning student
- * always may, and anyone else needs `submission.readAll` plus the assignment
- * being in one of their classes.
+ * Whether the caller may act on a specific submission: the owning student,
+ * any team member, always may; anyone else needs `submission.readAll` plus
+ * the assignment being in one of their classes.
  */
 export function canAccessSubmission(
   access: AccessContext,
-  submission: { studentUsername: string; assignmentId: string }
+  submission: {
+    studentUsername: string
+    assignmentId: string
+    teamMembers?: string[]
+  }
 ): boolean {
   if (submission.studentUsername.toLowerCase() === access.username.toLowerCase())
     return true
+
+  // Team members can access their team's submission.
+  if (
+    submission.teamMembers?.some(
+      (m) => m.toLowerCase() === access.username.toLowerCase()
+    )
+  ) {
+    return true
+  }
+
   if (!can(access, "submission.readAll")) return false
 
   const assignment = getAssignment(submission.assignmentId)

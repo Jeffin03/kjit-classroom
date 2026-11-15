@@ -33,7 +33,12 @@ export interface SprintSubmission {
 
 export interface Submission {
   id: string
+  /** The student who clicked submit (for backward compat & audit). */
   studentUsername: string
+  /** Optional: the team this submission belongs to. When set, dedup & ownership are team-scoped. */
+  teamId?: string
+  /** All team member usernames (for display & permission checks). */
+  teamMembers?: string[]
   assignmentId: string
   repoUrl: string
   abstractDocUrl: string
@@ -50,6 +55,10 @@ export interface CreateSubmissionInput {
   assignmentId: string
   repoUrl: string
   abstractDocUrl: string
+  /** Optional team id for team-based submissions. */
+  teamId?: string
+  /** Optional team members for team-based submissions. */
+  teamMembers?: string[]
 }
 
 export interface SubmitSprintInput {

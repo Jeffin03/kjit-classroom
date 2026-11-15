@@ -7,6 +7,8 @@ import {
   canAccessSubmission,
 } from "@/backend/services/permissions"
 import { jsonError, readJson } from "@/backend/http"
+import { flushNow } from "@/backend/store/persistence"
+import { csrfCheck } from "@/backend/csrf"
 
 export async function GET(
   _request: Request,
@@ -44,6 +46,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string; sprint: string }> }
 ) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
+
   const auth = await authorize("submission.commitOverride")
   if (!auth.ok) return auth.response
 
@@ -80,6 +85,7 @@ export async function PUT(
 
   try {
     updateSprintCommitHash(id, sprintNumber, commitSha, access.username)
+    await flushNow()
     return NextResponse.json({ message: "Commit hash updated" })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update commit hash"

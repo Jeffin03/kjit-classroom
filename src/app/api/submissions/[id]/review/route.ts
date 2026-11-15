@@ -6,6 +6,8 @@ import {
 } from "@/backend/services/submission.service"
 import { authorize, canAccessSubmission } from "@/backend/services/permissions"
 import { jsonError, readJson } from "@/backend/http"
+import { flushNow } from "@/backend/store/persistence"
+import { csrfCheck } from "@/backend/csrf"
 
 interface ReviewBody {
   accept?: boolean
@@ -17,6 +19,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
+
   const body = await readJson<ReviewBody>(request)
   if (!body) return jsonError("Request body must be valid JSON")
 
@@ -45,6 +50,7 @@ export async function PUT(
   if (accepting) {
     try {
       acceptSubmission(id, access.username)
+      await flushNow()
       return NextResponse.json({ message: "Submission accepted" })
     } catch (err) {
       const message =
@@ -67,6 +73,7 @@ export async function PUT(
 
   try {
     reviewSprint(sprintSubmissionId, access.username, notes)
+    await flushNow()
     return NextResponse.json({ message: "Review notes saved" })
   } catch (err) {
     const message =

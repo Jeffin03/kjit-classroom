@@ -4,13 +4,28 @@ import { submitSprint } from "@/backend/services/submission.service"
 import { authorize, canUseRepo } from "@/backend/services/permissions"
 import { parseRepoUrl } from "@/backend/github/repos"
 import { jsonError, readJson } from "@/backend/http"
+import { flushNow } from "@/backend/store/persistence"
 import { cleanSprintSummary } from "@/backend/validation"
 import type { SubmitSprintInput } from "@/backend/types"
+import { csrfCheck } from "@/backend/csrf"
+import { rateLimit, getClientIp } from "@/backend/rateLimit"
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const csrf = csrfCheck(request)
+  if (csrf) return csrf
+
+  const ip = getClientIp(request)
+  const rl = rateLimit(`sprints:post:${ip}`, { limit: 10, windowMs: 60_000 })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    )
+  }
+
   const auth = await authorize("submission.create")
   if (!auth.ok) return auth.response
 
@@ -22,7 +37,15 @@ export async function POST(
     return NextResponse.json({ error: "Submission not found" }, { status: 404 })
   }
 
-  if (submission.studentUsername !== access.username) {
+  // The submitter or any team member may submit subsequent sprints.
+  const isTeamMember =
+    submission.teamMembers?.some(
+      (m: string) => m.toLowerCase() === access.username.toLowerCase()
+    ) ?? false
+  if (
+    submission.studentUsername.toLowerCase() !== access.username.toLowerCase() &&
+    !isTeamMember
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -82,7 +105,11 @@ export async function POST(
     )
   }
 
-  if (!canUseRepo(access, repoOwner)) {
+  // For team submissions, any team member's repo is acceptable.
+  // For solo submissions, the submitter must own the repo.
+  const isTeamSubmission =
+    (submission.teamMembers?.length ?? 0) > 0
+  if (!isTeamSubmission && !canUseRepo(access, repoOwner)) {
     return NextResponse.json(
       { error: "You can only submit from your own repositories" },
       { status: 403 }
@@ -101,6 +128,7 @@ export async function POST(
       },
       accessToken
     )
+    await flushNow()
     return NextResponse.json(sprint, { status: 201 })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to submit sprint"

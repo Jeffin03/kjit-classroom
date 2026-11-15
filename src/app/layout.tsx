@@ -3,6 +3,7 @@ import localFont from "next/font/local"
 import "@/frontend/globals.css"
 import { SessionProvider } from "next-auth/react"
 import Navbar from "@/frontend/components/Navbar"
+import SessionTimeout from "@/frontend/components/SessionTimeout"
 
 // Self-hosted so `next build` never needs egress to fonts.googleapis.com —
 // builds run on locked-down CI agents and offline machines. Files are the
@@ -44,6 +45,7 @@ export default function RootLayout({
         <SessionProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
+          <SessionTimeout />
         </SessionProvider>
       </body>
     </html>

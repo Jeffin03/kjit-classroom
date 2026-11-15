@@ -100,11 +100,27 @@ const devProviders = isDevTestAuthEnabled()
     ]
   : []
 
+// Session lifetime: defaults to 8 hours (a typical school day).
+// Override with AUTH_SESSION_MAX_AGE (seconds) and AUTH_SESSION_UPDATE_AGE
+// (seconds) in production.
+const SESSION_MAX_AGE =
+  process.env.AUTH_SESSION_MAX_AGE ? Number(process.env.AUTH_SESSION_MAX_AGE) : 8 * 60 * 60
+const SESSION_UPDATE_AGE =
+  process.env.AUTH_SESSION_UPDATE_AGE ? Number(process.env.AUTH_SESSION_UPDATE_AGE) : 60 * 60
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Auth.js refuses to trust the Host header unless told to. Some platforms
   // enable this automatically, but self-hosted / proxied deployments throw
   // UntrustedHost at sign-in without it.
   trustHost: true,
+
+  // Session cookie lifetime. After maxAge the session cookie is invalid and
+  // the user must sign in again. updateAge controls how often the session is
+  // refreshed in the background while the user is active.
+  session: {
+    maxAge: SESSION_MAX_AGE,
+    updateAge: SESSION_UPDATE_AGE,
+  },
   // Auth.js's built-in sign-in page is unstyled; the app ships its own at
   // /signin. Every sign-in entry point (including /api/auth/signin and OAuth
   // error returns) is redirected there, with callbackUrl/error appended.

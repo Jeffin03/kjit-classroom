@@ -15,7 +15,6 @@ import {
   getSubmissionByStudentAndAssignment,
   getSubmissionById,
   getSubmissionsByAssignment,
-  getSubmissionsByStudent,
   getSubmissions,
   updateSprintSubmission,
   updateSubmission,
@@ -30,10 +29,20 @@ export async function createSubmission(
   input: CreateSubmissionInput,
   studentToken?: string
 ): Promise<SubmissionWithSprints> {
-  const existing = getSubmissionByStudentAndAssignment(
-    input.studentUsername,
-    input.assignmentId
-  )
+  // Determine dedup key: team-scoped when teamId is present, else student-scoped
+  let existing: Submission | undefined
+  if (input.teamId) {
+    const allSubs = getSubmissions()
+    existing = allSubs.find(
+      (s) =>
+        s.teamId === input.teamId && s.assignmentId === input.assignmentId
+    )
+  } else {
+    existing = getSubmissionByStudentAndAssignment(
+      input.studentUsername,
+      input.assignmentId
+    )
+  }
   if (existing) {
     throw new Error("Submission already exists for this assignment")
   }
@@ -95,6 +104,8 @@ export async function createSubmission(
   const submission: Submission = {
     id: `sub-${Date.now()}`,
     studentUsername: input.studentUsername,
+    teamId: input.teamId,
+    teamMembers: input.teamMembers,
     assignmentId: input.assignmentId,
     repoUrl: input.repoUrl,
     abstractDocUrl: input.abstractDocUrl,
@@ -122,11 +133,37 @@ export async function createSubmission(
   return withSprints(submission)
 }
 
+/**
+ * Get all submissions (with sprints) where the given student is either the
+ * submitter or a team member.
+ */
+export function getSubmissionsForStudentOrTeam(
+  studentUsername: string
+): SubmissionWithSprints[] {
+  const needle = studentUsername.toLowerCase()
+  const all = getSubmissions()
+  const relevant = all.filter(
+    (s) =>
+      s.studentUsername.toLowerCase() === needle ||
+      s.teamMembers?.some((m) => m.toLowerCase() === needle)
+  )
+  return relevant.map((s) => withSprints(s))
+}
+
+/**
+ * Get all submissions (with sprints) for a specific team.
+ */
+export function getSubmissionsForTeam(teamId: string): SubmissionWithSprints[] {
+  const all = getSubmissions()
+  return all
+    .filter((s) => s.teamId === teamId)
+    .map((s) => withSprints(s))
+}
+
 export function getSubmissionsForStudent(
   studentUsername: string
 ): SubmissionWithSprints[] {
-  const subs = getSubmissionsByStudent(studentUsername)
-  return subs.map((s) => withSprints(s))
+  return getSubmissionsForStudentOrTeam(studentUsername)
 }
 
 export function getSubmissionsForAssignment(
@@ -384,6 +421,8 @@ export function acceptSubmission(submissionId: string, reviewedBy: string): void
 export function markSubmissionCompleted(submissionId: string): void {
   const submission = getSubmissionById(submissionId)
   if (!submission) return
+  // Never downgrade a submission that faculty has already accepted.
+  if (submission.status === "accepted") return
   const sprints = getSprintSubmissions(submissionId)
   const assignment = getAssignment(submission.assignmentId)
   if (!assignment) return

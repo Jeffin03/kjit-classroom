@@ -6,6 +6,7 @@ import type { Announcement } from "@/backend/types"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
 import Button from "./Button"
 import { BellIcon, PlusIcon } from "./Icons"
+import ConfirmModal from "./ConfirmModal"
 
 /** "2026-09-01" → "1 Sep", matching the copy deck's date style. */
 function formatDate(iso: string): string {
@@ -14,8 +15,20 @@ function formatDate(iso: string): string {
   return parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
 }
 
+function authorRoleLabel(role: Announcement["authorRole"]): string {
+  switch (role) {
+    case "admin":
+      return "Admin"
+    case "subject-teacher":
+      return "Subject Teacher"
+    default:
+      return "Faculty"
+  }
+}
+
 export default function AnnouncementModule() {
-  const { isOrgOwner, loading: accessLoading } = useSessionUser()
+  const { isOrgOwner, username, capabilities, loading: accessLoading } =
+    useSessionUser()
   const [items, setItems] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -23,13 +36,22 @@ export default function AnnouncementModule() {
   const [composerOpen, setComposerOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
+  const [targetTeams, setTargetTeams] = useState<string[]>([])
+  const [targetSprint, setTargetSprint] = useState<number | null>(null)
+  const [expiresAt, setExpiresAt] = useState("")
   const [posting, setPosting] = useState(false)
   const [postError, setPostError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState("")
   const [editBody, setEditBody] = useState("")
+  const [editTargetTeams, setEditTargetTeams] = useState<string[]>([])
+  const [editTargetSprint, setEditTargetSprint] = useState<number | null>(null)
+  const [editExpiresAt, setEditExpiresAt] = useState("")
   const [savingEdit, setSavingEdit] = useState(false)
   const [itemError, setItemError] = useState<string | null>(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  const canPost = capabilities.includes("announcement.create")
 
   const load = () => {
     fetch("/api/announcements")
@@ -62,17 +84,26 @@ export default function AnnouncementModule() {
     )
   }
 
+  const isAuthor = (item: Announcement) =>
+    item.author.toLowerCase() === (username || "").toLowerCase()
+
   const closeComposer = () => {
     setComposerOpen(false)
     setPostError(null)
     setTitle("")
     setBody("")
+    setTargetTeams([])
+    setTargetSprint(null)
+    setExpiresAt("")
   }
 
   const startEdit = (item: Announcement) => {
     setEditingId(item.id)
     setEditTitle(item.title)
     setEditBody(item.body)
+    setEditTargetTeams(item.targetTeams ?? [])
+    setEditTargetSprint(item.targetSprint ?? null)
+    setEditExpiresAt(item.expiresAt ?? "")
     setItemError(null)
   }
 
@@ -94,6 +125,9 @@ export default function AnnouncementModule() {
           id: editingId,
           title: editTitle,
           body: editBody,
+          targetTeams: editTargetTeams.length > 0 ? editTargetTeams : undefined,
+          targetSprint: editTargetSprint,
+          expiresAt: editExpiresAt || undefined,
         }),
       })
       const data = await res.json().catch(() => null)
@@ -115,23 +149,25 @@ export default function AnnouncementModule() {
     }
   }
 
-  const remove = async (id: string) => {
-    if (!window.confirm("Delete this announcement?")) return
+  const confirmDelete = async () => {
+    if (!deleteId) return
     setItemError(null)
     try {
       const res = await fetch("/api/announcements", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: deleteId }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
         throw new Error(data?.error || "Couldn't delete the announcement")
       }
-      setItems((current) => current.filter((item) => item.id !== id))
-      if (open === id) setOpen(null)
+      setItems((current) => current.filter((item) => item.id !== deleteId))
+      if (open === deleteId) setOpen(null)
+      setDeleteId(null)
     } catch (err) {
       setItemError(err instanceof Error ? err.message : "Something went wrong")
+      setDeleteId(null)
     }
   }
 
@@ -144,7 +180,13 @@ export default function AnnouncementModule() {
       const res = await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body }),
+        body: JSON.stringify({
+          title,
+          body,
+          targetTeams: targetTeams.length > 0 ? targetTeams : undefined,
+          targetSprint,
+          expiresAt: expiresAt || undefined,
+        }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
@@ -176,13 +218,13 @@ export default function AnnouncementModule() {
         )}
       </div>
 
-      {!isOrgOwner && !accessLoading && (
+      {!accessLoading && !canPost && (
         <p className="border-b border-border bg-canvas px-5 py-2 text-xs text-ink-subtle">
-          Only organization owners can post announcements.
+          Announcements are posted by your class teachers and admin.
         </p>
       )}
 
-      {isOrgOwner && !accessLoading && (
+      {(accessLoading || canPost) && (
         <div className="border-b border-border bg-canvas">
           {composerOpen ? (
             <form onSubmit={publish} className="space-y-2 p-4">
@@ -202,9 +244,60 @@ export default function AnnouncementModule() {
                 maxLength={2000}
                 className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
               />
-              {postError && (
-                <p className="text-xs text-danger">{postError}</p>
-              )}
+
+              {/* Targeting options (teachers only) */}
+              <div className="pt-3 border-t border-border">
+                <h3 className="text-[10px] font-bold uppercase tracking-wider text-ink-subtle mb-2">
+                  Send to
+                </h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={targetSprint === null}
+                    onChange={() => setTargetSprint(null)}
+                    className="w-4 h-4 rounded accent-accent"
+                  />
+                  <label className="text-sm text-ink-muted cursor-pointer">
+                    Whole class
+                  </label>
+                </div>
+                {targetSprint !== null && (
+                  <div className="mb-2">
+                    <label className="text-xs font-medium text-ink-muted block mb-1">
+                      Specific sprint
+                    </label>
+                    <select
+                      value={targetSprint}
+                      onChange={(e) =>
+                        setTargetSprint(parseInt(e.target.value, 10))
+                      }
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
+                    >
+                      {[0, 1, 2, 3].map((n) => (
+                        <option key={n} value={n}>
+                          Sprint {n}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="mb-2">
+                  <label className="text-xs font-medium text-ink-muted block mb-1">
+                    Expires on (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={expiresAt}
+                    onChange={(e) => setExpiresAt(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent-soft"
+                  />
+                </div>
+                <p className="text-[10px] text-ink-faint">
+                  Announcements expire at sprint end if not set.
+                </p>
+              </div>
+
+              {postError && <p className="text-xs text-danger">{postError}</p>}
               <div className="flex justify-end gap-2">
                 <Button
                   variant="ghost"
@@ -307,28 +400,41 @@ export default function AnnouncementModule() {
                         >
                           {item.body}
                         </span>
-                        <span className="mt-2 block text-xs text-ink-subtle">
+                        <span className="mt-2 block text-xs text-ink-subtle flex items-center gap-2">
                           {formatDate(item.createdAt)} · {item.author}
+                          {item.authorRole && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+                            >
+                              {authorRoleLabel(item.authorRole)}
+                            </span>
+                          )}
                         </span>
                       </span>
                     </span>
                   </button>
-                  {open === item.id && isOrgOwner && (
+                  {open === item.id && (
                     <div className="flex justify-end gap-2 px-4 pb-3">
-                      <Button
-                        variant="ghost"
-                        type="button"
-                        onClick={() => startEdit(item)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="danger"
-                        type="button"
-                        onClick={() => remove(item.id)}
-                      >
-                        Delete
-                      </Button>
+                      {(isAuthor(item) || isOrgOwner) && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            onClick={() => startEdit(item)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="danger"
+                            type="button"
+                            onClick={() => {
+                              setDeleteId(item.id)
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
                     </div>
                   )}
                   {open === item.id && itemError && (
@@ -344,6 +450,17 @@ export default function AnnouncementModule() {
       <p className="bg-canvas px-5 py-3 text-xs text-ink-subtle">
         Watch the Announcements repository on GitHub for email updates.
       </p>
+
+      {/* Delete confirmation modal */}
+      <ConfirmModal
+        open={!!deleteId}
+        title="Delete this announcement?"
+        body="This announcement will be removed for everyone."
+        confirmLabel="Delete"
+        busy={false}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </section>
   )
 }

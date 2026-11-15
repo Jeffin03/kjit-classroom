@@ -58,6 +58,24 @@ const navItems: NavItem[] = [
     ),
   },
   {
+    href: "/faculty/review/pwa",
+    label: "Review PWA",
+    icon: (
+      <Icon>
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+      </Icon>
+    ),
+  },
+  {
+    href: "/help",
+    label: "Help",
+    icon: (
+      <Icon>
+        <path d="M12 6.25l-1.25 2.75-2.75-1.25M12 6.25l2.75 1.25 1.25 2.75M12 6.25l-1.25-2.75-2.75 1.25M12 17.75l-2.75 1.25-1.25-2.75M12 17.75l1.25 2.75 2.75-1.25M12 17.75l2.75-1.25 1.25 2.75" />
+      </Icon>
+    ),
+  },
+  {
     href: "/faculty/roster",
     label: "Student Roster",
     icon: (

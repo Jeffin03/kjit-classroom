@@ -345,14 +345,24 @@ export default function FacultyDashboard() {
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-subtle">
             Recent submissions
           </h2>
-          <span className="text-xs text-ink-subtle">last 7 days</span>
+          <Link
+            href="/faculty/review"
+            className="text-xs font-medium text-accent hover:underline"
+          >
+            View all →
+          </Link>
         </div>
         <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface">
           {recent.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-ink-muted">
-              No submissions in the last 7 days. Sprints appear here once
-              rostered students submit.
-            </p>
+            <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-canvas">
+                <ClipboardIcon className="size-5 text-ink-faint" />
+              </span>
+              <p className="mt-3 text-sm text-ink-muted">
+                No submissions in the last 7 days. Sprints appear here once
+                rostered students submit.
+              </p>
+            </div>
           ) : (
             <ul className="divide-y divide-border">
               {recent.map(({ submission, sprint }) => {
@@ -362,7 +372,7 @@ export default function FacultyDashboard() {
                 return (
                   <li
                     key={`${submission.id}-${sprint.sprintNumber}`}
-                    className="flex flex-wrap items-center gap-3 px-5 py-3 transition-colors hover:bg-canvas"
+                    className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition-colors hover:bg-canvas"
                   >
                     <Avatar
                       name={entry?.displayName || entry?.rollNo || submission.studentUsername}
@@ -374,11 +384,12 @@ export default function FacultyDashboard() {
                       </p>
                       <p className="truncate text-xs text-ink-muted">
                         {entry?.classTeam ? `${entry.classTeam} · ` : ""}
-                        {assignment?.title || submission.assignmentId} · Sprint{" "}
-                        {sprint.sprintNumber}
+                        {assignment?.title || submission.assignmentId}
+                        <span className="mx-1 text-ink-faint">·</span>
+                        <span className="font-mono">Sprint {sprint.sprintNumber}</span>
                       </p>
                     </div>
-                    <span className="text-xs text-ink-subtle">
+                    <span className="shrink-0 text-xs text-ink-subtle">
                       {when.toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -390,9 +401,9 @@ export default function FacultyDashboard() {
                     </span>
                     <Link
                       href={`/faculty/review?assignmentId=${submission.assignmentId}`}
-                      className="inline-flex min-h-9 items-center rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-accent-soft"
+                      className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 text-sm font-medium text-accent transition-colors hover:bg-accent-soft"
                     >
-                      Review
+                      Review →
                     </Link>
                   </li>
                 )

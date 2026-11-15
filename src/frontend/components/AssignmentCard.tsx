@@ -66,21 +66,35 @@ export function AssignmentCard({
           <CalendarIcon className="size-4" />
           Due {deadlineDate}
         </span>
-        <span>Sprint 0 to 3</span>
+        <span className="flex items-center gap-1 font-mono">
+          S0 → S3
+        </span>
       </div>
 
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-border">
-        <div
-          className="h-full rounded-full bg-accent transition-[width] duration-500"
-          style={{ width: `${percent}%` }}
-        />
+      <div className="mt-4">
+        <div className="flex justify-between text-[10px] text-ink-faint mb-1.5">
+          {["S0", "S1", "S2", "S3"].map((s, i) => (
+            <span
+              key={s}
+              className={`${i < (progress ?? 0) ? "text-accent font-semibold" : ""}`}
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-500"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-3 text-xs text-ink-subtle">
         <span>
           {showCounts
             ? `${submittedCount} of ${totalStudents} submitted`
-            : `${complete} of 4 sprints`}
+            : `${complete} of 4 sprints complete`}
         </span>
         <span className="inline-flex items-center font-medium text-accent">
           {primaryAction}

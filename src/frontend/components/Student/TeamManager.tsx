@@ -8,10 +8,15 @@ import ConfirmModal from "@/frontend/components/ConfirmModal"
 import { PlusIcon, ArrowRightIcon, UsersIcon, TrashIcon } from "@/frontend/components/Icons"
 import type { Team } from "@/backend/types"
 
-/** Mobile-first team management: create, join, view, leave teams. */
-export default function TeamManager() {
+/** Mobile-first team management: create, join, view, leave teams per assignment. */
+export default function TeamManager({
+  assignmentId: propAssignmentId,
+}: {
+  assignmentId?: string
+}) {
   const { username } = useSessionUser()
   const [teams, setTeams] = useState<Team[]>([])
+  const [assignments, setAssignments] = useState<{ id: string; title: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -21,7 +26,7 @@ export default function TeamManager() {
   const [joinOpen, setJoinOpen] = useState(false)
 
   // Form state
-  const [assignmentId, setAssignmentId] = useState("")
+  const [formAssignmentId, setFormAssignmentId] = useState(propAssignmentId || "")
   const [projectTitle, setProjectTitle] = useState("")
   const [member1, setMember1] = useState(username || "")
   const [member2, setMember2] = useState("")
@@ -29,12 +34,20 @@ export default function TeamManager() {
   const [joinTeamId, setJoinTeamId] = useState("")
   const [joinRollNo, setJoinRollNo] = useState("")
 
-  const currentTeam = teams.find((t) =>
+  // Teams filtered by assignment context
+  const filteredTeams = propAssignmentId
+    ? teams.filter((t) => t.assignmentId === propAssignmentId)
+    : teams
+
+  const currentTeam = filteredTeams.find((t) =>
     t.members.some((m) => m.username === username)
   )
 
   const refetch = () => {
-    fetch("/api/teams")
+    const url = propAssignmentId
+      ? `/api/teams?assignmentId=${encodeURIComponent(propAssignmentId)}`
+      : "/api/teams"
+    fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load teams")
         return res.json()
@@ -46,6 +59,23 @@ export default function TeamManager() {
 
   useEffect(() => {
     refetch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propAssignmentId])
+
+  // Load assignments for the create dropdown
+  useEffect(() => {
+    fetch("/api/assignments")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load assignments")
+        return res.json()
+      })
+      .then((data) => {
+        const list = Array.isArray(data) ? data : []
+        setAssignments(list)
+      })
+      .catch(() => {
+        // Assignments load failure is non-fatal
+      })
   }, [])
 
   const memberUsernames = () =>
@@ -65,7 +95,7 @@ export default function TeamManager() {
         setError("You must include yourself in the team")
         return
       }
-      if (!assignmentId) {
+      if (!formAssignmentId) {
         setError("Select an assignment")
         return
       }
@@ -78,7 +108,7 @@ export default function TeamManager() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          assignmentId,
+          assignmentId: formAssignmentId,
           projectTitle: projectTitle.trim(),
           members,
         }),
@@ -87,7 +117,7 @@ export default function TeamManager() {
       if (!res.ok) throw new Error(data.error || "Failed to create team")
 
       setCreateOpen(false)
-      setAssignmentId("")
+      setFormAssignmentId(propAssignmentId || "")
       setProjectTitle("")
       setMember1(username || "")
       setMember2("")
@@ -164,7 +194,7 @@ export default function TeamManager() {
       <header className="mb-8">
         <h1 className="text-xl font-semibold tracking-tight text-ink">Your Team</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Teams of 1–3. One submission per team — anyone can submit.
+          Teams of 1–3 per assignment. One submission per team — anyone can submit.
         </p>
       </header>
 
@@ -176,36 +206,37 @@ export default function TeamManager() {
 
       {/* Current team card */}
       {currentTeam ? (
-        <section className="mb-8 rounded-2xl border border-[var(--color-border)] bg-white p-5 sm:p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-ink">
+        <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+          <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-semibold text-ink">
                 {currentTeam.projectTitle}
               </h2>
-              <p className="mt-1 text-sm text-ink-muted">
-                Status: {currentTeam.status.charAt(0).toUpperCase() + currentTeam.status.slice(1)}
+              <p className="mt-0.5 text-xs text-ink-muted">
+                Assignment · {currentTeam.assignmentId}
               </p>
             </div>
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            <span className={`mt-0.5 shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
               currentTeam.status === "accepted"
-                ? "bg-[var(--color-success-soft)] text-[var(--color-success-text)] border border-[var(--color-success)]/20"
+                ? "bg-[var(--color-success-soft)] text-[var(--color-success-text)]"
                 : currentTeam.status === "submitted"
-                  ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)] border border-[var(--color-accent)]/20"
+                  ? "bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
                   : currentTeam.status === "rejected"
-                    ? "bg-[var(--color-danger-soft)] text-[var(--color-danger-text)] border border-[var(--color-danger)]/20"
+                    ? "bg-[var(--color-danger-soft)] text-[var(--color-danger-text)]"
                     : "bg-[var(--color-canvas)] text-[var(--color-ink-muted)] border border-[var(--color-border)]"
             }`}>
+              <span className="size-1.5 rounded-full bg-current" />
               {currentTeam.status.charAt(0).toUpperCase() + currentTeam.status.slice(1)}
             </span>
           </div>
 
-          <div className="space-y-3">
+          <div className="divide-y divide-border">
             {currentTeam.members.map((m) => (
               <div
                 key={m.username}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg border border-[var(--color-border)]/50 bg-[var(--color-canvas)]/50"
+                className="flex items-center gap-3 px-5 py-3"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-border)] text-[var(--color-ink-muted)] font-medium text-sm">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
                   {m.username.charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -213,72 +244,84 @@ export default function TeamManager() {
                     {m.displayName || m.username}
                   </p>
                   <p className="text-xs font-mono text-ink-muted truncate">
-                    {m.rollNo} {m.isLead ? "· Lead" : ""}
+                    {m.rollNo}
                   </p>
                 </div>
+                {m.isLead && (
+                  <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+                    Lead
+                  </span>
+                )}
               </div>
             ))}
           </div>
 
-          <div className="mt-6 flex items-center gap-3">
+          <div className="flex items-center gap-3 border-t border-border px-5 py-4">
             <Link
               href={`/assignments/timeline?assignmentId=${currentTeam.assignmentId}`}
-              className="flex min-h-10 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              className="flex min-h-10 flex-1 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
             >
-              Open project timeline <ArrowRightIcon className="size-4" />
+              Open project timeline <ArrowRightIcon className="ml-1.5 size-4" />
             </Link>
             <button
               type="button"
               onClick={() => setLeavingId(currentTeam.id)}
-              className="flex min-h-10 items-center justify-center rounded-lg border border-[var(--color-danger)] px-4 text-sm font-medium text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
+              className="flex min-h-10 items-center justify-center rounded-lg border border-[var(--color-danger)] px-3 text-sm font-medium text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] transition-colors"
+              title="Leave team"
             >
-              <TrashIcon className="size-4 mr-1.5" /> Leave team
+              <TrashIcon className="size-4" />
             </button>
           </div>
         </section>
       ) : (
-        <section className="mb-8 rounded-2xl border border-[var(--color-border)] bg-white p-5 sm:p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <UsersIcon className="size-5 text-ink-muted" />
-            <span className="text-sm font-medium text-ink-muted">No team yet</span>
-          </div>
-          <p className="text-sm text-ink-muted mb-6">
-            Create a team or join an existing one before submitting Sprint 0.
+        <section className="mb-8 rounded-2xl border border-dashed border-border bg-surface p-6 text-center">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-canvas">
+            <UsersIcon className="size-6 text-ink-faint" />
+          </span>
+          <h2 className="mt-4 text-base font-semibold text-ink">
+            {propAssignmentId ? "No team for this assignment" : "No team yet"}
+          </h2>
+          <p className="mt-1.5 text-sm text-ink-muted">
+            {propAssignmentId
+              ? "Create a team or join an existing one for this assignment before submitting Sprint 0."
+              : "Select an assignment to create or join a team."}
           </p>
-          <Button
-            variant="primary"
-            onClick={() => setCreateOpen(true)}
-            className="w-full min-h-11"
-          >
-            <PlusIcon className="size-4 mr-2" /> Create a team
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setJoinOpen(true)}
-            className="w-full min-h-11 mt-3"
-          >
-            <ArrowRightIcon className="size-4 mr-2" /> Join a team
-          </Button>
+          <div className="mt-5 flex flex-col gap-2.5">
+            <Button
+              variant="primary"
+              onClick={() => setCreateOpen(true)}
+              className="w-full min-h-11"
+            >
+              <PlusIcon className="size-4 mr-2" /> Create a team
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setJoinOpen(true)}
+              className="w-full min-h-11"
+            >
+              <ArrowRightIcon className="size-4 mr-2" /> Join an existing team
+            </Button>
+          </div>
         </section>
       )}
 
       {/* Create team modal */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
           <button
             type="button"
             aria-label="Close"
             tabIndex={-1}
             onClick={() => setCreateOpen(false)}
-            className="absolute inset-0 bg-ink/40"
+            className="absolute inset-0 bg-ink/40 backdrop-blur-xs"
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-team-title"
-            className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl"
+            className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl"
           >
-            <h2 id="create-team-title" className="text-lg font-semibold text-ink mb-1">
+            <h2 id="create-team-title" className="text-lg font-semibold text-ink">
               Create a team
             </h2>
             <p className="mt-1 mb-5 text-sm text-ink-muted">
@@ -286,21 +329,26 @@ export default function TeamManager() {
             </p>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-ink-muted mb-1.5">
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5">
                   Assignment
                 </label>
                 <select
-                  value={assignmentId}
-                  onChange={(e) => setAssignmentId(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                  value={formAssignmentId}
+                  onChange={(e) => setFormAssignmentId(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                   required
                 >
                   <option value="">Select an assignment</option>
+                  {assignments.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.title} ({a.id})
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ink-muted mb-1.5">
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5">
                   Project title
                 </label>
                 <input
@@ -309,14 +357,14 @@ export default function TeamManager() {
                   onChange={(e) => setProjectTitle(e.target.value)}
                   placeholder="e.g. Smart Attendance System"
                   maxLength={200}
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                  className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ink-muted mb-1.5">
-                  Teammates (max 3 total, including you)
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5">
+                  Teammates <span className="font-normal text-ink-faint">(max 3 total, including you)</span>
                 </label>
                 <div className="space-y-2">
                   <input
@@ -324,7 +372,7 @@ export default function TeamManager() {
                     value={member1}
                     onChange={(e) => setMember1(e.target.value)}
                     placeholder="Your GitHub username"
-                    className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                    className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                     required
                   />
                   <input
@@ -332,26 +380,28 @@ export default function TeamManager() {
                     value={member2}
                     onChange={(e) => setMember2(e.target.value)}
                     placeholder="Teammate 2 (optional)"
-                    className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                    className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                   />
                   <input
                     type="text"
                     value={member3}
                     onChange={(e) => setMember3(e.target.value)}
                     placeholder="Teammate 3 (optional)"
-                    className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                    className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                   />
                 </div>
-                <p className="mt-1 text-xs text-ink-faint">
+                <p className="mt-1.5 text-xs text-ink-faint">
                   Teammates must already be on the class roster.
                 </p>
               </div>
 
               {error && (
-                <p className="text-xs text-[var(--color-danger-text)]">{error}</p>
+                <p className="rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger-text">
+                  {error}
+                </p>
               )}
 
-              <div className="mt-6 flex justify-end gap-2">
+              <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
                 <Button
                   variant="ghost"
                   type="button"
@@ -371,21 +421,21 @@ export default function TeamManager() {
 
       {/* Join team modal */}
       {joinOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
           <button
             type="button"
             aria-label="Close"
             tabIndex={-1}
             onClick={() => setJoinOpen(false)}
-            className="absolute inset-0 bg-ink/40"
+            className="absolute inset-0 bg-ink/40 backdrop-blur-xs"
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="join-team-title"
-            className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl"
+            className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl"
           >
-            <h2 id="join-team-title" className="text-lg font-semibold text-ink mb-1">
+            <h2 id="join-team-title" className="text-lg font-semibold text-ink">
               Join a team
             </h2>
             <p className="mt-1 mb-5 text-sm text-ink-muted">
@@ -393,7 +443,7 @@ export default function TeamManager() {
             </p>
             <form onSubmit={handleJoin} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-ink-muted mb-1.5">
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5">
                   Team ID
                 </label>
                 <input
@@ -401,13 +451,13 @@ export default function TeamManager() {
                   value={joinTeamId}
                   onChange={(e) => setJoinTeamId(e.target.value)}
                   placeholder="team-xxxx"
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                  className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none font-mono"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-ink-muted mb-1.5">
+                <label className="block text-xs font-semibold text-ink-muted mb-1.5">
                   Your roll number
                 </label>
                 <input
@@ -415,16 +465,18 @@ export default function TeamManager() {
                   value={joinRollNo}
                   onChange={(e) => setJoinRollNo(e.target.value)}
                   placeholder="e.g. 25MCAB24"
-                  className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-accent-soft)] focus:border-[var(--color-accent)]"
+                  className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                   required
                 />
               </div>
 
               {error && (
-                <p className="text-xs text-[var(--color-danger-text)]">{error}</p>
+                <p className="rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger-text">
+                  {error}
+                </p>
               )}
 
-              <div className="mt-6 flex justify-end gap-2">
+              <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
                 <Button
                   variant="ghost"
                   type="button"

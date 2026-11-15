@@ -206,15 +206,20 @@ export default function AnnouncementModule() {
       id="announcements"
       className="overflow-hidden rounded-2xl border border-border bg-surface"
     >
-      <div className="flex items-center justify-between bg-accent-soft px-5 py-4">
-        <span className="flex items-center gap-2 font-semibold">
-          <BellIcon className="size-4 text-accent" />
+      <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3.5">
+        <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-accent-soft">
+            <BellIcon className="size-4 text-accent" />
+          </span>
           Announcements
         </span>
-        {unread > 0 && (
-          <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-white">
+        {unread > 0 ? (
+          <span className="flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-white">
+            <span className="size-1.5 rounded-full bg-white/70" />
             {unread} new
           </span>
+        ) : (
+          <span className="text-xs text-ink-faint">Class updates</span>
         )}
       </div>
 
@@ -383,16 +388,16 @@ export default function AnnouncementModule() {
                   <button
                     type="button"
                     onClick={() => expand(item.id)}
-                    className="block w-full p-4 text-left hover:bg-canvas focus-visible:outline-2 focus-visible:outline-accent"
+                    className={`block w-full px-4 py-3.5 text-left transition-colors hover:bg-canvas focus-visible:outline-2 focus-visible:outline-accent ${item.unread ? "bg-accent-soft/30" : ""}`}
                   >
                     <span className="flex gap-3">
                       <span
-                        className={`mt-1.5 size-2 shrink-0 rounded-full ${
-                          item.unread ? "bg-accent" : "bg-border"
+                        className={`mt-1.5 size-2 shrink-0 rounded-full transition-colors ${
+                          item.unread ? "bg-accent ring-2 ring-accent/20" : "bg-border"
                         }`}
                       />
-                      <span>
-                        <strong className="block text-sm font-medium">
+                      <span className="min-w-0 flex-1">
+                        <strong className={`block text-sm ${item.unread ? "font-semibold text-ink" : "font-medium text-ink"}`}>
                           {item.title}
                         </strong>
                         <span
@@ -400,12 +405,12 @@ export default function AnnouncementModule() {
                         >
                           {item.body}
                         </span>
-                        <span className="mt-2 block text-xs text-ink-subtle flex items-center gap-2">
-                          {formatDate(item.createdAt)} · {item.author}
+                        <span className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-ink-subtle">
+                          <span>{formatDate(item.createdAt)}</span>
+                          <span className="text-ink-faint">·</span>
+                          <span>{item.author}</span>
                           {item.authorRole && (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                            >
+                            <span className="inline-flex items-center rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">
                               {authorRoleLabel(item.authorRole)}
                             </span>
                           )}

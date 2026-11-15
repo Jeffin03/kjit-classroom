@@ -35,19 +35,28 @@ export default function ClassCard({
             {subjects.length ? subjects.join(" · ") : "No subjects yet"}
           </p>
         </div>
-        <ChevronRightIcon className="size-4 shrink-0 text-ink-faint" />
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {toReview > 0 && (
+            <span className="inline-flex items-center rounded-full bg-caution-soft px-2 py-0.5 text-[10px] font-semibold text-caution">
+              {toReview} to review
+            </span>
+          )}
+          <ChevronRightIcon className="size-4 text-ink-faint" />
+        </div>
       </div>
 
       <div className="mt-5 grid grid-cols-4 gap-2">
         {[
-          ["Students", students],
-          ["Assignments", assignments],
-          ["In progress", inProgress],
-          ["To review", toReview],
-        ].map(([label, value]) => (
+          ["Students", students, false],
+          ["Assignments", assignments, false],
+          ["In progress", inProgress, false],
+          ["To review", toReview, toReview > 0],
+        ].map(([label, value, highlight]) => (
           <div key={String(label)}>
-            <p className="text-lg font-semibold">{value as number}</p>
-            <p className="text-[10px] uppercase tracking-wide text-ink-faint">
+            <p className={`text-lg font-bold ${highlight ? "text-caution" : "text-ink"}`}>
+              {value as number}
+            </p>
+            <p className={`text-[10px] uppercase tracking-wide ${highlight ? "text-caution" : "text-ink-faint"}`}>
               {label as string}
             </p>
           </div>

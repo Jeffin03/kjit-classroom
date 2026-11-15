@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useAssignments } from "@/frontend/hooks/useAssignments"
 import { useSubmissions } from "@/frontend/hooks/useSubmissions"
 import { useSessionUser } from "@/frontend/hooks/useSessionUser"
@@ -18,6 +18,7 @@ import {
   UsersIcon,
 } from "@/frontend/components/Icons"
 import type { Assignment, SubmissionWithSprints } from "@/backend/types"
+import type { Team } from "@/backend/types"
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -51,6 +52,8 @@ export default function Dashboard() {
   const { user, username, role, team, isFaculty, loading: userLoading } = useSessionUser()
   const { assignments, loading: assignmentsLoading } = useAssignments()
   const { submissions, loading: submissionsLoading } = useSubmissions()
+  const [currentTeam, setCurrentTeam] = useState<Team | null>(null)
+  const [teamLoading, setTeamLoading] = useState(true)
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -60,8 +63,19 @@ export default function Dashboard() {
     }
   }, [user, isFaculty, userLoading, router])
 
-  const loading = userLoading || assignmentsLoading || submissionsLoading
+  useEffect(() => {
+    fetch("/api/teams")
+      .then((r) => (r.ok ? r.json() : { teams: [] }))
+      .then((data) => {
+        const teams: Team[] = Array.isArray(data.teams) ? data.teams : []
+        const mine = teams.find((t) => t.members.some((m) => m.username === username))
+        setCurrentTeam(mine ?? null)
+      })
+      .catch(() => {})
+      .finally(() => setTeamLoading(false))
+  }, [username])
 
+  const loading = userLoading || assignmentsLoading || submissionsLoading
   const submissionFor = useMemo(() => {
     const map = new Map<string, SubmissionWithSprints>()
     submissions.forEach((submission) => map.set(submission.assignmentId, submission))
@@ -156,11 +170,20 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl p-5 sm:p-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {greeting()}{firstName ? `, ${firstName}` : ""}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">{team ?? "Your class"}</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {greeting()}{firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">{team ?? "Your class"}</p>
+        </div>
+        <Link
+          href="/teams"
+          className="hidden shrink-0 items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink sm:flex"
+        >
+          <UsersIcon className="size-4" />
+          Team
+        </Link>
       </header>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -249,6 +272,60 @@ export default function Dashboard() {
         </div>
 
         <aside className="order-first space-y-4 md:order-none">
+          {/* Team widget */}
+          {teamLoading ? (
+            <div className="h-28 animate-pulse rounded-2xl bg-border" />
+          ) : currentTeam ? (
+            <div className="rounded-2xl border border-border bg-surface p-4">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-ink-subtle">
+                  <UsersIcon className="size-3.5" />
+                  Your team
+                </span>
+                <Link
+                  href="/teams"
+                  className="text-xs font-medium text-accent hover:underline"
+                >
+                  Manage →
+                </Link>
+              </div>
+              <p className="mt-3 font-semibold text-ink leading-tight">
+                {currentTeam.projectTitle}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {currentTeam.members.map((m) => (
+                  <span
+                    key={m.username}
+                    className="inline-flex items-center gap-1 rounded-full bg-canvas border border-border px-2 py-0.5 text-xs text-ink-muted"
+                  >
+                    <span className="size-1.5 rounded-full bg-accent/40" />
+                    {m.displayName || m.username}
+                    {m.isLead ? (
+                      <span className="ml-0.5 text-[10px] text-accent font-semibold">★</span>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border bg-surface p-4 text-center">
+              <span className="mx-auto flex size-9 items-center justify-center rounded-xl bg-canvas">
+                <UsersIcon className="size-5 text-ink-faint" />
+              </span>
+              <p className="mt-2 text-sm font-medium text-ink">No team yet</p>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                Form a team before submitting Sprint 0.
+              </p>
+              <Link
+                href="/teams"
+                className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                <UsersIcon className="size-4" />
+                Form a team
+              </Link>
+            </div>
+          )}
+
           <AnnouncementModule />
           {upcoming[0] && (
             <div className="rounded-2xl border border-border bg-surface p-5">

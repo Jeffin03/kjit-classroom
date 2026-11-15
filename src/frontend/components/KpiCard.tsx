@@ -19,6 +19,14 @@ const tones = {
   danger: "text-danger",
 }
 
+const iconTones = {
+  neutral: "bg-[var(--color-canvas)] text-ink-muted",
+  accent: "bg-accent-soft text-accent",
+  success: "bg-success-soft text-success",
+  caution: "bg-caution-soft text-caution",
+  danger: "bg-danger-soft text-danger",
+}
+
 export default function KpiCard({
   label,
   value,
@@ -30,27 +38,31 @@ export default function KpiCard({
 }: Props) {
   const content = (
     <>
-      <span className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-ink-subtle">
+      <span className="flex items-start justify-between gap-3">
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-subtle pt-0.5">
           {label}
         </span>
-        <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
-          {icon}
-        </span>
+        {icon && (
+          <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${iconTones[tone]}`}>
+            {icon}
+          </span>
+        )}
       </span>
-      <strong className={`mt-3 block text-3xl font-semibold tracking-tight ${tones[tone]} break-words`}>
+      <strong className={`mt-3 block text-3xl font-bold tracking-tight leading-none ${tones[tone]} break-words`}>
         {value}
       </strong>
-      <span className="mt-1 block truncate text-xs text-ink-subtle">{hint}</span>
+      <span className="mt-2 block truncate text-xs text-ink-subtle">{hint}</span>
     </>
   )
 
   const base =
-    "min-h-28 w-full rounded-2xl border border-border bg-surface p-5 text-left transition-all hover:-translate-y-px hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+    "min-h-28 w-full rounded-2xl border border-border bg-surface p-5 text-left transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+  const interactive =
+    "hover:-translate-y-0.5 hover:shadow-md hover:border-border cursor-pointer"
 
   if (to) {
     return (
-      <Link href={to} className={`${base} block`}>
+      <Link href={to} className={`${base} ${interactive} block`}>
         {content}
       </Link>
     )
@@ -58,11 +70,11 @@ export default function KpiCard({
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={base}>
+      <button type="button" onClick={onClick} className={`${base} ${interactive}`}>
         {content}
       </button>
     )
   }
 
-  return <div className={`${base} hover:shadow-none hover:translate-y-0`}>{content}</div>
+  return <div className={base}>{content}</div>
 }

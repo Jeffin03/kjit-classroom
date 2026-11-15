@@ -40,10 +40,42 @@ export function getTeamByMember(username: string): Team | undefined {
   )
 }
 
+/**
+ * Find the team a member belongs to for a specific assignment.
+ * Teams are scoped per assignment (subject) — a student can be on different
+ * teams for different subjects.
+ */
+export function getTeamByMemberAndAssignment(
+  username: string,
+  assignmentId: string
+): Team | undefined {
+  const needle = username.toLowerCase()
+  return teams.find(
+    (t) =>
+      t.assignmentId === assignmentId &&
+      t.members.some((m) => m.username.toLowerCase() === needle)
+  )
+}
+
 export function getTeamsByMember(username: string): Team[] {
   const needle = username.toLowerCase()
   return teams.filter((t) =>
     t.members.some((m) => m.username.toLowerCase() === needle)
+  )
+}
+
+/**
+ * All teams a member belongs to for a specific assignment.
+ */
+export function getTeamsByMemberAndAssignment(
+  username: string,
+  assignmentId: string
+): Team[] {
+  const needle = username.toLowerCase()
+  return teams.filter(
+    (t) =>
+      t.assignmentId === assignmentId &&
+      t.members.some((m) => m.username.toLowerCase() === needle)
   )
 }
 
@@ -88,8 +120,8 @@ export function createTeam(input: CreateTeamInput): Team {
 
   // No member can already be on another team for this assignment
   for (const username of input.members) {
-    const existing = getTeamByMember(username)
-    if (existing && existing.assignmentId === input.assignmentId) {
+    const existing = getTeamByMemberAndAssignment(username, input.assignmentId)
+    if (existing) {
       throw new Error(
         `${username} is already on a team for this assignment`
       )
@@ -139,8 +171,11 @@ export function joinTeam(input: JoinTeamInput): Team {
   }
 
   // Verify the joiner isn't already on another team for this assignment
-  const existing = getTeamByMember(input.username)
-  if (existing && existing.assignmentId === team.assignmentId) {
+  const existing = getTeamByMemberAndAssignment(
+    input.username,
+    team.assignmentId
+  )
+  if (existing) {
     throw new Error("You are already on a team for this assignment")
   }
 

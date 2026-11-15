@@ -16,7 +16,7 @@ import { parseRepoUrl } from "@/backend/github/repos"
 import { isStudentAssigned } from "@/backend/services/assignment.service"
 import { jsonError, readJson } from "@/backend/http"
 import { flushNow } from "@/backend/store/persistence"
-import { getTeamByMember } from "@/backend/store/teams"
+import { getTeamByMemberAndAssignment } from "@/backend/store/teams"
 import { csrfCheck } from "@/backend/csrf"
 import { rateLimit, getClientIp } from "@/backend/rateLimit"
 
@@ -145,10 +145,10 @@ export async function POST(request: Request) {
   }
 
   if (teamId) {
-    const team = getTeamByMember(access.username)
+    const team = getTeamByMemberAndAssignment(access.username, assignmentId)
     if (!team || team.id !== teamId) {
       return NextResponse.json(
-        { error: "You are not a member of this team" },
+        { error: "You are not a member of this team for this assignment" },
         { status: 403 }
       )
     }

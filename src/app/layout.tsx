@@ -56,6 +56,14 @@ export const metadata: Metadata = {
     title: "KJIT Classroom",
     description: "GitHub-native project submission & portfolio management platform",
     type: "website",
+    images: [
+      {
+        url: "/KJU_Logo.webp",
+        width: 512,
+        height: 512,
+        alt: "KJIT Classroom",
+      },
+    ],
   },
 }
 

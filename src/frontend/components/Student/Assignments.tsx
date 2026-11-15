@@ -136,13 +136,9 @@ export default function Assignments() {
                     }
                     status={status}
                     progress={progress}
-                    href={
-                      submission
-                        ? `/assignments/timeline?assignmentId=${assignment.id}`
-                        : `/assignments/submit?assignmentId=${assignment.id}&sprint=0`
-                    }
+                    href={`/assignments/${assignment.id}`}
                     primaryAction={
-                      submission ? "View timeline →" : "Start Sprint 0 →"
+                      submission ? "Continue →" : "Start Sprint 0 →"
                     }
                   />
                 )

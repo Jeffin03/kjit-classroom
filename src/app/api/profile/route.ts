@@ -5,8 +5,15 @@ import {
   resolveAccess,
   toPublicAccess,
 } from "@/backend/services/permissions"
-import { getRosterByGithubUsername } from "@/backend/store/roster"
-import { getTeacherByGithubUsername } from "@/backend/store/teachers"
+import {
+  getRosterByGithubUsername,
+  updateRosterEntry,
+} from "@/backend/store/roster"
+import {
+  getTeacherByGithubUsername,
+  updateTeacherProfile,
+} from "@/backend/store/teachers"
+import { jsonError, readJson } from "@/backend/http"
 
 export async function GET(request: Request) {
   const [result, session] = await Promise.all([authenticate(), auth()])
@@ -111,5 +118,51 @@ export async function GET(request: Request) {
     teacherClasses: teacher?.classes ?? null,
     isSelf: false,
     viewerRole: caller.role,
+  })
+}
+
+export async function PATCH(request: Request) {
+  const [result] = await Promise.all([authenticate()])
+  if (!result.ok) return result.response
+
+  const caller = result.session.access
+
+  const body = await readJson<{ displayName?: string }>(request)
+  if (!body) return jsonError("Request body must be valid JSON")
+
+  const { displayName } = body
+  if (
+    displayName === undefined ||
+    typeof displayName !== "string" ||
+    !displayName.trim()
+  ) {
+    return NextResponse.json(
+      { error: "displayName is required and must be a non-empty string" },
+      { status: 400 }
+    )
+  }
+
+  const trimmedName = displayName.trim()
+
+  // Update roster entry if the caller is a student with a roster entry
+  const rosterEntry = getRosterByGithubUsername(caller.username)
+  if (rosterEntry) {
+    updateRosterEntry(rosterEntry.rollNo, rosterEntry.classTeam, {
+      displayName: trimmedName,
+    })
+  }
+
+  // Update teacher profile if the caller is a teacher
+  const teacher = getTeacherByGithubUsername(caller.username)
+  if (teacher) {
+    updateTeacherProfile(caller.username, {
+      displayName: trimmedName,
+    })
+  }
+
+  return NextResponse.json({
+    ...toPublicAccess(caller),
+    displayName: trimmedName,
+    message: "Display name updated successfully",
   })
 }

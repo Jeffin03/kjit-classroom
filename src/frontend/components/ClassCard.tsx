@@ -45,7 +45,7 @@ export default function ClassCard({
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-4 gap-2">
+      <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           ["Students", students, false],
           ["Assignments", assignments, false],

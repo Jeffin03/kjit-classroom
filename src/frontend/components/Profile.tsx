@@ -121,6 +121,9 @@ export default function Profile({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [allTeams, setAllTeams] = useState<string[]>([])
+  const [editingName, setEditingName] = useState(false)
+  const [editName, setEditName] = useState("")
+  const [savingName, setSavingName] = useState(false)
 
   const displayedRole: Role = me?.role || (isSelf ? sessionRole : "student")
   const displayedUsername = me?.username || targetUsername || sessionUsername
@@ -228,6 +231,26 @@ export default function Profile({
     }
   }, [sessionIsFaculty])
 
+  const handleSaveName = async () => {
+    setSavingName(true)
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: editName }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update name")
+      }
+      setEditingName(false)
+      setSavingName(false)
+    } catch (err) {
+      setSavingName(false)
+      alert(err instanceof Error ? err.message : "Failed to update name")
+    }
+  }
+
   if (loading || userLoading) {
     const skeleton = (
       <div className="max-w-4xl mx-auto py-8 space-y-6">
@@ -325,8 +348,53 @@ export default function Profile({
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-ink">
-                  {displayedName}
+                  {editingName ? (
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      maxLength={100}
+                      className="text-xl sm:text-2xl font-bold tracking-tight text-ink border border-border rounded px-2 py-0.5 focus:ring-2 focus:ring-accent outline-none"
+                      autoFocus
+                    />
+                  ) : (
+                    displayedName
+                  )}
                 </h1>
+                {isSelf && !editingName && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditName(displayedName || "")
+                      setEditingName(true)
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-accent hover:underline"
+                  >
+                    <span className="size-3">✎</span>
+                    <span>Edit name</span>
+                  </button>
+                )}
+                {isSelf && editingName && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={savingName}
+                      className="inline-flex items-center gap-1 text-xs text-accent hover:text-accent hover:underline disabled:opacity-50"
+                      onClick={handleSaveName}
+                    >
+                      <span className={savingName ? "animate-pulse" : ""}>
+                        {savingName ? "Saving&hellip;" : "Save"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingName(false)}
+                      className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-accent hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
                 <RoleBadge role={displayedRole} size="sm" />
               </div>
 

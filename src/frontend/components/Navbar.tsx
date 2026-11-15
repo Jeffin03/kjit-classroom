@@ -94,7 +94,7 @@ export default function Navbar() {
             )}
           </div>
 
-          {session && (
+          {isFaculty && (
             <button
               type="button"
               onClick={() => setHelpOpen(true)}

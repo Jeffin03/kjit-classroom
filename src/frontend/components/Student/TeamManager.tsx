@@ -28,9 +28,8 @@ export default function TeamManager({
   // Form state
   const [formAssignmentId, setFormAssignmentId] = useState(propAssignmentId || "")
   const [projectTitle, setProjectTitle] = useState("")
-  const [member1, setMember1] = useState(username || "")
-  const [member2, setMember2] = useState("")
-  const [member3, setMember3] = useState("")
+  // Two optional teammate slots; the creator is added server-side as lead.
+  const [teammates, setTeammates] = useState<string[]>(["", ""])
   const [joinTeamId, setJoinTeamId] = useState("")
   const [joinRollNo, setJoinRollNo] = useState("")
 
@@ -79,7 +78,10 @@ export default function TeamManager({
   }, [])
 
   const memberUsernames = () =>
-    [member1, member2, member3].filter(Boolean).map((u) => u.trim())
+    teammates.map((u) => u.trim()).filter(Boolean)
+
+  const setTeammate = (index: number, value: string) =>
+    setTeammates((prev) => prev.map((u, i) => (i === index ? value : u)))
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,12 +89,10 @@ export default function TeamManager({
     setError(null)
     try {
       const members = memberUsernames()
-      if (members.length < 1 || members.length > 3) {
-        setError("Add between 1 and 3 teammates")
-        return
-      }
-      if (!members.includes(username || "")) {
-        setError("You must include yourself in the team")
+      if (members.length > 2) {
+        setError(
+          "Add up to 2 teammates — you're added to the team automatically"
+        )
         return
       }
       if (!formAssignmentId) {
@@ -119,9 +119,7 @@ export default function TeamManager({
       setCreateOpen(false)
       setFormAssignmentId(propAssignmentId || "")
       setProjectTitle("")
-      setMember1(username || "")
-      setMember2("")
-      setMember3("")
+      setTeammates(["", ""])
       refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create team")
@@ -364,34 +362,38 @@ export default function TeamManager({
 
               <div>
                 <label className="block text-xs font-semibold text-ink-muted mb-1.5">
-                  Teammates <span className="font-normal text-ink-faint">(max 3 total, including you)</span>
+                  Teammates <span className="font-normal text-ink-faint">(optional, up to 2)</span>
                 </label>
+                <p className="mb-2 flex items-center gap-2 rounded-lg border border-border bg-canvas px-3 py-2 text-sm text-ink">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
+                    {(username || "?").charAt(0).toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {username || "You"}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
+                    Lead
+                  </span>
+                </p>
                 <div className="space-y-2">
                   <input
                     type="text"
-                    value={member1}
-                    onChange={(e) => setMember1(e.target.value)}
-                    placeholder="Your GitHub username"
-                    className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={member2}
-                    onChange={(e) => setMember2(e.target.value)}
-                    placeholder="Teammate 2 (optional)"
+                    value={teammates[0]}
+                    onChange={(e) => setTeammate(0, e.target.value)}
+                    placeholder="Teammate 1 GitHub username (optional)"
                     className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                   />
                   <input
                     type="text"
-                    value={member3}
-                    onChange={(e) => setMember3(e.target.value)}
-                    placeholder="Teammate 3 (optional)"
+                    value={teammates[1]}
+                    onChange={(e) => setTeammate(1, e.target.value)}
+                    placeholder="Teammate 2 GitHub username (optional)"
                     className="w-full rounded-lg border border-border bg-canvas px-3 py-2.5 text-sm focus:ring-2 focus:ring-accent-soft focus:border-accent outline-none"
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-ink-faint">
-                  Teammates must already be on the class roster.
+                  You&rsquo;re added automatically. Teammates must already be on
+                  the class roster.
                 </p>
               </div>
 

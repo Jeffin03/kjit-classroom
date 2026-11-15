@@ -222,13 +222,10 @@ export default function AssignmentDetailPage({
         return
       }
       const rollNos = parseRollNumbers(createTeamMembers)
-      if (rollNos.length < 1 || rollNos.length > 3) {
-        setSubmitError("Add between 1 and 3 teammates")
-        setCreatingTeam(false)
-        return
-      }
-      if (!rollNos.includes(username.toUpperCase())) {
-        setSubmitError("You must include yourself in the team")
+      if (rollNos.length > 2) {
+        setSubmitError(
+          "Add up to 2 teammates — you're added to the team automatically"
+        )
         setCreatingTeam(false)
         return
       }
@@ -240,14 +237,8 @@ export default function AssignmentDetailPage({
         setCreatingTeam(false)
         return
       }
+      // Teammates only — the API adds the creator as the lead.
       const members = rollNos.map((r) => teammateLookup[r]!.githubUsername)
-      if (!members.some((m) => m.toLowerCase() === username.toLowerCase())) {
-        setSubmitError(
-          "Include your own roll number so you end up on the team"
-        )
-        setCreatingTeam(false)
-        return
-      }
       const res = await fetch("/api/teams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -394,7 +385,7 @@ export default function AssignmentDetailPage({
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
-                      Teammate Roll Numbers (comma-separated, max 3 total including you)
+                      Teammate roll numbers (optional, up to 2)
                     </label>
                     <input
                       type="text"
@@ -411,6 +402,10 @@ export default function AssignmentDetailPage({
                       placeholder="e.g. 25MCAB24, 25MCAB25"
                       className="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-soft)]"
                     />
+                    <p className="mt-1.5 text-xs text-[var(--color-ink-faint)]">
+                      You ({username}) will be added as the team lead. Leave this
+                      empty to work alone.
+                    </p>
                     {uniqueRollNos.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {uniqueRollNos.map((r) => {
@@ -453,7 +448,7 @@ export default function AssignmentDetailPage({
                       disabled={
                         creatingTeam ||
                         !allTeammatesLookedUp ||
-                        uniqueRollNos.length === 0
+                        uniqueRollNos.length > 2
                       }
                       className="w-full min-h-11"
                     >

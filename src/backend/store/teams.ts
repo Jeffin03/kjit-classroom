@@ -112,6 +112,30 @@ export function getTeamsWithRoster(assignmentId?: string): TeamWithRoster[] {
   return list.map((t) => resolveTeamRoster(t))
 }
 
+/**
+ * Build the final member list for a new team. The creator is always included
+ * and placed first (which makes them the lead); `requested` only carries the
+ * teammates they typed. Duplicates and blanks are dropped case-insensitively,
+ * so typing your own handle is harmless.
+ */
+export function resolveTeamMembers(
+  creator: string,
+  requested: readonly string[]
+): string[] {
+  const list: string[] = []
+  const seen = new Set<string>()
+  for (const raw of [creator, ...requested]) {
+    if (typeof raw !== "string") continue
+    const name = raw.trim()
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    list.push(name)
+  }
+  return list
+}
+
 export function createTeam(input: CreateTeamInput): Team {
   // Validate team size: 1-3 members
   if (!input.members || input.members.length < 1 || input.members.length > 3) {

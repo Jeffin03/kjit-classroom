@@ -3,6 +3,7 @@ import {
   createTeam,
   getTeamByMemberAndAssignment,
   joinTeam,
+  resolveTeamMembers,
 } from "./teams"
 
 const ASSIGNMENT_A = "test-assignment-a"
@@ -138,5 +139,49 @@ describe("teams store", () => {
         consentToExistingProject: true,
       })
     ).toThrow(/already a member/i)
+  })
+})
+
+describe("resolveTeamMembers", () => {
+  it("always puts the creator first, even with no teammates", () => {
+    expect(resolveTeamMembers("creator", [])).toEqual(["creator"])
+  })
+
+  it("adds the creator ahead of the requested teammates", () => {
+    expect(resolveTeamMembers("creator", ["alice", "bob"])).toEqual([
+      "creator",
+      "alice",
+      "bob",
+    ])
+  })
+
+  it("dedupes the creator and repeats case-insensitively", () => {
+    expect(
+      resolveTeamMembers("Creator", ["creator", "ALICE", "alice", ""])
+    ).toEqual(["Creator", "ALICE"])
+  })
+
+  it("trims whitespace and ignores blank entries", () => {
+    expect(resolveTeamMembers("creator", ["  alice  ", "   "])).toEqual([
+      "creator",
+      "alice",
+    ])
+  })
+
+  it("makes the creator the lead when the team is created", () => {
+    const creator = "leadcreator"
+    const members = resolveTeamMembers(creator, ["mate1", "mate2"])
+
+    const team = createTeam({
+      assignmentId: "test-assignment-lead",
+      projectTitle: "Lead check",
+      members,
+    })
+
+    expect(team.members[0].username).toBe(creator)
+    expect(team.members[0].isLead).toBe(true)
+    expect(team.members.some((m) => m.isLead && m.username !== creator)).toBe(
+      false
+    )
   })
 })

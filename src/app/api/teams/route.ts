@@ -9,6 +9,7 @@ import {
   getTeamsByAssignment,
   getTeamByMember,
   getTeamByMemberAndAssignment,
+  resolveTeamMembers,
 } from "@/backend/store/teams"
 import { getAssignment } from "@/backend/store/assignments"
 import { isStudentAssigned } from "@/backend/services/assignment.service"
@@ -118,10 +119,16 @@ export async function POST(request: Request) {
     return jsonError("assignmentId, projectTitle, and members are required")
   }
 
-  if (!assignmentId || !projectTitle || members.length < 1 || members.length > 3) {
-    return jsonError(
-      "Invalid input: projectTitle required, members must be 1-3"
-    )
+  if (!assignmentId || !projectTitle.trim()) {
+    return jsonError("assignmentId and projectTitle are required")
+  }
+
+  // The creator is always on the team and leads it; `members` only carries
+  // the teammates they typed.
+  const memberList = resolveTeamMembers(access.username, members)
+
+  if (memberList.length > 3) {
+    return jsonError("A team can have at most 3 members, including you")
   }
 
   const assignment = getAssignment(assignmentId)
@@ -136,16 +143,11 @@ export async function POST(request: Request) {
     )
   }
 
-  // Creator must be in the members list
-  if (!members.includes(access.username)) {
-    return jsonError("You must include yourself in the team members list")
-  }
-
   try {
     const team = createTeam({
       assignmentId,
       projectTitle: projectTitle.trim(),
-      members,
+      members: memberList,
       creatorRollNo,
     })
     await flushNow()
